@@ -1,74 +1,53 @@
 # Документация DeckWeave
 
-DeckWeave — публичная modular desktop platform для объединения устройств, приложений, визуальных поверхностей и автоматизаций. Документация отделяет подтверждённые требования, стабильные контракты и отложенные runtime-компоненты, чтобы первая N4 Pro версия не зависела от реализации всего будущего продукта.
+DeckWeave объединяет устройства и приложения через плагины: ввод, действия с результатами, визуальные поверхности, подсветку и будущие media streams. Текущий статус — **архитектурная спецификация; исполняемый код не создан**. Контракты уточнены сравнением исходников 2026-10-12; работа начинается с [Фазы 1](implementation/roadmap.md#фаза-1--скелет-репозитория).
 
-## Рекомендуемый порядок чтения
+## Порядок чтения
 
-1. [PREPROJECT.md](PREPROJECT.md) — зачем существует проект и какие решения подтверждены.
-2. [REQUIREMENTS.md](REQUIREMENTS.md) — проверяемые требования и первая сквозная приёмка.
-3. [MODES.md](MODES.md) — как сочетаются deployment, workspace, input и plugin modes.
-4. [ARCHITECTURE.md](ARCHITECTURE.md) — границы системы и data flow.
-5. [RUNTIME_CONTRACTS.md](RUNTIME_CONTRACTS.md) — совместные контракты отказа, порядка и восстановления.
-6. [PLAN.md](PLAN.md) — порядок реализации рабочими срезами.
+1. [Замысел](product/vision.md), [сценарии](product/scenarios.md) и [требования](product/requirements.md): что должно получиться и как это проверить.
+2. [Архитектура](architecture/overview.md): владельцы состояния, процессы и зависимости.
+3. Нужный контракт из таблицы ниже и соответствующая [граница модуля](architecture/modules/README.md).
+4. [План реализации](implementation/roadmap.md): ближайший рабочий срез и acceptance gate.
+5. [Решения](decisions/README.md) и [исследование исходников](research/implementation-review.md): почему выбраны эти границы.
 
-## Спецификации
+## Карта разделов
 
-| Документ | Назначение |
+| Каталог | Что хранится | Точка входа |
+|---|---|---|
+| `product/` | Назначение, требования, сценарии, режимы и UX | [Замысел](product/vision.md), [режимы](product/modes.md), [UX](product/ux.md) |
+| `architecture/` | Устройство системы и границы модулей | [Обзор](architecture/overview.md), [модули](architecture/modules/README.md) |
+| `contracts/` | Нормативное поведение на границах | Таблица ниже |
+| `implementation/` | Порядок реализации, срезы и проверки | [План](implementation/roadmap.md) |
+| `decisions/` | Нумерованные ADR с причиной выбора | [Реестр ADR](decisions/README.md) |
+| `research/` | Первичные источники, наблюдения, сравнение и reuse-кандидаты | [Референсы](research/REFERENCES.md), [анализ реализаций](research/implementation-review.md) |
+| `archive/` | Исторические материалы, не текущие требования | [Исходный стек](archive/initial-stack.md), [первый аудит](archive/2026-10-12-initial-audit.md) |
+
+## Контракты
+
+| Документ | Единственный владелец подробных правил |
 |---|---|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Системный контекст, процессы, компоненты и evolution rules |
-| [RUNTIME_CONTRACTS.md](RUNTIME_CONTRACTS.md) | Нормативные apply/recovery, epochs, ordering, resources, frames и migrations |
-| [ARCHITECTURE_AUDIT.md](ARCHITECTURE_AUDIT.md) | Аудит 2026-10-12: проблемы, исправления, проверки и оставшиеся spikes |
-| [CAPABILITY_MODEL.md](CAPABILITY_MODEL.md) | Nodes, devices, elements, ports, identity и временная семантика |
-| [PLUGIN_MODEL.md](PLUGIN_MODEL.md) | Package format, contributions, protocol, lifecycle, SDK и catalog |
-| [COMPATIBILITY.md](COMPATIBILITY.md) | OpenAction/Elgato levels и будущий Companion bridge |
-| [API.md](API.md) | Общий application API для desktop UI, CLI, Codex и MCP |
-| [SECURITY.md](SECURITY.md) | Trust tiers, permissions, secrets и опасные операции |
-| [UI.md](UI.md) | UX-принципы, editors, click budgets и состояния |
-| [research/REFERENCES.md](research/REFERENCES.md) | Первичные источники и правила заимствования |
-| [research/stack.md](research/stack.md) | Исходное пользовательское исследование; сохраняется без переписывания |
+| [Capabilities](contracts/capabilities.md) | Identity, descriptors, port semantics, dynamic topology и negotiation |
+| [Plugins](contracts/plugins.md) | Package/manifest, runtime classes, handshake, feature/limit negotiation и SDK |
+| [Lifecycle](contracts/lifecycle.md) | Revisions/apply/recovery, epochs, ingress order, leases и frame delivery |
+| [Automation](contracts/automation.md) | Typed results/jobs, run scope, artifacts, collections, joins и layers |
+| [Lighting](contracts/lighting.md) | Physical geometry, key/LED mapping, effects, output ownership и onboard границы |
+| [Media](contracts/media.md) | Будущие negotiated streams, buffer ownership, clock и RT lifecycle; ABI ещё не выбран |
+| [Application API](contracts/application-api.md) | Commands/queries/subscriptions, authorization, dedup и adapters |
+| [Security](contracts/security.md) | Trust, grants, private data, privileged operations и web isolation |
+| [Compatibility](contracts/compatibility.md) | OpenAction/Elgato levels, context/settings mapping и ограниченные legacy results |
 
-## ADR
+## Как расширять документацию
 
-| ADR | Решение |
-|---|---|
-| [0001](adr/0001-stack-and-product-shape.md) | Rust modular monolith, Tauri/Svelte, Windows-first |
-| [0002](adr/0002-plugin-execution.md) | Общий package format и несколько runtime classes |
-| [0003](adr/0003-storage.md) | Versioned documents, revisions, snapshots и asset store |
-| [0004](adr/0004-concurrency-and-realtime.md) | Deterministic control plane и отдельный media data plane |
-| [0005](adr/0005-failure-isolation.md) | Process isolation, bounded queues и degraded operation |
-| [0006](adr/0006-openaction-compatibility.md) | OpenAction/Elgato bridge на границе |
-| [0007](adr/0007-licensing.md) | GPL application/core и permissive protocol SDK |
-| [0008](adr/0008-api-first-and-revisions.md) | Единый application API и optimistic revisions |
-| [0009](adr/0009-surface-scene-model.md) | Непрерывный scene canvas и независимые hit regions |
-| [0010](adr/0010-compiled-automation-plan.md) | Draft graph компилируется в immutable execution plan |
-| [0011](adr/0011-deployment-modes.md) | Per-user tray host и portable distribution |
-| [0012](adr/0012-apply-and-execution-lifecycle.md) | Durable apply, execution epochs и outcome/recovery semantics |
-| [0013](adr/0013-dependency-and-host-service-boundaries.md) | Ациклические dependencies и минимальные host OS services |
+- Новая пользовательская способность начинается со сценария и требования с постоянным ID. Статус design/fixture/real integration различается явно.
+- Правило поведения записывается в один тематический contract. Обзор и module file кратко описывают границу и ссылаются на правило; plan задаёт проверку, не пересказывает protocol.
+- Изменение общего решения получает следующий ADR; небольшой provider-specific detail остаётся в модуле/исследовании. Новый документ создаётся при отдельной ответственности, а не для каждой сессии обсуждения.
+- Исследование разделяет source observation, вывод для DeckWeave и непроверенную гипотезу. Репозитории/файлы имеют pinned commit; hardware и бинарные releases требуют отдельного evidence.
+- Исторические исследования и отчёты уходят в `archive/` с явным статусом. Они не изменяют актуальные контракты. Исходный `initial-stack.md` сохранён без переписывания.
+- При переносе файла обновляются все локальные links/anchors и корневые индексы. Redirect-копии и параллельные версии одной спецификации не создаются.
+- Перед commit проверяются local links/anchors, requirement IDs, task→contract/module links, индексы, JSON examples и отсутствие противоречий между requirement, contract и plan.
 
-## Модули
+При расхождении product определяет желаемый результат, contracts — точное поведение, ADR — причину выбора, plan — сроки проверки. Несовместимые утверждения исправляются вместе; исследование или старый audit не имеют права молча переопределить contract. Принятое решение ещё не является runtime-гарантией.
 
-| Модуль | Ответственность |
-|---|---|
-| [Domain & Protocol](../modules/domain-protocol.md) | Стабильные ID, schemas, envelopes и wire contracts |
-| [Host Runtime](../modules/host-runtime.md) | Lifecycle, active revision и координация |
-| [Host Platform Services](../modules/host-platform-services.md) | Locks, data roots, credentials, grants, autostart и process cleanup |
-| [Capability Registry](../modules/capability-registry.md) | Nodes, devices, elements, ports и availability |
-| [Plugin Supervisor](../modules/plugin-supervisor.md) | Discovery, permissions, process lifecycle и health |
-| [Automation Engine](../modules/automation-engine.md) | Compile, state, layers, schedules и execution |
-| [Profile Store](../modules/profile-store.md) | Drafts, revisions, snapshots, assets и export |
-| [Surface Compositor](../modules/surface-compositor.md) | Scene graph, hit testing и frame scheduling |
-| [Widget Runtime](../modules/widget-runtime.md) | Изолированные custom web widgets |
-| [Desktop Shell](../modules/desktop-shell.md) | Tauri tray UI и editors |
-| [Local API](../modules/local-api.md) | Commands, queries, subscriptions и Codex access |
-| [Compatibility Host](../modules/compatibility-host.md) | OpenAction/Elgato translation |
-| [Platform Adapters](../modules/platform-adapters.md) | OS input/output, active app и virtual targets |
-| [Device Studio](../modules/device-studio.md) | Discovery, calibration, capture и conformance |
-| [N4 Pro Plugin](../modules/n4pro-plugin.md) | Mirabox-specific protocol и capabilities |
-| [Gamepad Plugin](../modules/gamepad-plugin.md) | Buttons, axes, motion и haptics |
-| [Remote Agent](../modules/remote-agent.md) | Paired network nodes и future media permissions |
-| [Media Runtime](../modules/media-runtime.md) | Future low-latency audio/video graph |
-| [Diagnostics & Test Lab](../modules/diagnostics-test-lab.md) | Traces, replay, metrics и fixtures |
+## Перенос прежней структуры
 
-## Текущий статус
-
-Текущая фаза: **спецификация пересмотрена аудитом 2026-10-12; реализация не начата**. Следующая работа — [Фаза 1](PLAN.md#фаза-1--скелет-репозитория). Контракты остаются требованиями до прохождения fixtures; ни одна отложенная возможность не должна добавляться в core раньше своего acceptance test и ADR. Исторический `research/stack.md` не является нормативной спецификацией.
+Корневые `docs/PREPROJECT.md`, `REQUIREMENTS.md`, `MODES.md`, `UI.md` перенесены в `product/`; `ARCHITECTURE.md` — в `architecture/overview.md`; модели/API/security/lifecycle — в `contracts/`; `PLAN.md` — в `implementation/roadmap.md`. Прежний корневой `modules/` теперь находится в `docs/architecture/modules/`, `docs/adr/` — в `docs/decisions/`. Путь [research/REFERENCES.md](research/REFERENCES.md) сохранён как стабильная точка входа в референсы.

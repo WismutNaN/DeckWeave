@@ -1,66 +1,50 @@
 # Референсы DeckWeave
 
-Документ фиксирует, какие решения из сторонних проектов исследуются и какие границы запрещают механический перенос их архитектуры или кода. Ссылки ведут на первичные репозитории и официальную документацию.
+Реестр первичных источников. Исследование исходников выполнено 2026-10-12; commits зафиксированы ниже, чтобы выводы не зависели от изменяющейся ветки. Разобранные файлы, обнаруженные ограничения, альтернативы и кандидаты переиспользования находятся в [анализе реализаций](implementation-review.md). Это не перечень обязательных dependencies.
 
-## Карта применимости
+## Зафиксированные версии
 
-| Референс | Что проверяем | Что берём | Что не переносим |
-|---|---|---|---|
-| [OpenDeck](https://github.com/nekename/OpenDeck) | Host для OpenAction/Elgato, запуск плагинов, property inspectors, профили | Lifecycle отдельного процесса, WebSocket bridge, manifest discovery, recovery хранения | Модель, где основной контекст всегда является кнопкой/энкодером Stream Deck; ecosystem-specific domain внутри core |
-| [OpenAction](https://github.com/OpenActionAPI/docs) | Платформенно-независимый protocol и обратная совместимость | Базовый vocabulary событий, open plugin ecosystem, тестовые плагины | Расширять legacy protocol так, чтобы он определял внутреннюю модель DeckWeave |
-| [Elgato Stream Deck SDK](https://docs.elgato.com/streamdeck/sdk/) | Фактический manifest, process arguments, WebSocket registration и property inspector | Compatibility fixtures и ожидаемое поведение популярных плагинов | Предположение, что все устройства имеют только `Keypad` и `Encoder` |
-| [OpenAction plugin catalogue](https://github.com/OpenActionAPI/plugins) | Открытые плагины для conformance | Небольшой публичный набор проверяемых плагинов | Обещание совместимости со всеми закрытыми marketplace-плагинами |
-| [InputPlumber](https://github.com/ShadowBlip/InputPlumber) | Composite devices, source/target mapping, profiles | Разделение source/target, декларативный match, виртуальные targets | Linux-specific daemon architecture как обязательная форма DeckWeave |
-| [Kanata](https://github.com/jtroo/kanata) | Слои, tap/hold, детерминированный event loop | Семантика времени, тестируемые state machines, OS adapters | Конфигурационный язык как единственный пользовательский интерфейс |
-| [Wooting Analog SDK](https://github.com/WootingKb/wooting-analog-sdk) | Device plugins для аналоговых клавиатур | Нормализация аналоговых измерений, stable ABI как референс, virtual keyboard | Сведение всех аналоговых величин к «силе нажатия» |
-| [StreamDock Device SDK](https://github.com/MiraboxSpace/StreamDock-Device-SDK) | N4 Pro: framebuffer, touch, LED, vibration, hot-plug | Реализация отдельного N4 Pro provider и hardware fixtures | Mirabox-команды в ядре DeckWeave |
-| [opendeck-akp05](https://github.com/ambiso/opendeck-akp05) | Практический N4-family provider | Discovery, keepalive, disconnect cleanup, устройство как плагин | Фиксированное разбиение непрерывного touch-display на legacy encoder slots |
-| [GStreamer](https://gstreamer.freedesktop.org/documentation/) | Граф audio/video: sources, filters, sinks, typed pads | Идея stream-портов, negotiation и lazy loading media elements | Собственный медиадвижок в control runtime |
-| [PipeWire](https://docs.pipewire.org/) | Low-latency graph и out-of-process processing | Требования к real-time data plane и Linux adapter | PipeWire как обязательная зависимость на Windows/macOS |
-| [CLAP](https://github.com/free-audio/clap) | Стабильный ABI аудиоэффектов и thread contracts | Будущий bridge к готовым EQ/noise plugins, validator-driven совместимость | Исполнение непроверенного native DSP в главном процессе |
-| [Android MediaProjection](https://developer.android.com/media/grow/media-projection) | Удалённый экран и системные разрешения | Remote agent с явно выдаваемыми сессиями и отзывом доступа | Постоянный скрытый доступ к экрану, камере или микрофону |
-| [Model Context Protocol Rust SDK](https://github.com/modelcontextprotocol/rust-sdk) | Optional MCP adapter для Codex/LLM clients | Отдельный adapter поверх стабильного local API | MCP как внутренний transport или источник истины |
-| [Bitfocus Companion](https://github.com/bitfocus/companion) | Будущий bridge к modules/actions/variables | Version-pinned compatibility process и conformance matrix | Зависимость native runtime от внутреннего tRPC |
-
-## Наиболее важные проверенные решения
-
-### OpenDeck и OpenAction
-
-OpenDeck использует Rust/Tauri host, запускает плагины отдельными процессами, выделяет им WebSocket endpoint и обслуживает HTML property inspectors. Это доказывает практичность compatibility host, но не требует использовать его внутреннюю модель `device/profile/controller/position` в DeckWeave.
-
-OpenAction заявляет обратную совместимость со Stream Deck SDK и независимость от языка и устройства. Поэтому DeckWeave сначала реализует общую подмножество Elgato/OpenAction, а собственные расширения публикует отдельно и никогда не выдаёт их за возможности исходного SDK.
-
-### Общая модель устройств
-
-InputPlumber показывает полезность композиции нескольких физических sources в логическое устройство и раздельных target devices. Kanata показывает, что time-sensitive keyboard semantics необходимо реализовывать детерминированным state machine, а не цепочкой произвольных async callbacks. Wooting SDK показывает, что аналоговое устройство должно объявлять собственные измерения и диапазоны через provider.
-
-### Визуальные поверхности
-
-Официальный Mirabox SDK документирует временный полноэкранный background stream N4 Pro и touch events с координатами. Следовательно, DeckWeave должен моделировать `DisplaySurface` и независимые `TouchRegion`, а не наследовать сетку legacy-кнопок. Изображения отдельных LCD-клавиш остаются частным видом surface target.
-
-### Аудио и видео
-
-GStreamer связывает элементы через типизированные source/sink pads и загружает plugin только при запросе его element. PipeWire отделяет graph processing от управления и поддерживает low-latency out-of-process graph. CLAP задаёт стабильный ABI и явные требования к audio-thread. Вместе эти решения подтверждают необходимость отдельного media runtime, управляемого DeckWeave, но не исполняемого обычным JSON event loop.
-
-### Удалённые узлы
-
-Android требует явного пользовательского разрешения на MediaProjection и позволяет отозвать его в любой момент. Remote agent поэтому объявляет возможности отдельно от активных grants: наличие камеры или экрана не означает, что поток уже доступен.
-
-## Лицензионные границы
-
-| Проект | Лицензия на момент исследования | Политика DeckWeave |
+| Проект | Commit | Проверенная область |
 |---|---|---|
-| StreamDock Device SDK | MIT | Допускается использование с атрибуцией и проверкой конкретных файлов |
-| OpenDeck | GPL-3.0-or-later | Совместимо с GPL application/core при сохранении notices/provenance; не переносить его device-centric domain автоматически |
-| opendeck-akp05 | GPL-3.0 | Возможное заимствование только в GPL first-party plugin с origin/revision/modifications; hardware behavior проверять fixtures |
-| InputPlumber | GPL-3.0-or-later | Возможное заимствование только после проверки границ/платформенной применимости; не переносить Linux daemon architecture целиком |
-| Kanata | LGPL-3.0 | Использование библиотеки или кода требует отдельной проверки способа линковки и модификаций |
-| Wooting Analog SDK | MPL-2.0 | Возможна файловая совместимость при соблюдении MPL; проверять перед заимствованием |
-| CLAP | MIT | Кандидат для будущего audio compatibility bridge |
-| DeckWeave protocol/SDK | MIT OR Apache-2.0 | Отдельные packages; позволяют независимым plugins использовать contracts |
+| [nekename/OpenDeck](https://github.com/nekename/OpenDeck) | [66db15d9d5d41597772a4f209cd6a93b498fc7df](https://github.com/nekename/OpenDeck/tree/66db15d9d5d41597772a4f209cd6a93b498fc7df) | Host/lifecycle, contexts и settings |
+| [ShadowBlip/InputPlumber](https://github.com/ShadowBlip/InputPlumber) | [d951ef9df713a3ad3a88645a8c07b79ea5592274](https://github.com/ShadowBlip/InputPlumber/tree/d951ef9df713a3ad3a88645a8c07b79ea5592274) | Source/target/composite traits и буферы |
+| [jtroo/kanata](https://github.com/jtroo/kanata) | [c391826f6bbc8d5dc1645bbedc5596e22ae5982a](https://github.com/jtroo/kanata/tree/c391826f6bbc8d5dc1645bbedc5596e22ae5982a) | Keyberon event/tick/layer state и лицензии subpackages |
+| [WootingKb/wooting-analog-sdk](https://github.com/WootingKb/wooting-analog-sdk) | [be35a629bd79967012da4dcb731fa9e5a6d3c132](https://github.com/WootingKb/wooting-analog-sdk/tree/be35a629bd79967012da4dcb731fa9e5a6d3c132) | C ABI, buffer/callback lifetime, plugins |
+| [MiraboxSpace/StreamDock-Device-SDK](https://github.com/MiraboxSpace/StreamDock-Device-SDK) | [b63be85c687d3d31e3e2b7e32dddc9a50efa5ed9](https://github.com/MiraboxSpace/StreamDock-Device-SDK/tree/b63be85c687d3d31e3e2b7e32dddc9a50efa5ed9) | N4 C++/Python, touch decoder, background frames и RGB |
+| [ambiso/opendeck-akp05](https://github.com/ambiso/opendeck-akp05) | [8f7742b7ba3125ca2a9df106b18fbf227e37a0d5](https://github.com/ambiso/opendeck-akp05/tree/8f7742b7ba3125ca2a9df106b18fbf227e37a0d5) | Device output, keepalive, cancellation и watcher |
+| [free-audio/clap](https://github.com/free-audio/clap) | [a47f6badb49d948fd009998f28309cdab78979c9](https://github.com/free-audio/clap/tree/a47f6badb49d948fd009998f28309cdab78979c9) | Lifecycle, params, audio ports и thread contracts |
+| [OpenActionAPI/docs](https://github.com/OpenActionAPI/docs) | [ffe2564bd42f54b19443cf1dac821adf6a85a848](https://github.com/OpenActionAPI/docs/tree/ffe2564bd42f54b19443cf1dac821adf6a85a848) | Manifest, registration, device/settings API |
+| [OpenActionAPI/plugins](https://github.com/OpenActionAPI/plugins) | [32d7ec36492bbdadc99d92df601fbab30dbb67c8](https://github.com/OpenActionAPI/plugins/tree/32d7ec36492bbdadc99d92df601fbab30dbb67c8) | Каталог кандидатов fixtures; не аудит кода всех packages |
+| [bitfocus/companion](https://github.com/bitfocus/companion) | [404070f390b8b18530c46f9040211a5004947fd9](https://github.com/bitfocus/companion/tree/404070f390b8b18530c46f9040211a5004947fd9) | Action results, abort и framed IPC |
+| [CalcProgrammer1/OpenRGB](https://github.com/CalcProgrammer1/OpenRGB) | [4d17bac5b8f34746847e25bd42189cde8014f0cc](https://github.com/CalcProgrammer1/OpenRGB/tree/4d17bac5b8f34746847e25bd42189cde8014f0cc) | RGBController LEDs/zones/matrix/modes |
+| [node-red/node-red](https://github.com/node-red/node-red) | [935b8d3e12ec8be064f3a72ac6547131f778a7b1](https://github.com/node-red/node-red/tree/935b8d3e12ec8be064f3a72ac6547131f778a7b1) | Node receive/send/done и message fan-out |
+| [cjpais/Handy](https://github.com/cjpais/Handy) | [48a3d8e9ee456c1c6a3b7223779271c457890b4d](https://github.com/cjpais/Handy/tree/48a3d8e9ee456c1c6a3b7223779271c457890b4d) | CLI, headless execution и interactive output pipeline |
+| [qmk/qmk_firmware](https://github.com/qmk/qmk_firmware) | [7a1bbf37c5c07da4ea0a162bb139083a46ef40a1](https://github.com/qmk/qmk_firmware/tree/7a1bbf37c5c07da4ea0a162bb139083a46ef40a1) | RGB matrix types, positions и LED flags |
 
-Application/core DeckWeave планируется под GPL-3.0-or-later, а protocol/SDK/examples — под MIT OR Apache-2.0. Этот раздел не заменяет юридическую проверку перед публикацией релиза. Для каждого заимствования в PR должны быть указаны источник, версия, лицензия, способ использования и изменения.
+Исходники получены через read-only git fetch/show; build, install scripts и сторонние executable не запускались. По OpenAction catalogue проверялась metadata, а не реализация перечисленных plugins. По остальным строкам исследовались выбранные source files, не весь репозиторий. Наличие функции в source HEAD не означает её наличие в стабильном binary release.
 
-## Дополнительное исходное исследование
+## Официальная документация
 
-[stack.md](stack.md) содержит первый развёрнутый анализ стека и мотивацию самостоятельного Rust-ядра. Он сохранён как исходное исследование и поэтому может содержать раннее предложение permissive-лицензии. Настоящий документ и [ADR-0007](../adr/0007-licensing.md) фиксируют последующее подтверждённое решение: GPL application/core и permissive protocol/SDK.
+| Источник | Проверенная граница |
+|---|---|
+| [Elgato WebSocket](https://docs.elgato.com/streamdeck/sdk/references/websocket/plugin/), [settings](https://docs.elgato.com/streamdeck/sdk/guides/settings/) | Launch/registration/context и settings compatibility |
+| [GStreamer pads](https://gstreamer.freedesktop.org/documentation/application-development/basics/pads.html), [negotiation](https://gstreamer.freedesktop.org/documentation/plugin-development/advanced/negotiation.html) | Dynamic/request pads, exact caps и converters |
+| [PipeWire objects](https://docs.pipewire.org/page_objects_design.html) | Media graph и session-management boundary |
+| [Android MediaProjection](https://developer.android.com/media/grow/media-projection) | Consent, session lifecycle и отзыв захвата |
+| [MCP Rust SDK](https://github.com/modelcontextprotocol/rust-sdk) | Optional внешний adapter к application API |
+
+Документация проверена 2026-10-12 без pin полного upstream website. Перед implementation обновляется конкретная версия SDK/API; эти источники не использовались как доказательство Windows driver support или hardware timing.
+
+## Как использовать референс
+
+1. Найти конкретную проблему и прочитать соответствующий source path из [анализа](implementation-review.md).
+2. Сравнить runtime, ownership, failure и license boundaries с DeckWeave; не переносить чужую domain model автоматически.
+3. Выбрать adapter, dependency, vendoring отдельных файлов либо собственную небольшую реализацию; зафиксировать tradeoff в ADR, если меняется общий контракт.
+4. Для заимствования записать origin/commit/files/license/notices/modifications и update strategy. Проверить зависимости и headers выбранных файлов отдельно.
+5. Подтвердить перенос fixture или benchmark. Заявление README и наличие метода не заменяют conformance.
+
+Лицензионные наблюдения и конкретные reuse-кандидаты: [матрица](implementation-review.md#кандидаты-переиспользования). Стратегия приложения и SDK: [ADR-0007](../decisions/0007-licensing.md).
+
+## История
+
+[Первоначальное исследование стека](../archive/initial-stack.md) сохранено как исторический материал. Его ранние предложения могут расходиться с принятыми решениями; нормативны текущие product/contracts и ADR. [Первый аудит](../archive/2026-10-12-initial-audit.md) предшествует этому сравнению исходников.
