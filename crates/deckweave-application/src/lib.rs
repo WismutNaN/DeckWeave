@@ -2,7 +2,7 @@
 //! Порты application layer без зависимостей от Tauri и реализаций ОС.
 
 use std::{
-    path::PathBuf,
+    path::{Path, PathBuf},
     process::{Child, Command},
 };
 
@@ -51,6 +51,26 @@ pub trait ChildProcessGuard: Send {
 pub trait ChildProcessPolicy: Send + Sync {
     fn configure(&self, command: &mut Command) -> Result<(), PlatformError>;
     fn attach(&self, child: &mut Child) -> Result<Box<dyn ChildProcessGuard>, PlatformError>;
+}
+
+#[derive(Debug, Error)]
+pub enum StorageError {
+    #[error("durable storage недоступно: {0}")]
+    Unavailable(String),
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+}
+
+/// Minimal durability port used by JSON source-of-truth stores. The adapter
+/// must create the replacement on the same filesystem, flush it before
+/// publication and replace `target` atomically for the current OS.
+pub trait AtomicFileStore: Send + Sync {
+    fn write_atomic(
+        &self,
+        target: &Path,
+        bytes: &[u8],
+        backup: Option<&Path>,
+    ) -> Result<(), StorageError>;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]

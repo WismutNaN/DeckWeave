@@ -15,6 +15,7 @@ deckweave-domain = { version = "0.1.0", path = "crates/deckweave-domain" }
 deckweave-protocol = { version = "0.1.0", path = "crates/deckweave-protocol" }
 deckweave-registry = { version = "0.1.0", path = "crates/deckweave-registry" }
 deckweave-plugin-supervisor = { version = "0.1.0", path = "crates/deckweave-plugin-supervisor" }
+deckweave-profiles = { version = "0.1.0", path = "crates/deckweave-profiles" }
 deckweave-application = { version = "0.1.0", path = "crates/deckweave-application" }
 deckweave-host = { version = "0.1.0", path = "crates/deckweave-host" }
 deckweave-platform-host = { version = "0.1.0", path = "crates/deckweave-platform-host" }

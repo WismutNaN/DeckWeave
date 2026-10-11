@@ -6,19 +6,110 @@ use auto_launch::{AutoLaunch, AutoLaunchBuilder};
 #[cfg(windows)]
 mod windows_autostart;
 use deckweave_application::{
-    ChildProcessGuard, ChildProcessPolicy, HostLease, HostPlatform, PlatformError,
+    AtomicFileStore, ChildProcessGuard, ChildProcessPolicy, HostLease, HostPlatform, PlatformError,
+    StorageError,
 };
 use deckweave_domain::DeploymentMode;
 use directories::BaseDirs;
 use std::{
     ffi::OsString,
     fs::{self, File, OpenOptions},
+    io::Write,
     path::{Path, PathBuf},
     process::{Child, Command},
+    sync::atomic::{AtomicU64, Ordering},
 };
 
 #[cfg(windows)]
 mod windows_process_guard;
+#[cfg(windows)]
+mod windows_storage;
+
+static TEMP_FILE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
+/// Filesystem adapter for profile revisions, assets and commit records.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct NativeAtomicFileStore;
+
+impl AtomicFileStore for NativeAtomicFileStore {
+    fn write_atomic(
+        &self,
+        target: &Path,
+        bytes: &[u8],
+        backup: Option<&Path>,
+    ) -> Result<(), StorageError> {
+        let parent = target
+            .parent()
+            .ok_or_else(|| StorageError::Unavailable("target has no parent directory".into()))?;
+        fs::create_dir_all(parent)?;
+        if let Some(backup) = backup
+            && backup.parent() != Some(parent)
+        {
+            return Err(StorageError::Unavailable(
+                "atomic backup must share the target directory".into(),
+            ));
+        }
+        let file_name = target
+            .file_name()
+            .ok_or_else(|| StorageError::Unavailable("target has no file name".into()))?
+            .to_string_lossy();
+        let sequence = TEMP_FILE_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+        let temporary = parent.join(format!(
+            ".{file_name}.tmp-{}-{sequence}",
+            std::process::id()
+        ));
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temporary)?;
+        if let Err(error) = (|| -> Result<(), std::io::Error> {
+            file.write_all(bytes)?;
+            file.sync_all()?;
+            Ok(())
+        })() {
+            let _ignored = fs::remove_file(&temporary);
+            return Err(error.into());
+        }
+        drop(file);
+
+        let result = replace_file(target, &temporary, backup);
+        if result.is_err() {
+            let _ignored = fs::remove_file(&temporary);
+        }
+        result
+    }
+}
+
+#[cfg(windows)]
+fn replace_file(
+    target: &Path,
+    replacement: &Path,
+    backup: Option<&Path>,
+) -> Result<(), StorageError> {
+    windows_storage::replace_file(target, replacement, backup)
+}
+
+#[cfg(not(windows))]
+fn replace_file(
+    target: &Path,
+    replacement: &Path,
+    backup: Option<&Path>,
+) -> Result<(), StorageError> {
+    if target.exists()
+        && let Some(backup) = backup
+    {
+        fs::copy(target, backup)?;
+        File::open(backup)?.sync_all()?;
+    }
+    fs::rename(replacement, target)?;
+    File::open(
+        target
+            .parent()
+            .ok_or_else(|| StorageError::Unavailable("target has no parent".into()))?,
+    )?
+    .sync_all()?;
+    Ok(())
+}
 
 /// Native process-tree lifetime policy used by the plugin supervisor.
 #[derive(Debug, Default, Clone, Copy)]
@@ -471,6 +562,28 @@ mod tests {
             platform.autostart_enabled(),
             Err(PlatformError::PortableAutostart)
         ));
+        Ok(())
+    }
+
+    #[test]
+    fn atomic_store_replaces_target_and_keeps_previous_backup()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempfile::tempdir()?;
+        let target = directory.path().join("profile.json");
+        let backup = directory.path().join("profile.json.bak");
+        let store = NativeAtomicFileStore;
+        store.write_atomic(&target, b"first", None)?;
+        store.write_atomic(&target, b"second", Some(&backup))?;
+        assert_eq!(fs::read(&target)?, b"second");
+        assert_eq!(fs::read(&backup)?, b"first");
+        store.write_atomic(&target, b"third", Some(&backup))?;
+        assert_eq!(fs::read(&target)?, b"third");
+        assert_eq!(fs::read(&backup)?, b"second");
+        assert!(
+            fs::read_dir(directory.path())?
+                .filter_map(Result::ok)
+                .all(|entry| !entry.file_name().to_string_lossy().contains(".tmp-"))
+        );
         Ok(())
     }
 }

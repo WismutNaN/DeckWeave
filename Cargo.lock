@@ -837,6 +837,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "deckweave-profiles"
+version = "0.1.0"
+dependencies = [
+ "deckweave-application",
+ "deckweave-domain",
+ "deckweave-platform-host",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "deckweave-protocol"
 version = "0.1.0"
 dependencies = [

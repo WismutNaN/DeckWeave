@@ -15,6 +15,8 @@ pub enum IdError {
     NotNamespaced { kind: &'static str, value: String },
     #[error("{kind} должен быть больше нуля")]
     Zero { kind: &'static str },
+    #[error("{kind} должен быть SHA-256 в hex")]
+    InvalidDigest { kind: &'static str },
 }
 
 fn validate_text(kind: &'static str, value: &str) -> Result<(), IdError> {
@@ -192,6 +194,38 @@ text_id!(CredentialRef);
 text_id!(CredentialLeaseId);
 text_id!(LightUnitId);
 text_id!(LightGroupId);
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[serde(transparent)]
+pub struct AssetId(String);
+
+impl AssetId {
+    pub fn try_new(value: impl Into<String>) -> Result<Self, IdError> {
+        let value = value.into().to_ascii_lowercase();
+        if value.len() != 64 || !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+            return Err(IdError::InvalidDigest { kind: "AssetId" });
+        }
+        Ok(Self(value))
+    }
+
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Display for AssetId {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.0)
+    }
+}
+
+impl<'de> Deserialize<'de> for AssetId {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let value = String::deserialize(deserializer)?;
+        Self::try_new(value).map_err(serde::de::Error::custom)
+    }
+}
 
 counter_id!(DraftVersion);
 counter_id!(ActivationEpoch);

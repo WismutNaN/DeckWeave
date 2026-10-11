@@ -112,6 +112,11 @@ Control envelope, framing helpers и document schemas зафиксированы
 полный SDK ещё не стабилизирован.
 Remote/media пока представлены только descriptors; transport и raw buffer ABI намеренно отсутствуют.
 
+Начат профильный store фазы 4: `deckweave-profiles` поддерживает immutable checksum-verified revisions
+и content-addressed assets. Atomic publication инъецируется через application port; native adapter
+реализован в platform-host. Draft commands, active commit record и ApplicationService mutations пока
+не подключены, поэтому этот срез не меняет конфигурацию запущенного host.
+
 Permissive reference plugin находится в `examples/virtual-plugin`; он зависит только от
 `deckweave-protocol`. OpenAction C0 scanner и pinned fixture находятся в `runtimes/openaction-host`
 и `fixtures/compatibility`. C1 WebSocket translation не реализована и не смешивается с native stdio ABI.

@@ -27,6 +27,7 @@ const allowed = {
     "deckweave-protocol",
     "deckweave-registry",
   ],
+  "deckweave-profiles": ["deckweave-application", "deckweave-domain"],
   "deckweave-application": ["deckweave-domain"],
   "deckweave-host": ["deckweave-application", "deckweave-domain"],
   "deckweave-platform-host": ["deckweave-application", "deckweave-domain"],

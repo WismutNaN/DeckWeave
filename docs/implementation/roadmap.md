@@ -39,7 +39,7 @@
 | 1 | Скелет репозитория | Workspace компилируется, UI shell и CI запускаются | S | [~] |
 | 2 | Domain и protocol contracts | Versioned types/schemas/generated code | M | [x] |
 | 3 | Plugin supervisor и virtual package | Первый изолированный plugin end-to-end | L | [x] |
-| 4 | Profile revisions и application API | Draft/validate/apply/rollback через API | L | [ ] |
+| 4 | Profile revisions и application API | Draft/validate/apply/rollback через API | L | [~] |
 | 5 | Минимальный automation engine | Source → action → feedback deterministic path | L | [ ] |
 | 6 | Desktop workspace canvas | Устройства и bindings редактируются в UI | L | [ ] |
 | 7 | Windows base provider | Volume/media/app/active-window работают | M | [ ] |
@@ -193,10 +193,16 @@ manifest или PI не выдаётся за runtime compatibility.
 **Цель:** создать безопасный путь read → draft → validate → plan → apply → rollback.
 **Результат:** CLI/test client редактирует virtual workspace, получает conflict и возвращается к snapshot.
 **Трудоёмкость:** L
-**Статус:** [ ] Не начата
+**Статус:** [~] В процессе: готовы immutable revisions, content-addressed assets и atomic-file adapter; drafts/API/apply ещё не реализованы.
 
 ### Контекст для агента
 > Plugin lifecycle работает. Active automation пока пуст; фаза строит источник истины и command/query boundary.
+
+Первый завершённый срез хранит revision record с checksum и unknown JSON fields, а assets — по SHA-256
+с публикацией metadata после bytes. Пути строятся через opaque hash IDs, поэтому допустимые в domain
+символы `/` и `:` не становятся filesystem traversal. Windows adapter использует `ReplaceFileW`/
+`MoveFileExW` с write-through, Unix — same-filesystem rename и directory sync. Следующий срез —
+durable draft mutations/receipts и in-memory undo/redo поверх этого store.
 
 ### Задачи
 

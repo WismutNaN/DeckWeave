@@ -17,7 +17,7 @@ auto-launch = "0.6"
 libc = "0.2"
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_System_JobObjects", "Win32_System_RemoteDesktop", "Win32_System_Threading"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_JobObjects", "Win32_System_RemoteDesktop", "Win32_System_Threading"] }
 windows-registry = "0.6.1"
 
 [dev-dependencies]
