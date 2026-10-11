@@ -13,6 +13,12 @@ use std::{
 };
 use thiserror::Error;
 
+pub mod draft;
+pub use draft::{
+    DraftCommand, DraftEditor, DraftMutationError, LoadedDraft, MutationKey, MutationOutcome,
+    MutationReceipt, WorkspaceDraft,
+};
+
 const STORAGE_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -84,6 +90,7 @@ struct StoredRevision {
 pub struct ProfileStoreLimits {
     pub maximum_revision_bytes: u64,
     pub maximum_asset_bytes: u64,
+    pub maximum_draft_transactions: usize,
 }
 
 impl Default for ProfileStoreLimits {
@@ -91,6 +98,7 @@ impl Default for ProfileStoreLimits {
         Self {
             maximum_revision_bytes: 16 * 1024 * 1024,
             maximum_asset_bytes: 128 * 1024 * 1024,
+            maximum_draft_transactions: 10_000,
         }
     }
 }
@@ -347,12 +355,20 @@ fn validate_revision(revision: &WorkspaceRevision) -> Result<(), ProfileStoreErr
             "unsupported workspace schema version".into(),
         ));
     }
-    if !revision.document.is_object() {
+    validate_workspace_content(&revision.package_lock, &revision.document, &revision.assets)
+}
+
+fn validate_workspace_content(
+    package_lock: &[PackageLockEntry],
+    document: &serde_json::Value,
+    assets: &[AssetReference],
+) -> Result<(), ProfileStoreError> {
+    if !document.is_object() {
         return Err(ProfileStoreError::InvalidDocument(
             "workspace document must be a JSON object".into(),
         ));
     }
-    for package in &revision.package_lock {
+    for package in package_lock {
         if package.version.is_empty()
             || package.version.len() > 128
             || !is_sha256(&package.artifact_sha256)
@@ -362,7 +378,7 @@ fn validate_revision(revision: &WorkspaceRevision) -> Result<(), ProfileStoreErr
             ));
         }
     }
-    for asset in &revision.assets {
+    for asset in assets {
         if asset.id.as_str() != asset.sha256.to_ascii_lowercase()
             || !is_sha256(&asset.sha256)
             || asset.media_type.is_empty()

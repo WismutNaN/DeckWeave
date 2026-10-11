@@ -162,6 +162,10 @@ macro_rules! counter_id {
 
 text_id!(WorkspaceId);
 text_id!(WorkspaceRevisionId);
+text_id!(DraftId);
+text_id!(SnapshotId);
+text_id!(DedupEpoch);
+text_id!(IdempotencyKey);
 text_id!(HostBootId);
 namespaced_id!(PackageId);
 text_id!(ContributionId);

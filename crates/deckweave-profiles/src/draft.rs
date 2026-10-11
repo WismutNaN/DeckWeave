@@ -1,0 +1,643 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+use super::*;
+use deckweave_domain::ids::{DedupEpoch, DraftId, DraftVersion, IdempotencyKey, PrincipalId};
+use serde::{Deserialize, Serialize};
+use std::{collections::VecDeque, sync::Arc};
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceDraft {
+    pub schema_version: u32,
+    pub draft_id: DraftId,
+    pub workspace_id: WorkspaceId,
+    pub base_revision_id: Option<WorkspaceRevisionId>,
+    pub version: DraftVersion,
+    pub package_lock: Vec<PackageLockEntry>,
+    pub document: serde_json::Value,
+    #[serde(default)]
+    pub assets: Vec<AssetReference>,
+    pub private_section: Option<serde_json::Value>,
+    #[serde(default)]
+    pub extensions: BTreeMap<String, serde_json::Value>,
+    #[serde(flatten)]
+    pub unknown_fields: BTreeMap<String, serde_json::Value>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum DraftCommand {
+    Set {
+        pointer: String,
+        value: serde_json::Value,
+    },
+    Remove {
+        pointer: String,
+    },
+    ReplaceDocument {
+        document: serde_json::Value,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MutationKey {
+    pub principal_id: PrincipalId,
+    pub dedup_epoch: DedupEpoch,
+    pub idempotency_key: IdempotencyKey,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MutationReceipt {
+    pub storage_version: u32,
+    pub key: MutationKey,
+    pub payload_fingerprint: String,
+    pub draft_id: DraftId,
+    pub before_version: DraftVersion,
+    pub after_version: DraftVersion,
+    pub document_sha256: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MutationOutcome {
+    pub receipt: MutationReceipt,
+    pub replayed: bool,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct LoadedDraft {
+    pub draft: WorkspaceDraft,
+    pub recovered_from_backup: bool,
+}
+
+#[derive(Debug, Error)]
+pub enum DraftMutationError {
+    #[error(transparent)]
+    Store(#[from] ProfileStoreError),
+    #[error("draft version conflict: expected {expected}, current {current}")]
+    VersionConflict { expected: u64, current: u64 },
+    #[error("idempotency key already belongs to another payload")]
+    IdempotencyConflict,
+    #[error("draft command is invalid: {0}")]
+    InvalidCommand(String),
+    #[error("draft version counter exhausted")]
+    CounterExhausted,
+    #[error("draft transaction chain exceeds configured bound")]
+    HistoryLimit,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DraftTransaction {
+    storage_version: u32,
+    previous_transaction_sha256: Option<String>,
+    draft: WorkspaceDraft,
+    receipt: Option<MutationReceipt>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DraftHead {
+    storage_version: u32,
+    draft_id: DraftId,
+    transaction_sha256: String,
+}
+
+struct DraftChainHead {
+    head: DraftHead,
+    transaction: DraftTransaction,
+    recovered_from_backup: bool,
+}
+
+impl JsonProfileStore {
+    pub fn create_draft(&self, draft: &WorkspaceDraft) -> Result<LoadedDraft, DraftMutationError> {
+        validate_draft(draft)?;
+        let _guard = self
+            .mutation_lock
+            .lock()
+            .map_err(|_| ProfileStoreError::LockPoisoned)?;
+        let head_path = self.draft_head_path(&draft.draft_id);
+        if head_path.exists() {
+            let loaded = self.load_draft_chain(&draft.draft_id)?;
+            if loaded.transaction.draft == *draft {
+                return Ok(LoadedDraft {
+                    draft: loaded.transaction.draft,
+                    recovered_from_backup: loaded.recovered_from_backup,
+                });
+            }
+            return Err(ProfileStoreError::ImmutableRevisionConflict.into());
+        }
+        let transaction = DraftTransaction {
+            storage_version: STORAGE_VERSION,
+            previous_transaction_sha256: None,
+            draft: draft.clone(),
+            receipt: None,
+        };
+        let transaction_sha256 = self.write_draft_transaction(&transaction)?;
+        self.publish_draft_head(&DraftHead {
+            storage_version: STORAGE_VERSION,
+            draft_id: draft.draft_id.clone(),
+            transaction_sha256,
+        })?;
+        Ok(LoadedDraft {
+            draft: draft.clone(),
+            recovered_from_backup: false,
+        })
+    }
+
+    pub fn load_draft(&self, draft_id: &DraftId) -> Result<LoadedDraft, DraftMutationError> {
+        let chain = self.load_draft_chain(draft_id)?;
+        Ok(LoadedDraft {
+            draft: chain.transaction.draft,
+            recovered_from_backup: chain.recovered_from_backup,
+        })
+    }
+
+    pub fn mutate_draft(
+        &self,
+        draft_id: &DraftId,
+        key: MutationKey,
+        expected_version: DraftVersion,
+        command: &DraftCommand,
+    ) -> Result<MutationOutcome, DraftMutationError> {
+        let _guard = self
+            .mutation_lock
+            .lock()
+            .map_err(|_| ProfileStoreError::LockPoisoned)?;
+        let chain = self.load_draft_chain(draft_id)?;
+        if chain.recovered_from_backup {
+            self.repair_draft_head(&chain.head)?;
+        }
+        let fingerprint = mutation_fingerprint(draft_id, expected_version, command)?;
+        if let Some(receipt) = self.find_receipt(&chain, &key)? {
+            if receipt.payload_fingerprint == fingerprint {
+                return Ok(MutationOutcome {
+                    receipt,
+                    replayed: true,
+                });
+            }
+            return Err(DraftMutationError::IdempotencyConflict);
+        }
+        if chain.transaction.draft.version != expected_version {
+            return Err(DraftMutationError::VersionConflict {
+                expected: expected_version.get(),
+                current: chain.transaction.draft.version.get(),
+            });
+        }
+
+        let mut next = chain.transaction.draft.clone();
+        apply_command(&mut next.document, command)?;
+        if !next.document.is_object() {
+            return Err(DraftMutationError::InvalidCommand(
+                "workspace document must remain a JSON object".into(),
+            ));
+        }
+        let next_version = next
+            .version
+            .get()
+            .checked_add(1)
+            .ok_or(DraftMutationError::CounterExhausted)?;
+        next.version = DraftVersion::try_new(next_version)
+            .map_err(|_| DraftMutationError::CounterExhausted)?;
+        let receipt = MutationReceipt {
+            storage_version: STORAGE_VERSION,
+            key,
+            payload_fingerprint: fingerprint,
+            draft_id: draft_id.clone(),
+            before_version: expected_version,
+            after_version: next.version,
+            document_sha256: digest(
+                &canonical_json(&next.document).map_err(ProfileStoreError::from)?,
+            ),
+        };
+        let transaction = DraftTransaction {
+            storage_version: STORAGE_VERSION,
+            previous_transaction_sha256: Some(chain.head.transaction_sha256),
+            draft: next,
+            receipt: Some(receipt.clone()),
+        };
+        let transaction_sha256 = self.write_draft_transaction(&transaction)?;
+        self.publish_draft_head(&DraftHead {
+            storage_version: STORAGE_VERSION,
+            draft_id: draft_id.clone(),
+            transaction_sha256,
+        })?;
+        Ok(MutationOutcome {
+            receipt,
+            replayed: false,
+        })
+    }
+
+    fn draft_directory(&self, draft_id: &DraftId) -> PathBuf {
+        self.root.join("drafts").join(opaque_key(draft_id.as_str()))
+    }
+
+    fn draft_head_path(&self, draft_id: &DraftId) -> PathBuf {
+        self.draft_directory(draft_id).join("head.json")
+    }
+
+    fn transaction_path(&self, draft_id: &DraftId, sha256: &str) -> PathBuf {
+        self.draft_directory(draft_id)
+            .join("transactions")
+            .join(format!("{sha256}.json"))
+    }
+
+    fn write_draft_transaction(
+        &self,
+        transaction: &DraftTransaction,
+    ) -> Result<String, DraftMutationError> {
+        let bytes = canonical_json(transaction).map_err(ProfileStoreError::from)?;
+        if u64::try_from(bytes.len()).unwrap_or(u64::MAX) > self.limits.maximum_revision_bytes {
+            return Err(ProfileStoreError::TooLarge.into());
+        }
+        let sha256 = digest(&bytes);
+        let path = self.transaction_path(&transaction.draft.draft_id, &sha256);
+        if path.exists() {
+            if read_bounded(&path, self.limits.maximum_revision_bytes)? != bytes {
+                return Err(ProfileStoreError::ChecksumMismatch.into());
+            }
+        } else {
+            self.atomic_files
+                .write_atomic(&path, &bytes, None)
+                .map_err(ProfileStoreError::from)?;
+        }
+        Ok(sha256)
+    }
+
+    fn publish_draft_head(&self, head: &DraftHead) -> Result<(), DraftMutationError> {
+        let target = self.draft_head_path(&head.draft_id);
+        let backup = target.with_extension("json.bak");
+        let bytes = canonical_json(head).map_err(ProfileStoreError::from)?;
+        self.atomic_files
+            .write_atomic(&target, &bytes, Some(&backup))
+            .map_err(ProfileStoreError::from)?;
+        Ok(())
+    }
+
+    fn repair_draft_head(&self, head: &DraftHead) -> Result<(), DraftMutationError> {
+        let target = self.draft_head_path(&head.draft_id);
+        let bytes = canonical_json(head).map_err(ProfileStoreError::from)?;
+        self.atomic_files
+            .write_atomic(&target, &bytes, None)
+            .map_err(ProfileStoreError::from)?;
+        Ok(())
+    }
+
+    fn load_draft_chain(&self, draft_id: &DraftId) -> Result<DraftChainHead, DraftMutationError> {
+        let target = self.draft_head_path(draft_id);
+        match self.read_chain_from_head(draft_id, &target) {
+            Ok(mut chain) => {
+                chain.recovered_from_backup = false;
+                Ok(chain)
+            }
+            Err(primary_error) => {
+                let backup = target.with_extension("json.bak");
+                match self.read_chain_from_head(draft_id, &backup) {
+                    Ok(mut chain) => {
+                        chain.recovered_from_backup = true;
+                        Ok(chain)
+                    }
+                    Err(_) => Err(primary_error),
+                }
+            }
+        }
+    }
+
+    fn read_chain_from_head(
+        &self,
+        draft_id: &DraftId,
+        path: &Path,
+    ) -> Result<DraftChainHead, DraftMutationError> {
+        let head: DraftHead = serde_json::from_slice(&read_bounded(path, 1024 * 1024)?)
+            .map_err(ProfileStoreError::from)?;
+        if head.storage_version != STORAGE_VERSION || head.draft_id != *draft_id {
+            return Err(ProfileStoreError::InvalidDocument("invalid draft head".into()).into());
+        }
+        let transaction = self.read_transaction(draft_id, &head.transaction_sha256)?;
+        Ok(DraftChainHead {
+            head,
+            transaction,
+            recovered_from_backup: false,
+        })
+    }
+
+    fn read_transaction(
+        &self,
+        draft_id: &DraftId,
+        sha256: &str,
+    ) -> Result<DraftTransaction, DraftMutationError> {
+        if !is_sha256(sha256) {
+            return Err(ProfileStoreError::InvalidDocument(
+                "invalid transaction checksum reference".into(),
+            )
+            .into());
+        }
+        let path = self.transaction_path(draft_id, sha256);
+        let bytes = read_bounded(&path, self.limits.maximum_revision_bytes)?;
+        if digest(&bytes) != sha256 {
+            return Err(ProfileStoreError::ChecksumMismatch.into());
+        }
+        let transaction: DraftTransaction =
+            serde_json::from_slice(&bytes).map_err(ProfileStoreError::from)?;
+        if transaction.storage_version != STORAGE_VERSION || transaction.draft.draft_id != *draft_id
+        {
+            return Err(ProfileStoreError::InvalidDocument(
+                "invalid draft transaction identity/version".into(),
+            )
+            .into());
+        }
+        validate_draft(&transaction.draft)?;
+        Ok(transaction)
+    }
+
+    fn find_receipt(
+        &self,
+        chain: &DraftChainHead,
+        key: &MutationKey,
+    ) -> Result<Option<MutationReceipt>, DraftMutationError> {
+        let draft_id = &chain.transaction.draft.draft_id;
+        let mut current = Some(chain.head.transaction_sha256.clone());
+        for _ in 0..self.limits.maximum_draft_transactions {
+            let Some(sha256) = current else {
+                return Ok(None);
+            };
+            let transaction = self.read_transaction(draft_id, &sha256)?;
+            if let Some(receipt) = transaction.receipt
+                && receipt.key == *key
+            {
+                return Ok(Some(receipt));
+            }
+            current = transaction.previous_transaction_sha256;
+        }
+        Err(DraftMutationError::HistoryLimit)
+    }
+}
+
+pub struct DraftEditor {
+    store: Arc<JsonProfileStore>,
+    draft_id: DraftId,
+    undo: VecDeque<serde_json::Value>,
+    redo: VecDeque<serde_json::Value>,
+    maximum_history: usize,
+}
+
+impl DraftEditor {
+    pub fn open(
+        store: Arc<JsonProfileStore>,
+        draft_id: DraftId,
+        maximum_history: usize,
+    ) -> Result<Self, DraftMutationError> {
+        let _loaded = store.load_draft(&draft_id)?;
+        Ok(Self {
+            store,
+            draft_id,
+            undo: VecDeque::new(),
+            redo: VecDeque::new(),
+            maximum_history,
+        })
+    }
+
+    pub fn apply(
+        &mut self,
+        key: MutationKey,
+        expected_version: DraftVersion,
+        command: DraftCommand,
+    ) -> Result<MutationOutcome, DraftMutationError> {
+        let before = self.store.load_draft(&self.draft_id)?.draft;
+        let outcome = self
+            .store
+            .mutate_draft(&self.draft_id, key, expected_version, &command)?;
+        if !outcome.replayed {
+            push_bounded(&mut self.undo, before.document, self.maximum_history);
+            self.redo.clear();
+        }
+        Ok(outcome)
+    }
+
+    pub fn undo(
+        &mut self,
+        key: MutationKey,
+    ) -> Result<Option<MutationOutcome>, DraftMutationError> {
+        let Some(previous) = self.undo.back().cloned() else {
+            return Ok(None);
+        };
+        let current = self.store.load_draft(&self.draft_id)?.draft;
+        let outcome = self.store.mutate_draft(
+            &self.draft_id,
+            key,
+            current.version,
+            &DraftCommand::ReplaceDocument { document: previous },
+        )?;
+        self.undo.pop_back();
+        push_bounded(&mut self.redo, current.document, self.maximum_history);
+        Ok(Some(outcome))
+    }
+
+    pub fn redo(
+        &mut self,
+        key: MutationKey,
+    ) -> Result<Option<MutationOutcome>, DraftMutationError> {
+        let Some(next) = self.redo.back().cloned() else {
+            return Ok(None);
+        };
+        let current = self.store.load_draft(&self.draft_id)?.draft;
+        let outcome = self.store.mutate_draft(
+            &self.draft_id,
+            key,
+            current.version,
+            &DraftCommand::ReplaceDocument { document: next },
+        )?;
+        self.redo.pop_back();
+        push_bounded(&mut self.undo, current.document, self.maximum_history);
+        Ok(Some(outcome))
+    }
+
+    #[must_use]
+    pub fn has_undo(&self) -> bool {
+        !self.undo.is_empty()
+    }
+
+    #[must_use]
+    pub fn has_redo(&self) -> bool {
+        !self.redo.is_empty()
+    }
+}
+
+fn push_bounded(
+    history: &mut VecDeque<serde_json::Value>,
+    value: serde_json::Value,
+    maximum: usize,
+) {
+    if maximum == 0 {
+        return;
+    }
+    if history.len() == maximum {
+        history.pop_front();
+    }
+    history.push_back(value);
+}
+
+fn validate_draft(draft: &WorkspaceDraft) -> Result<(), DraftMutationError> {
+    if draft.schema_version != 1 {
+        return Err(DraftMutationError::InvalidCommand(
+            "unsupported draft schema".into(),
+        ));
+    }
+    validate_workspace_content(&draft.package_lock, &draft.document, &draft.assets)?;
+    Ok(())
+}
+
+fn mutation_fingerprint(
+    draft_id: &DraftId,
+    expected_version: DraftVersion,
+    command: &DraftCommand,
+) -> Result<String, DraftMutationError> {
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Fingerprint<'a> {
+        draft_id: &'a DraftId,
+        expected_version: DraftVersion,
+        command: &'a DraftCommand,
+    }
+    Ok(digest(
+        &canonical_json(&Fingerprint {
+            draft_id,
+            expected_version,
+            command,
+        })
+        .map_err(ProfileStoreError::from)?,
+    ))
+}
+
+fn apply_command(
+    document: &mut serde_json::Value,
+    command: &DraftCommand,
+) -> Result<(), DraftMutationError> {
+    match command {
+        DraftCommand::ReplaceDocument { document: next } => {
+            *document = next.clone();
+            Ok(())
+        }
+        DraftCommand::Set { pointer, value } => set_pointer(document, pointer, value.clone()),
+        DraftCommand::Remove { pointer } => remove_pointer(document, pointer),
+    }
+}
+
+fn pointer_tokens(pointer: &str) -> Result<Vec<String>, DraftMutationError> {
+    if pointer.is_empty() || !pointer.starts_with('/') {
+        return Err(DraftMutationError::InvalidCommand(
+            "JSON pointer must be non-empty and start with '/'".into(),
+        ));
+    }
+    pointer[1..]
+        .split('/')
+        .map(|token| {
+            let mut decoded = String::new();
+            let mut chars = token.chars();
+            while let Some(character) = chars.next() {
+                if character != '~' {
+                    decoded.push(character);
+                    continue;
+                }
+                match chars.next() {
+                    Some('0') => decoded.push('~'),
+                    Some('1') => decoded.push('/'),
+                    _ => {
+                        return Err(DraftMutationError::InvalidCommand(
+                            "invalid JSON pointer escape".into(),
+                        ));
+                    }
+                }
+            }
+            Ok(decoded)
+        })
+        .collect()
+}
+
+fn parent_and_token<'a>(
+    document: &'a mut serde_json::Value,
+    pointer: &str,
+) -> Result<(&'a mut serde_json::Value, String), DraftMutationError> {
+    let mut tokens = pointer_tokens(pointer)?;
+    let token = tokens
+        .pop()
+        .ok_or_else(|| DraftMutationError::InvalidCommand("pointer has no token".into()))?;
+    let mut parent = document;
+    for segment in tokens {
+        parent = match parent {
+            serde_json::Value::Object(object) => object.get_mut(&segment),
+            serde_json::Value::Array(array) => segment
+                .parse::<usize>()
+                .ok()
+                .and_then(|index| array.get_mut(index)),
+            _ => None,
+        }
+        .ok_or_else(|| DraftMutationError::InvalidCommand("pointer parent is missing".into()))?;
+    }
+    Ok((parent, token))
+}
+
+fn set_pointer(
+    document: &mut serde_json::Value,
+    pointer: &str,
+    value: serde_json::Value,
+) -> Result<(), DraftMutationError> {
+    let (parent, token) = parent_and_token(document, pointer)?;
+    match parent {
+        serde_json::Value::Object(object) => {
+            object.insert(token, value);
+            Ok(())
+        }
+        serde_json::Value::Array(array) if token == "-" => {
+            array.push(value);
+            Ok(())
+        }
+        serde_json::Value::Array(array) => {
+            let index = token
+                .parse::<usize>()
+                .map_err(|_| DraftMutationError::InvalidCommand("array index is invalid".into()))?;
+            if index > array.len() {
+                return Err(DraftMutationError::InvalidCommand(
+                    "array index is out of bounds".into(),
+                ));
+            }
+            if index == array.len() {
+                array.push(value);
+            } else {
+                array[index] = value;
+            }
+            Ok(())
+        }
+        _ => Err(DraftMutationError::InvalidCommand(
+            "pointer parent is not a container".into(),
+        )),
+    }
+}
+
+fn remove_pointer(
+    document: &mut serde_json::Value,
+    pointer: &str,
+) -> Result<(), DraftMutationError> {
+    let (parent, token) = parent_and_token(document, pointer)?;
+    match parent {
+        serde_json::Value::Object(object) => object
+            .remove(&token)
+            .map(|_| ())
+            .ok_or_else(|| DraftMutationError::InvalidCommand("field is missing".into())),
+        serde_json::Value::Array(array) => {
+            let index = token
+                .parse::<usize>()
+                .map_err(|_| DraftMutationError::InvalidCommand("array index is invalid".into()))?;
+            if index >= array.len() {
+                return Err(DraftMutationError::InvalidCommand(
+                    "array index is out of bounds".into(),
+                ));
+            }
+            array.remove(index);
+            Ok(())
+        }
+        _ => Err(DraftMutationError::InvalidCommand(
+            "pointer parent is not a container".into(),
+        )),
+    }
+}

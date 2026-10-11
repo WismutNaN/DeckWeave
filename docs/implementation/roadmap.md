@@ -193,20 +193,21 @@ manifest или PI не выдаётся за runtime compatibility.
 **Цель:** создать безопасный путь read → draft → validate → plan → apply → rollback.
 **Результат:** CLI/test client редактирует virtual workspace, получает conflict и возвращается к snapshot.
 **Трудоёмкость:** L
-**Статус:** [~] В процессе: готовы immutable revisions, content-addressed assets и atomic-file adapter; drafts/API/apply ещё не реализованы.
+**Статус:** [~] В процессе: готовы immutable revisions/assets, durable drafts с receipts и session undo/redo; snapshots/export/API/apply ещё не реализованы.
 
 ### Контекст для агента
 > Plugin lifecycle работает. Active automation пока пуст; фаза строит источник истины и command/query boundary.
 
-Первый завершённый срез хранит revision record с checksum и unknown JSON fields, а assets — по SHA-256
-с публикацией metadata после bytes. Пути строятся через opaque hash IDs, поэтому допустимые в domain
-символы `/` и `:` не становятся filesystem traversal. Windows adapter использует `ReplaceFileW`/
-`MoveFileExW` с write-through, Unix — same-filesystem rename и directory sync. Следующий срез —
-durable draft mutations/receipts и in-memory undo/redo поверх этого store.
+Первый срез хранит revision record с checksum и unknown JSON fields, а assets — по SHA-256 с публикацией
+metadata после bytes. Пути строятся через opaque hash IDs. Второй срез добавил append-only draft
+transactions, atomic head с резервной копией, durable receipts и deduplication до проверки версии.
+Undo/redo ограничен памятью editor session и намеренно не восстанавливается после restart. При чтении
+резервного head следующая mutation сначала безопасно восстанавливает основной указатель. Следующий срез —
+named snapshots, selective export/import и credential placeholders.
 
 ### Задачи
 
-- [ ] Реализовать JSON revision store, assets, atomic write и recovery (→ [Модуль: Profile Store](../architecture/modules/profile-store.md)).
+- [x] Реализовать JSON revision store, assets, atomic write и recovery (→ [Модуль: Profile Store](../architecture/modules/profile-store.md)).
 - [ ] Реализовать draft commands, undo/redo и named snapshots (→ [ADR-0003](../decisions/0003-storage.md)).
 - [ ] Реализовать selective export/import, asset reachability и unresolved credential mapping без запуска packages (→ [Profile Store](../architecture/modules/profile-store.md), [Контракты миграций](../contracts/lifecycle.md#миграции-и-неизвестные-данные)).
 - [ ] Реализовать ApplicationService, expected revision и OperationId (→ [Модуль: Local API](../architecture/modules/local-api.md)).
@@ -216,8 +217,8 @@ durable draft mutations/receipts и in-memory undo/redo поверх этого 
 
 ### Тесты
 
-- [ ] Юнит: draft commands, undo/redo, revision conflicts.
-- [ ] Integration: crash-safe atomic write и recovery corrupted temp.
+- [x] Юнит: draft commands, undo/redo, revision conflicts.
+- [x] Integration: crash-safe atomic write и recovery corrupted temp.
 - [ ] Scenario: failure до commit оставляет прежнюю выбранную revision; после commit восстанавливается новая без replay actions.
 - [ ] Fault: kill на каждой стадии записи/apply, disk full, grant revoke во время prepare, exclusive handoff failure, concurrent draft edits, повтор key после restart.
 - [ ] Import/export: secrets/grants отсутствуют, unknown fields сохраняются, snapshot rollback использует прежний package hash.
