@@ -193,7 +193,7 @@ manifest или PI не выдаётся за runtime compatibility.
 **Цель:** создать безопасный путь read → draft → validate → plan → apply → rollback.
 **Результат:** CLI/test client редактирует virtual workspace, получает conflict и возвращается к snapshot.
 **Трудоёмкость:** L
-**Статус:** [~] В процессе: готовы immutable revisions/assets, durable drafts с receipts и session undo/redo; snapshots/export/API/apply ещё не реализованы.
+**Статус:** [~] В процессе: готовы revisions/assets, durable drafts, session undo/redo и named snapshots; export/API/apply ещё не реализованы.
 
 ### Контекст для агента
 > Plugin lifecycle работает. Active automation пока пуст; фаза строит источник истины и command/query boundary.
@@ -203,12 +203,13 @@ metadata после bytes. Пути строятся через opaque hash IDs.
 transactions, atomic head с резервной копией, durable receipts и deduplication до проверки версии.
 Undo/redo ограничен памятью editor session и намеренно не восстанавливается после restart. При чтении
 резервного head следующая mutation сначала безопасно восстанавливает основной указатель. Следующий срез —
-named snapshots, selective export/import и credential placeholders.
+selective export/import и credential placeholders. Named snapshot неизменно ссылается на сохранённую
+revision; rollback создаёт новый draft с исходным package lock, не переписывая revision или snapshot.
 
 ### Задачи
 
 - [x] Реализовать JSON revision store, assets, atomic write и recovery (→ [Модуль: Profile Store](../architecture/modules/profile-store.md)).
-- [ ] Реализовать draft commands, undo/redo и named snapshots (→ [ADR-0003](../decisions/0003-storage.md)).
+- [x] Реализовать draft commands, undo/redo и named snapshots (→ [ADR-0003](../decisions/0003-storage.md)).
 - [ ] Реализовать selective export/import, asset reachability и unresolved credential mapping без запуска packages (→ [Profile Store](../architecture/modules/profile-store.md), [Контракты миграций](../contracts/lifecycle.md#миграции-и-неизвестные-данные)).
 - [ ] Реализовать ApplicationService, expected revision и OperationId (→ [Модуль: Local API](../architecture/modules/local-api.md)).
 - [ ] Реализовать Host apply skeleton с durable commit record, barrier, disruption/degraded policy, package lock и operation receipts (→ [ADR-0012](../decisions/0012-apply-and-execution-lifecycle.md), [Модуль: Host Runtime](../architecture/modules/host-runtime.md)).

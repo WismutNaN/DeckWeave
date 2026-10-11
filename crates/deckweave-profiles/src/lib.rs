@@ -2,7 +2,7 @@
 //! Immutable workspace revisions and content-addressed profile assets.
 
 use deckweave_application::{AtomicFileStore, StorageError};
-use deckweave_domain::ids::{AssetId, PackageId, WorkspaceId, WorkspaceRevisionId};
+use deckweave_domain::ids::{AssetId, PackageId, SnapshotId, WorkspaceId, WorkspaceRevisionId};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
@@ -18,6 +18,8 @@ pub use draft::{
     DraftCommand, DraftEditor, DraftMutationError, LoadedDraft, MutationKey, MutationOutcome,
     MutationReceipt, WorkspaceDraft,
 };
+pub mod snapshot;
+pub use snapshot::{SnapshotMetadata, SnapshotRef};
 
 const STORAGE_VERSION: u32 = 1;
 
@@ -124,6 +126,8 @@ pub enum ProfileStoreError {
     ChecksumMismatch,
     #[error("revision ID already belongs to different immutable bytes")]
     ImmutableRevisionConflict,
+    #[error("snapshot ID already belongs to different immutable bytes")]
+    ImmutableSnapshotConflict,
     #[error("asset metadata conflicts with existing content-addressed object")]
     AssetMetadataConflict,
     #[error("profile store mutex is poisoned")]
@@ -149,6 +153,12 @@ pub trait ProfileStore: Send + Sync {
         &self,
         asset_id: &AssetId,
     ) -> Result<(AssetDescriptor, Vec<u8>), ProfileStoreError>;
+    fn save_snapshot(&self, snapshot: &SnapshotRef) -> Result<SnapshotMetadata, ProfileStoreError>;
+    fn load_snapshot(
+        &self,
+        workspace_id: &WorkspaceId,
+        snapshot_id: &SnapshotId,
+    ) -> Result<SnapshotRef, ProfileStoreError>;
 }
 
 pub struct JsonProfileStore {
@@ -346,6 +356,18 @@ impl ProfileStore for JsonProfileStore {
             return Err(ProfileStoreError::ChecksumMismatch);
         }
         Ok((descriptor, bytes))
+    }
+
+    fn save_snapshot(&self, snapshot: &SnapshotRef) -> Result<SnapshotMetadata, ProfileStoreError> {
+        self.save_snapshot_inner(snapshot)
+    }
+
+    fn load_snapshot(
+        &self,
+        workspace_id: &WorkspaceId,
+        snapshot_id: &SnapshotId,
+    ) -> Result<SnapshotRef, ProfileStoreError> {
+        self.load_snapshot_inner(workspace_id, snapshot_id)
     }
 }
 
