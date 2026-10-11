@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/*", "apps/desktop/src-tauri"]
+members = ["crates/*", "apps/desktop/src-tauri", "examples/virtual-plugin", "runtimes/openaction-host"]
 default-members = ["crates/deckweave-domain", "crates/deckweave-protocol", "crates/deckweave-application", "crates/deckweave-host", "crates/deckweave-platform-host"]
 
 [workspace.package]
@@ -13,6 +13,8 @@ publish = false
 [workspace.dependencies]
 deckweave-domain = { version = "0.1.0", path = "crates/deckweave-domain" }
 deckweave-protocol = { version = "0.1.0", path = "crates/deckweave-protocol" }
+deckweave-registry = { version = "0.1.0", path = "crates/deckweave-registry" }
+deckweave-plugin-supervisor = { version = "0.1.0", path = "crates/deckweave-plugin-supervisor" }
 deckweave-application = { version = "0.1.0", path = "crates/deckweave-application" }
 deckweave-host = { version = "0.1.0", path = "crates/deckweave-host" }
 deckweave-platform-host = { version = "0.1.0", path = "crates/deckweave-platform-host" }

@@ -794,6 +794,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "deckweave-openaction-host"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "deckweave-platform-host"
 version = "0.1.0"
 dependencies = [
@@ -802,9 +812,28 @@ dependencies = [
  "deckweave-domain",
  "directories",
  "fs2",
+ "libc",
  "tempfile",
  "windows-registry",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "deckweave-plugin-supervisor"
+version = "0.1.0"
+dependencies = [
+ "deckweave-application",
+ "deckweave-domain",
+ "deckweave-platform-host",
+ "deckweave-protocol",
+ "deckweave-registry",
+ "getrandom 0.4.3",
+ "semver",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -819,6 +848,23 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.21",
  "typify",
+]
+
+[[package]]
+name = "deckweave-registry"
+version = "0.1.0"
+dependencies = [
+ "deckweave-domain",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "deckweave-virtual-plugin-example"
+version = "0.1.0"
+dependencies = [
+ "deckweave-protocol",
 ]
 
 [[package]]

@@ -38,7 +38,7 @@
 |---:|---|---|:---:|:---:|
 | 1 | Скелет репозитория | Workspace компилируется, UI shell и CI запускаются | S | [~] |
 | 2 | Domain и protocol contracts | Versioned types/schemas/generated code | M | [x] |
-| 3 | Plugin supervisor и virtual package | Первый изолированный plugin end-to-end | L | [ ] |
+| 3 | Plugin supervisor и virtual package | Первый изолированный plugin end-to-end | L | [x] |
 | 4 | Profile revisions и application API | Draft/validate/apply/rollback через API | L | [ ] |
 | 5 | Минимальный automation engine | Source → action → feedback deterministic path | L | [ ] |
 | 6 | Desktop workspace canvas | Устройства и bindings редактируются в UI | L | [ ] |
@@ -148,28 +148,38 @@ generation drift check, TypeScript contracts и Rust domain/protocol tests.
 **Цель:** доказать lazy, isolated, restartable plugin lifecycle.
 **Результат:** virtual test package индексируется без запуска, активируется lease, публикует device и восстанавливается после crash.
 **Трудоёмкость:** L
-**Статус:** [ ] Не начата
+**Статус:** [x] Готово
 
 ### Контекст для агента
 > Domain/protocol types существуют. Hardware и UI ещё не нужны; virtual package служит единственным provider и reference fixture.
 
 ### Задачи
 
-- [ ] Реализовать manifest index/staging/hash validation (→ [Модуль: Plugin Supervisor](../architecture/modules/plugin-supervisor.md)).
-- [ ] Реализовать Protobuf stdio handshake, limits, heartbeat и stop deadline (→ [Модель плагинов — Lifecycle](../contracts/plugins.md#lifecycle)).
-- [ ] Реализовать Capability Registry и session invalidation (→ [Модуль: Capability Registry](../architecture/modules/capability-registry.md)).
-- [ ] Создать permissive virtual DeviceProvider/ActionProvider example (→ [Модуль: Diagnostics & Test Lab](../architecture/modules/diagnostics-test-lab.md)).
-- [ ] Добавить restart/backoff/circuit-breaker tests (→ [ADR-0005](../decisions/0005-failure-isolation.md)).
-- [ ] Добавить scoped discovery lease до первого binding, canonical resource arbiter и host authorization/credential ports (→ [Runtime contracts](../contracts/lifecycle.md#resources-discovery-и-версии-packages), [Host Platform Services](../architecture/modules/host-platform-services.md)).
-- [ ] Подтвердить минимальные Rust/TS SDK helpers одним wire fixture; провести ограниченный C0/C1 spike с pinned open plugin до инвестиций в custom web UI (→ [SDK](../contracts/plugins.md#sdk), [Compatibility Host](../architecture/modules/compatibility-host.md)).
+- [x] Реализовать manifest index/staging/hash validation (→ [Модуль: Plugin Supervisor](../architecture/modules/plugin-supervisor.md)).
+- [x] Реализовать Protobuf stdio handshake, limits, heartbeat и stop deadline (→ [Модель плагинов — Lifecycle](../contracts/plugins.md#lifecycle)).
+- [x] Реализовать Capability Registry и session invalidation (→ [Модуль: Capability Registry](../architecture/modules/capability-registry.md)).
+- [x] Создать permissive virtual DeviceProvider/ActionProvider example (→ [Модуль: Diagnostics & Test Lab](../architecture/modules/diagnostics-test-lab.md)).
+- [x] Добавить restart/backoff/circuit-breaker tests (→ [ADR-0005](../decisions/0005-failure-isolation.md)).
+- [x] Добавить scoped discovery lease до первого binding, canonical resource arbiter и host authorization/credential ports (→ [Runtime contracts](../contracts/lifecycle.md#resources-discovery-и-версии-packages), [Host Platform Services](../architecture/modules/host-platform-services.md)).
+- [x] Подтвердить минимальные Rust/TS SDK helpers одним wire fixture; провести ограниченный C0/C1 spike с pinned open plugin до инвестиций в custom web UI (→ [SDK](../contracts/plugins.md#sdk), [Compatibility Host](../architecture/modules/compatibility-host.md)).
 
 ### Тесты
 
-- [ ] Юнит: manifest/permission/session state machines.
-- [ ] Интеграционный: index без process; lease starts; release stops after grace.
-- [ ] Fault injection: crash, hang, oversized message, late old-session event.
-- [ ] Ownership: discovery на пустом workspace; два provider aliases/probe не получают один exclusive interface.
-- [ ] Contract: atomic descriptor delta/base resync, removed port, stale revision и unsupported required feature; independent contribution остаётся доступной.
+- [x] Юнит: manifest/permission/session state machines.
+- [x] Интеграционный: index без process; lease starts; release stops after grace.
+- [x] Fault injection: crash, hang, oversized message, late old-session event.
+- [x] Ownership: discovery на пустом workspace; два provider aliases/probe не получают один exclusive interface.
+- [x] Contract: atomic descriptor delta/base resync, removed port, stale revision и unsupported required feature; independent contribution остаётся доступной.
+
+Нативная fixture проходит `staging → SHA-256 recheck → permission → process-tree guard → Hello/Ack →
+descriptor registration → heartbeat → idle grace → deactivation`. Windows использует Job Object с
+`KILL_ON_JOB_CLOSE`, Unix — отдельную process group; orphan-grandchild проверяется integration test.
+Bounded stderr и Protobuf framing не смешиваются. Отзыв grant сначала инвалидирует registry routes,
+затем останавливает runtime без автоматического restart.
+
+Ранний [OpenAction C0/C1 spike](../research/openaction-c0-c1-spike.md) индексирует pinned MIT Counter
+manifest без исполнения. C1 честно оставлен будущему отдельному WebSocket compatibility host: наличие
+manifest или PI не выдаётся за runtime compatibility.
 
 ### Ссылки
 

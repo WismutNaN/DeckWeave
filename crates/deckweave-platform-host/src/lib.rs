@@ -5,14 +5,96 @@
 use auto_launch::{AutoLaunch, AutoLaunchBuilder};
 #[cfg(windows)]
 mod windows_autostart;
-use deckweave_application::{HostLease, HostPlatform, PlatformError};
+use deckweave_application::{
+    ChildProcessGuard, ChildProcessPolicy, HostLease, HostPlatform, PlatformError,
+};
 use deckweave_domain::DeploymentMode;
 use directories::BaseDirs;
 use std::{
     ffi::OsString,
     fs::{self, File, OpenOptions},
     path::{Path, PathBuf},
+    process::{Child, Command},
 };
+
+#[cfg(windows)]
+mod windows_process_guard;
+
+/// Native process-tree lifetime policy used by the plugin supervisor.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct NativeChildProcessPolicy;
+
+#[cfg(not(windows))]
+struct NativeChildProcessGuard {
+    process_group_id: i32,
+    terminated: bool,
+}
+
+#[cfg(not(windows))]
+impl NativeChildProcessGuard {
+    fn kill_group(&mut self) -> Result<(), PlatformError> {
+        if self.terminated {
+            return Ok(());
+        }
+        // SAFETY: negative PID targets only the process group created for the
+        // plugin. No pointer or borrowed memory crosses the FFI boundary.
+        let result = unsafe { libc::kill(-self.process_group_id, libc::SIGKILL) };
+        if result != 0 {
+            let error = std::io::Error::last_os_error();
+            if error.raw_os_error() != Some(libc::ESRCH) {
+                return Err(error.into());
+            }
+        }
+        self.terminated = true;
+        Ok(())
+    }
+}
+
+#[cfg(not(windows))]
+impl ChildProcessGuard for NativeChildProcessGuard {
+    fn terminate_tree(&mut self) -> Result<(), PlatformError> {
+        self.kill_group()
+    }
+}
+
+#[cfg(not(windows))]
+impl Drop for NativeChildProcessGuard {
+    fn drop(&mut self) {
+        let _ignored = self.kill_group();
+    }
+}
+
+impl ChildProcessPolicy for NativeChildProcessPolicy {
+    fn configure(&self, command: &mut Command) -> Result<(), PlatformError> {
+        #[cfg(windows)]
+        {
+            let _ = command;
+            Ok(())
+        }
+        #[cfg(not(windows))]
+        {
+            use std::os::unix::process::CommandExt;
+            command.process_group(0);
+            Ok(())
+        }
+    }
+
+    fn attach(&self, child: &mut Child) -> Result<Box<dyn ChildProcessGuard>, PlatformError> {
+        #[cfg(windows)]
+        {
+            windows_process_guard::attach(child)
+        }
+        #[cfg(not(windows))]
+        {
+            let process_group_id = i32::try_from(child.id())
+                .map_err(|_| PlatformError::Unavailable("child PID exceeds i32".into()))?;
+            Ok(Box::new(NativeChildProcessGuard {
+                process_group_id,
+                terminated: false,
+            }))
+        }
+    }
+}
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct LaunchOptions {

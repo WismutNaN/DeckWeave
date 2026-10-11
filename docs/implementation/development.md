@@ -1,6 +1,6 @@
 # Разработка и запуск
 
-Скелет фазы 1 и contracts фазы 2 используют Rust 1.98.1 из rust-toolchain.toml, Node.js 22.12+ и npm.
+Скелет фазы 1, contracts фазы 2 и plugin runtime фазы 3 используют Rust 1.98.1 из rust-toolchain.toml, Node.js 22.12+ и npm.
 Windows требует MSVC Build Tools и WebView2 Runtime. Требования ОС: [документация Tauri](https://v2.tauri.app/start/prerequisites/).
 
 ## Установка зависимостей
@@ -99,16 +99,22 @@ cargo build --locked -p deckweave-desktop --features smoke-test
 PowerShell harness также проверяет отсутствие WebView2 processes с уникальным тестовым data-root после выхода.
 
 ОС освобождение writer lock после принудительного завершения дочернего процесса проверяется
-отдельным Rust integration test. Production plugin processes и их tree cleanup появятся в фазе 3;
-фазы 1–2 не запускают plugins, API listener или hardware.
+отдельным Rust integration test. Plugin runtime использует Windows Job Object или Unix process group;
+fault fixture дополнительно создаёт grandchild и проверяет отсутствие orphan после terminate.
+Hardware и API listener пока не запускаются.
 
 ## Границы реализации
 
-В фазах 1–2 доступны lifecycle, каталоги, блокировки, opt-in автозапуск, read-only HostSnapshot
-и versioned domain/protocol contracts с fixtures.
-Главный экран показывает состояние настоящего host, но устройства, bindings и список plugins пока не реализованы.
-Control envelope и document schemas зафиксированы как эволюционирующая граница, но SDK ещё не стабилизирован.
+В фазах 1–3 доступны host lifecycle, каталоги, блокировки, opt-in автозапуск, read-only HostSnapshot,
+versioned contracts, статический package index, isolated native runtime и Capability Registry.
+Главный экран показывает состояние настоящего host, но workspace, bindings и список plugins в UI пока не реализованы.
+Control envelope, framing helpers и document schemas зафиксированы как эволюционирующая граница;
+полный SDK ещё не стабилизирован.
 Remote/media пока представлены только descriptors; transport и raw buffer ABI намеренно отсутствуют.
+
+Permissive reference plugin находится в `examples/virtual-plugin`; он зависит только от
+`deckweave-protocol`. OpenAction C0 scanner и pinned fixture находятся в `runtimes/openaction-host`
+и `fixtures/compatibility`. C1 WebSocket translation не реализована и не смешивается с native stdio ABI.
 
 Правила зависимостей проверяет scripts/check-boundaries.mjs согласно
 [ADR-0013](../decisions/0013-dependency-and-host-service-boundaries.md).
@@ -118,9 +124,13 @@ Remote/media пока представлены только descriptors; transpo
 
 - Windows: debug executable собран через Tauri CLI; Svelte/TypeScript — 0 ошибок и предупреждений.
 - Проверен также dev-запуск с Vite и portable arguments; native smoke проходит и в этом режиме, dev server завершается вместе с запуском.
-- Rust: 8 unit tests platform-host (включая Windows quoting) и 2 integration test entries, одна из которых — child fixture для crash-test; весь default workspace компилируется и тестируется.
+- Rust: platform-host, protocol, registry, supervisor, virtual example и OpenAction scanner компилируются и проходят unit/integration tests.
 - Настоящий Tauri/WebView2 smoke: IPC, tray, close-to-tray, same-root focus, different-root conflict, общий Exit handler и отсутствие WebView2 orphans.
-- Format/Clippy, docs-check (60 Markdown-файлов, 80 requirement IDs), 2 Node tests, package boundaries и license/provenance checks проходят.
+- Plugin runtime: staging/index без исполнения, pre-launch hash recheck, bounded Protobuf stdio,
+  negotiated limits, heartbeat/start/stop deadlines, discovery expiry, restart/backoff/circuit breaker,
+  grant revoke, session invalidation и process-tree cleanup.
+- Pinned OpenAction Counter manifest проходит C0 scanner; C1 отмечается недоступным без platform artifact и отдельного WebSocket host.
+- Format/Clippy, docs-check, Node tests, package boundaries и license/provenance checks проходят.
 - cargo-deny проходит с одним документированным исключением unmaintained GTK build dependency в [THIRD_PARTY](../../THIRD_PARTY.md#проверенные-исключения-dependency-policy).
 
 Пока не проверены: ручной клик Exit в native tray menu, реальный автозапуск после входа Windows,

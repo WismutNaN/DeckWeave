@@ -8,6 +8,7 @@ pub mod lighting;
 pub mod media;
 pub mod remote;
 pub mod schema;
+pub mod security;
 pub mod visual;
 
 use serde::{Deserialize, Serialize};

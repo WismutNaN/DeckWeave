@@ -67,8 +67,14 @@ export interface PluginManifest {
   protocolRange: VersionRange;
   permissions: {
     scope: NamespacedId;
+    accessMode: "observe" | "read" | "write" | "execute" | "shared" | "exclusive" | "provision";
+    resourceSelector: unknown;
     reason: string;
     optional?: boolean;
+    /**
+     * @minItems 1
+     */
+    runtimeGroupIds?: [LocalId, ...LocalId[]];
     [k: string]: unknown;
   }[];
   schemas: {

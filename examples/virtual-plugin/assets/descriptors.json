@@ -1,0 +1,93 @@
+[
+  {
+    "nodeId": "virtual-input-node",
+    "kind": "local",
+    "label": "Virtual input",
+    "descriptorRevision": 1,
+    "devices": [
+      {
+        "identity": "virtual-button-device",
+        "providerId": "org.deckweave.example.virtual-device-provider",
+        "kind": "virtual",
+        "label": "Virtual button",
+        "elements": [
+          {
+            "elementId": "button-1",
+            "label": "Button 1",
+            "capabilities": [
+              {
+                "capabilityId": "button-1-input",
+                "kind": "org.deckweave.input.button",
+                "ports": [
+                  {
+                    "portId": "button-1.edge",
+                    "kind": "EventOut",
+                    "direction": "output",
+                    "semantics": "event",
+                    "schema": {
+                      "id": "org.deckweave.signal.button_edge",
+                      "version": { "major": 1, "minor": 0 }
+                    },
+                    "compatibleVersions": {
+                      "minimum": { "major": 1, "minor": 0 },
+                      "maximum": { "major": 1, "minor": 0 }
+                    },
+                    "availability": { "status": "available" },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": ["virtual", "example"]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "nodeId": "virtual-action-node",
+    "kind": "local",
+    "label": "Virtual actions",
+    "descriptorRevision": 1,
+    "services": [
+      {
+        "serviceId": "virtual-echo",
+        "providerId": "org.deckweave.example.virtual-action-provider",
+        "label": "Virtual echo",
+        "elements": [
+          {
+            "elementId": "echo",
+            "label": "Echo",
+            "capabilities": [
+              {
+                "capabilityId": "echo-operation",
+                "kind": "org.deckweave.service.echo",
+                "ports": [
+                  {
+                    "portId": "echo.invoke",
+                    "kind": "CommandIn",
+                    "direction": "input",
+                    "semantics": "command",
+                    "schema": {
+                      "id": "org.deckweave.operation.echo_input",
+                      "version": { "major": 1, "minor": 0 }
+                    },
+                    "compatibleVersions": {
+                      "minimum": { "major": 1, "minor": 0 },
+                      "maximum": { "major": 1, "minor": 0 }
+                    },
+                    "availability": { "status": "available" },
+                    "lifetime": "requestable",
+                    "descriptorRevision": 1,
+                    "tags": ["virtual", "example", "action"]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]

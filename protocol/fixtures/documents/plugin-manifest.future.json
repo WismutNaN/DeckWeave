@@ -33,7 +33,13 @@
     "maximum": { "major": 1, "minor": 1 }
   },
   "permissions": [
-    { "scope": "org.deckweave.device.observe", "reason": "Observe fixture input" }
+    {
+      "scope": "org.deckweave.device.observe",
+      "accessMode": "observe",
+      "resourceSelector": { "bus": "fixture" },
+      "reason": "Observe fixture input",
+      "runtimeGroupIds": ["control"]
+    }
   ],
   "schemas": [
     {

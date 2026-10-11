@@ -5,6 +5,8 @@ use prost::Message;
 use std::collections::BTreeMap;
 use thiserror::Error;
 
+pub mod framing;
+
 pub mod v1 {
     include!(concat!(env!("OUT_DIR"), "/deckweave.v1.rs"));
 }

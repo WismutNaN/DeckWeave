@@ -93,11 +93,21 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["scope", "reason"],
+        "required": ["scope", "accessMode", "resourceSelector", "reason"],
         "properties": {
           "scope": { "$ref": "#/$defs/namespacedId" },
+          "accessMode": {
+            "enum": ["observe", "read", "write", "execute", "shared", "exclusive", "provision"]
+          },
+          "resourceSelector": {},
           "reason": { "type": "string", "minLength": 1, "maxLength": 1024 },
-          "optional": { "type": "boolean", "default": false }
+          "optional": { "type": "boolean", "default": false },
+          "runtimeGroupIds": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/localId" }
+          }
         },
         "additionalProperties": {}
       }

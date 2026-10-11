@@ -17,7 +17,16 @@ const byName = new Map(locals.map((p) => [p.name, p]));
 const errors = [];
 const allowed = {
   "deckweave-protocol": [],
+  "deckweave-virtual-plugin-example": ["deckweave-protocol"],
+  "deckweave-openaction-host": [],
   "deckweave-domain": ["deckweave-protocol"],
+  "deckweave-registry": ["deckweave-domain"],
+  "deckweave-plugin-supervisor": [
+    "deckweave-application",
+    "deckweave-domain",
+    "deckweave-protocol",
+    "deckweave-registry",
+  ],
   "deckweave-application": ["deckweave-domain"],
   "deckweave-host": ["deckweave-application", "deckweave-domain"],
   "deckweave-platform-host": ["deckweave-application", "deckweave-domain"],
@@ -34,7 +43,10 @@ function sourceFiles(dir) {
   });
 }
 for (const pkg of locals) {
-  const permissive = pkg.name === "deckweave-protocol";
+  const permissive = [
+    "deckweave-protocol",
+    "deckweave-virtual-plugin-example",
+  ].includes(pkg.name);
   const license = permissive ? "MIT OR Apache-2.0" : "GPL-3.0-or-later";
   if (pkg.license !== license)
     errors.push(pkg.name + ": неправильная лицензия");
