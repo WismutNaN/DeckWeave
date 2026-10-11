@@ -1,0 +1,31 @@
+[workspace]
+resolver = "3"
+members = ["crates/*", "apps/desktop/src-tauri"]
+default-members = ["crates/deckweave-domain", "crates/deckweave-protocol", "crates/deckweave-application", "crates/deckweave-host", "crates/deckweave-platform-host"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98"
+license = "GPL-3.0-or-later"
+publish = false
+
+[workspace.dependencies]
+deckweave-domain = { version = "0.1.0", path = "crates/deckweave-domain" }
+deckweave-application = { version = "0.1.0", path = "crates/deckweave-application" }
+deckweave-host = { version = "0.1.0", path = "crates/deckweave-host" }
+deckweave-platform-host = { version = "0.1.0", path = "crates/deckweave-platform-host" }
+serde = { version = "1", features = ["derive"] }
+thiserror = "2"
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+
+[profile.release]
+strip = true
+lto = "thin"
+codegen-units = 1

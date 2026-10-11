@@ -1,0 +1,41 @@
+{
+  "name": "deckweave",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "GPL-3.0-or-later",
+  "workspaces": [
+    "apps/desktop"
+  ],
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "npm run tauri --workspace @deckweave/desktop -- dev",
+    "dev:web": "vite --config ui/desktop/vite.config.ts",
+    "build": "npm run tauri --workspace @deckweave/desktop -- build --no-bundle",
+    "build:web": "vite build --config ui/desktop/vite.config.ts",
+    "check:ui": "svelte-check --tsconfig ui/desktop/tsconfig.json",
+    "check:docs": "node scripts/check-docs.mjs",
+    "check:boundaries": "node scripts/check-boundaries.mjs",
+    "check:format": "prettier --check ui/desktop apps/desktop/package.json scripts .github package.json",
+    "format": "prettier --write ui/desktop apps/desktop/package.json scripts .github package.json",
+    "test:scripts": "node --test scripts/*.test.mjs",
+    "check": "npm run check:ui && npm run check:docs && npm run check:boundaries && npm run check:format && npm run test:scripts"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.12.3"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.2",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "svelte": "^5.57.2",
+    "svelte-check": "^4.7.6",
+    "typescript": "~6.0.0",
+    "vite": "^8.3.4",
+    "prettier": "^3.6.0",
+    "prettier-plugin-svelte": "^4.1.1",
+    "github-slugger": "^2.0.0",
+    "@types/node": "^22.0.0"
+  }
+}

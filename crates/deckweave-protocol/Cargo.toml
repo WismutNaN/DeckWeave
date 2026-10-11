@@ -1,0 +1,11 @@
+[package]
+name = "deckweave-protocol"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license = "MIT OR Apache-2.0"
+description = "Независимая граница wire contracts DeckWeave"
+
+[lints]
+workspace = true

@@ -36,7 +36,7 @@
 
 | Фаза | Название | Результат | Трудоёмкость | Статус |
 |---:|---|---|:---:|:---:|
-| 1 | Скелет репозитория | Workspace компилируется, UI shell и CI запускаются | S | [ ] |
+| 1 | Скелет репозитория | Workspace компилируется, UI shell и CI запускаются | S | [~] |
 | 2 | Domain и protocol contracts | Versioned types/schemas/generated code | M | [ ] |
 | 3 | Plugin supervisor и virtual package | Первый изолированный plugin end-to-end | L | [ ] |
 | 4 | Profile revisions и application API | Draft/validate/apply/rollback через API | L | [ ] |
@@ -71,27 +71,29 @@
 **Цель:** проект компилируется и запускается без бизнес-логики.
 **Результат:** Rust workspace, Tauri/Svelte shell, empty tray host и CI проходят smoke tests.
 **Трудоёмкость:** S
-**Статус:** [ ] Не начата
+**Статус:** [~] Реализация и локальные автопроверки готовы; ожидаются ручная приёмка трея и первый GitHub CI.
 
 ### Контекст для агента
-> Исполняемого кода нет. Не создавать hardware, plugin IPC или graph logic. Нужно заложить package/license boundaries, lint/test policy и минимальный long-lived desktop lifecycle.
+> Каркас реализован без hardware, plugin IPC и graph logic. [Разработка и evidence](development.md) описывают команды, проверенный lifecycle и оставшиеся проверки. Не считать будущие contracts runtime-гарантиями.
 
 ### Задачи
 
-- [ ] Создать только необходимые каталоги из целевой структуры (→ [Архитектура — Целевая структура репозитория](../architecture/overview.md#целевая-структура-репозитория)).
-- [ ] Создать Rust crates/apps с пустыми публичными boundaries (→ [Модуль: Domain & Protocol](../architecture/modules/domain-protocol.md), [Модуль: Host Runtime](../architecture/modules/host-runtime.md)).
-- [ ] Создать Tauri/Svelte shell: окно, tray, close-to-tray, явный Exit (→ [Модуль: Desktop Shell](../architecture/modules/desktop-shell.md)).
-- [ ] Реализовать single-instance/data-root locks, installed/portable root selection и optional autostart; portable ничего не регистрирует сам (→ [Host Platform Services](../architecture/modules/host-platform-services.md)).
-- [ ] Зафиксировать GPL и permissive package license files/headers (→ [ADR-0007](../decisions/0007-licensing.md)).
-- [ ] Настроить format/lint/test/license/provenance checks в CI (→ [Модуль: Diagnostics & Test Lab](../architecture/modules/diagnostics-test-lab.md)).
-- [ ] Включить docs-check: paths/anchors, requirement IDs, PLAN → modules и JSON examples (→ [Обзор документации](../README.md)).
+- [x] Создать только необходимые каталоги из целевой структуры (→ [Архитектура — Целевая структура репозитория](../architecture/overview.md#целевая-структура-репозитория)).
+- [x] Создать Rust crates/apps с пустыми публичными boundaries (→ [Модуль: Domain & Protocol](../architecture/modules/domain-protocol.md), [Модуль: Host Runtime](../architecture/modules/host-runtime.md)).
+- [x] Создать Tauri/Svelte shell: окно, tray, close-to-tray, явный Exit (→ [Модуль: Desktop Shell](../architecture/modules/desktop-shell.md)).
+- [x] Реализовать single-instance/data-root locks, installed/portable root selection и optional autostart; portable ничего не регистрирует сам (→ [Host Platform Services](../architecture/modules/host-platform-services.md)).
+- [x] Зафиксировать GPL и permissive package license files/headers (→ [ADR-0007](../decisions/0007-licensing.md)).
+- [x] Настроить format/lint/test/license/provenance checks в CI (→ [Модуль: Diagnostics & Test Lab](../architecture/modules/diagnostics-test-lab.md)).
+- [x] Включить docs-check: paths/anchors, requirement IDs, PLAN → modules и JSON examples (→ [Обзор документации](../README.md)).
 
 ### Тесты
 
-- [ ] Юнит: каждый crate импортируется без panic.
-- [ ] Интеграционный: desktop стартует, окно закрывается, tray host остаётся жив.
+- [x] Юнит: workspace компилируется, Rust unit/integration tests проходят.
+- [x] Интеграционный: desktop стартует, окно закрывается, tray host остаётся жив.
 - [ ] Ручная проверка: Exit из tray завершает process без orphan children.
-- [ ] Lifecycle: второй запуск с тем же root открывает UI; другой root не запускает второй hardware owner; crash освобождает lock.
+- [x] Lifecycle: второй запуск с тем же root открывает UI; другой root не запускает второй host; crash освобождает lock. Hardware в этой фазе отсутствует.
+
+Автоматический smoke дополнительно вызывает общий Exit handler и проверяет завершение host/WebView2. Он не подменяет ручную проверку клика по пункту tray menu. CI настроен для Windows и Linux core, но результаты удалённого GitHub run ещё не получены.
 
 ### Ссылки
 

@@ -1,0 +1,59 @@
+name: Проверки
+on: [push, pull_request]
+permissions:
+  contents: read
+
+jobs:
+  core:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Rust
+        run: rustup show active-toolchain
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build:web
+      - run: cargo fmt --all -- --check
+      - run: cargo test --locked
+      - run: cargo clippy --locked --all-targets -- -D warnings
+
+  desktop-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:web
+      - run: cargo build --locked -p deckweave-desktop --features smoke-test
+      - run: cargo clippy --locked -p deckweave-desktop --all-targets --all-features -- -D warnings
+      - name: Настоящий desktop lifecycle
+        shell: pwsh
+        run: ./scripts/smoke-desktop.ps1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-smoke
+          path: |
+            test-results/**/desktop-smoke.txt
+            test-results/**/stderr.log
+      - name: Сборка без тестовых hooks
+        run: cargo build --locked -p deckweave-desktop
+
+  dependencies:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup show active-toolchain
+      - name: Установить cargo-deny
+        run: cargo install cargo-deny --version 0.20.2 --locked
+      - run: cargo deny check licenses sources bans advisories

@@ -1,0 +1,6 @@
+target
+node_modules
+ui/desktop/dist
+apps/desktop/src-tauri/gen
+package-lock.json
+docs

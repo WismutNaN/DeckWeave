@@ -1,0 +1,8 @@
+{
+  "identifier": "main",
+  "description": "Локальное окно оболочки. Только application commands, без файлов и устройств.",
+  "windows": [
+    "main"
+  ],
+  "permissions": ["core:event:allow-listen", "core:event:allow-unlisten"]
+}

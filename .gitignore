@@ -1,0 +1,14 @@
+/target/
+/node_modules/
+/ui/desktop/dist/
+/apps/desktop/src-tauri/gen/
+# Tauri icon генерирует также mobile/Appx assets, не используемые фазой 1.
+/apps/desktop/src-tauri/icons/*
+!/apps/desktop/src-tauri/icons/icon.ico
+!/apps/desktop/src-tauri/icons/icon.png
+*.log
+.DS_Store
+Thumbs.db
+/coverage/
+/test-results/
+/.local/
