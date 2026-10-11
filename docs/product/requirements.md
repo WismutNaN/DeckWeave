@@ -42,6 +42,7 @@
 | DW-AU-012 | P1 | Долгие jobs поддерживают progress/cancel, bounded artifacts и run-local data | Cancel/TTL/quota/revoke/restart fixtures проходят; WAV/текст не попадают в profile assets и default logs |
 | DW-AU-013 | P1 | Коллекции имеют bounded pagination, item identity, freshness и gap recovery отдельно от state | Fake notification feed обрабатывает edit/delete, expired cursor и reconnect без бесконечной очереди |
 | DW-AU-014 | P2 | Отдельные packages реализуют Handy/capture/browser и mail/Telegram workflows | Реальный version-pinned end-to-end тест подтверждает result correlation, API limits и отсутствие смешивания private data |
+| DW-AU-015 | P1 | Automation может открыть host-owned interaction и продолжиться с typed user result | Две одновременные search sessions не смешивают результаты; cancel/timeout/provider loss не выдаются за success |
 
 ### Surface, feedback и N4 Pro
 
@@ -69,6 +70,7 @@
 | DW-PL-005 | P0 | Permissions показываются до запуска, scope сохраняется отдельно от profile secrets | Новое permission после update требует повторного подтверждения |
 | DW-PL-006 | P1 | Central catalogue хранит metadata и ссылки на immutable GitHub release artifacts | Установка проверяет hash, а update всегда подтверждается пользователем |
 | DW-PL-007 | P0 | Handshake согласует обязательные features/schemas/limits, а не только package version | Unsupported required feature блокирует route/group с report; limits не превышают host policy; independent contribution сохраняет совместимость |
+| DW-PL-008 | P1 | Plugin может предоставить schema-native interaction либо sandboxed view без произвольного доступа к desktop window/host API | Reference search provider возвращает страницы и selection через scoped session bridge; forbidden host call отклоняется |
 | DW-CP-001 | P1 | OpenAction/Elgato compatibility host запускает проверенное подмножество существующих plugins без изменения их исходников | Reference packages достигают документированных C0–C3 levels |
 | DW-CP-002 | P2 | Bitfocus Companion bridge подключает modules/variables/actions через публичные или изолированные compatibility interfaces | Companion version несовместимость не ломает native plugins |
 | DW-CP-003 | P1 | Нативный replacement plugin может объявить migration from legacy action | Пользователь видит settings diff и может rollback |
@@ -83,6 +85,8 @@
 | DW-IN-004 | P2 | Selective keyboard/mouse replacement использует optional privileged platform component | Отключение компонента возвращает безопасный системный ввод |
 | DW-IN-005 | P2 | Device memory/configuration изменяется только через отдельный typed provisioning plan с readback | V1 объявляет read-only descriptor и отклоняет write; реализация записи начинается отдельной post-v1 программой |
 | DW-IN-006 | P0 | Firmware flashing находится вне области DeckWeave | Ни один standard permission не позволяет firmware update |
+| DW-IN-007 | P0 | Bundled first-party provider использует штатную клавиатуру ноутбука как trigger source в observe/pass-through mode | После установки клавиша вызывает virtual action, оставаясь доступной ОС; сторонний plugin не требуется |
+| DW-IN-008 | P1 | Input provider объявляет фактическую granularity и identity источника | Агрегированный OS hook не выдаётся за отдельную физическую клавиатуру; reconnect не создаёт ложных bindings |
 
 ### API, профили и эксплуатация
 
@@ -131,6 +135,7 @@
 | DW-NF-012 | Публичный проект | Каждый merge оставляет build/test/docs в согласованном состоянии и указывает provenance заимствований |
 | DW-NF-013 | Восстановление кадров | Diff имеет подтверждённую base; drop/timeout/reconnect вызывает full-frame resync |
 | DW-NF-014 | Зависимости | Runtime не импортирует testkit, SDK не импортирует GPL domain/host; OS bootstrap не зависит от lazy plugin |
+| DW-NF-015 | Архитектура | Bounded contexts владеют инвариантами; adapter не импортирует чужую infrastructure; Shared Kernel остаётся минимальным; boundary/size ratchet проверяется автоматически |
 
 ## Первый сквозной критерий
 
@@ -145,5 +150,6 @@
 7. задаёт light и haptic feedback;
 8. закрывает окно, продолжая использовать панель;
 9. записывает тестовый event trace, изменяет draft и безопасно возвращается к snapshot.
+10. назначает штатную клавишу ноутбука trigger-источником без отключения её обычной функции в ОС.
 
 N4 screen/touch/per-ring возможности проходят отдельный model/firmware gate: координатный sample не доказывает release/multitouch, а размер основного background не доказывает размер touch strip. Если hardware gate не подтверждает P0-возможность, M2 не объявляется достигнутым: требуется явное изменение требования/ADR, а не синтетический descriptor. [Сквозные сценарии](scenarios.md) расширяют критерии проверки контракта, сохраняя отдельные сроки конкретных integrations.

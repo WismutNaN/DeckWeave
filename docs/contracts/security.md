@@ -15,6 +15,7 @@ DeckWeave управляет вводом, устройствами, прило�
 | Native control plugin | Выбран пользователем, потенциально ошибочный | Отдельный process, но права OS user |
 | Legacy plugin | Неизвестные предположения/dependencies | Compatibility process tree |
 | Custom web editor/widget | Web content package | Isolated origin/process + scoped bridge |
+| Custom interaction view | Web content package внутри host-owned session | Isolated origin/process + session-scoped bridge |
 | Native media plugin | Высокое доверие требуется | Отдельный media host |
 | Remote agent | Paired device | Mutual identity + revocable grants |
 | API client | Local authenticated principal | Scoped token/session |
@@ -116,6 +117,12 @@ Install scripts запрещены. Каталог не делает package д�
 
 Origin различается по scheme/host/port либо является sandboxed opaque origin; path не участвует в этой границе ([HTML Standard](https://html.spec.whatwg.org/multipage/browsers.html#origin)). Loopback ports без раздельного browser storage недостаточны для изоляции cookies. Поэтому backend обязан разделять storage, запрещать service workers и проверять cross-context fetch/storage/bridge fixtures. Если legacy PI требует несовместимого доступа, соответствующая возможность помечается unsupported; ослаблять общий privileged bridge нельзя.
 
+### Interaction views
+
+Interaction window всегда создаёт host, даже если package предоставляет custom content. Plugin не получает API создания/перемещения окон, global shortcuts, Tauri commands или общий local API token. Bridge ограничен `package + contribution + InteractionSessionId`, объявленной request/result schema, bounded pages и session deadline. Focus, Escape/cancel, clipboard policy, placement и закрытие остаются у host.
+
+Schema-native views не запускают plugin web content. Custom runtime создаётся лениво, получает отдельный origin/storage partition и завершается либо уходит в bounded idle pool после закрытия последней session. Navigation, popup/new-window, service workers и download запрещены; network/filesystem доступны только через отдельные grants/brokers. Result валидируется host и может завершить только owner invocation.
+
 ## Remote agents
 
 - Pairing подтверждается на обоих устройствах.
@@ -129,6 +136,7 @@ Origin различается по scheme/host/port либо является sa
 ## Input safety
 
 - Observe, intercept и emit — отдельные grants.
+- Bundled keyboard provider по умолчанию работает observe/pass-through и честно объявляет `system_aggregate`, если OS не даёт identity физического устройства.
 - Injected events получают synthetic origin.
 - Default loop guard не направляет synthetic event обратно к source route.
 - Privileged helper имеет минимальный protocol и не читает workspace.

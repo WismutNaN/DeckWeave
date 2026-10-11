@@ -1,6 +1,6 @@
 # Модуль: Host Runtime
 
-**Ответственность:** владеет lifecycle per-user host, active revision, apply coordination и согласованным snapshot системы.
+**Ответственность:** владеет lifecycle per-user host, active revision, apply coordination и согласованным snapshot системы. Application dispatch, principal authorization и API error translation принадлежат Application Gateway/Local API.
 **Расположение:** `crates/deckweave-host/`, composition root в `apps/desktop/src-tauri/`.
 
 ## Публичный интерфейс
@@ -41,6 +41,8 @@
 
 ## Намеренно НЕ обрабатывает
 
+- draft command dispatch и authorization policy;
+- transport/application error mapping;
 - hardware protocol;
 - rendering details;
 - plugin implementation;
@@ -49,5 +51,7 @@
 ## Заметки для агента
 
 > Использовать сериализованного owner для mutable host state. Не держать async lock во время внешнего plugin call. Обязательны [порядок apply/crash recovery](../../contracts/lifecycle.md#сохранение-и-apply) и bounded cleanup held outputs. После commit rollback — новая operation, не обещание отмены внешнего эффекта.
+
+Текущий `deckweave-host` временно содержит часть Application Gateway. Перенос выполняется по [DDD migration](../../implementation/roadmap.md#ddd-migration) с characterization tests и совместимыми re-export, а не параллельной реализацией семантики.
 
 ArtifactBroker реализует узкий application port с injected temporary-storage adapter; engine не зависит от Host implementation. Limits и lifecycle: [automation artifacts](../../contracts/automation.md#artifact-и-доступ-к-данным). Это небольшой сервис host, не новый обязательный процесс или database.

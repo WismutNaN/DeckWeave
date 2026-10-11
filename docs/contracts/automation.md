@@ -8,6 +8,7 @@
 |---|---|---|
 | Signal / state | Нажатие, положение оси, текущее mute | Event или versioned snapshot с freshness |
 | Invocation result | Текст транскрибации, созданная вкладка, receipt письма | Конкретный вызов внутри конкретного run |
+| Interaction result | Выбранный пользователем item/form value либо explicit cancel | Конкретная interaction session и owner invocation |
 | Runtime artifact | Запись WAV, большой текст, вложение | Ограниченный срок хранения и lease |
 | Media stream | Непрерывный звук или видео | Negotiated stream session, отдельный data plane |
 
@@ -67,6 +68,22 @@ Cancel — запрос остановить работу. `cancelled` озна�
 
 Случайность, current time и внешние ответы при replay берутся из fixture. Ветвь без recorded result получает `inconclusive`. Simulation никогда не читает реальные уведомления, clipboard или микрофон и не запускает код/браузер.
 
+## Interaction sessions
+
+Interaction node приостанавливает только свою continuation и создаёт request через application port Interaction Runtime. Request содержит `InteractionSessionId`, owner `InvocationId`, view kind/schema, initial query/state, result schema, deadline, cancel policy и требуемые provider/grants. Окно и пользовательский lifecycle принадлежат host; provider поставляет данные страниц, validation или custom sandboxed representation.
+
+Terminal outcomes:
+
+- `selected(result)` — значение прошло result schema и принадлежит этой session;
+- `cancelled(reason)` — пользователь закрыл окно/нажал Escape либо policy отменила session;
+- `failed(error)` — provider/view/session fault;
+- `timed_out` — deadline истёк без terminal selection;
+- `unknown_outcome` не применяется к локальному выбору: host либо зафиксировал selection, либо нет. Следующий внешний action уже имеет собственную outcome semantics.
+
+Только `selected` продолжает обычную success-ветвь. Остальные исходы обрабатываются явной error/cancel policy. Повторная terminal message игнорируется и диагностируется; результат другой session отклоняется. Apply/restart/revoke отменяет старые sessions по epoch. Query pages bounded, cursor scoped к provider generation/session; пользовательский текст и selection не попадают в profile/default log.
+
+Schema-native list/search/form/confirm доступен без custom runtime. Custom view не получает прямой application API и общается через schema-validated session bridge. Replay использует записанный synthetic result либо `inconclusive`, но не открывает реальное окно.
+
 ## Artifact и доступ к данным
 
 `RuntimeArtifactRef` содержит opaque ID, schema/media type, size, digest, owner run, sensitivity и expiration. Это не filesystem path, URL или право доступа само по себе. Artifact broker в Host Runtime выдаёт ограниченный read lease конкретному consumer с проверкой grants; transport — bounded chunks или scoped OS handle/private temporary file для подходящего adapter. Consumers не получают произвольный доступ к data root. Provider не может вернуть путь и заставить host прочитать его вне granted scope.
@@ -100,5 +117,6 @@ Layer state имеет scope device group/workspace и входит в един�
 - Fan-out не мутирует общий input; join/error/skip/null воспроизводятся по одному trace.
 - Artifact TTL, quota, revoke и restart cleanup проверяются без реальных private data.
 - Press на одном слое и release после смены слоя не оставляет held output; два owners не мешают друг другу.
+- Две concurrent interaction sessions не смешивают query/pages/selection; Escape, timeout и provider crash не становятся success; stale result после apply не продолжает новый plan.
 
 Сквозные сценарии и границы готовности: [product/scenarios.md](../product/scenarios.md).

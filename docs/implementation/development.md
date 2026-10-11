@@ -112,10 +112,11 @@ Control envelope, framing helpers и document schemas зафиксированы
 полный SDK ещё не стабилизирован.
 Remote/media пока представлены только descriptors; transport и raw buffer ABI намеренно отсутствуют.
 
-Начат профильный store фазы 4: `deckweave-profiles` поддерживает immutable checksum-verified revisions
-и content-addressed assets. Atomic publication инъецируется через application port; native adapter
-реализован в platform-host. Draft commands, active commit record и ApplicationService mutations пока
-не подключены, поэтому этот срез не меняет конфигурацию запущенного host.
+Фаза 4 в процессе: `deckweave-profiles` поддерживает immutable checksum-verified revisions,
+content-addressed assets, durable draft transactions/receipts, snapshots и selective export/import.
+Transport-independent ApplicationService выполняет draft mutations с principal scopes, optimistic version,
+dry-run и durable dedup через injected ports. Operation tracking, active commit/apply barrier и runtime
+activation ещё не подключены, поэтому draft пока не меняет конфигурацию запущенного host.
 
 Permissive reference plugin находится в `examples/virtual-plugin`; он зависит только от
 `deckweave-protocol`. OpenAction C0 scanner и pinned fixture находятся в `runtimes/openaction-host`
@@ -124,6 +125,21 @@ Permissive reference plugin находится в `examples/virtual-plugin`; о�
 Правила зависимостей проверяет scripts/check-boundaries.mjs согласно
 [ADR-0013](../decisions/0013-dependency-and-host-service-boundaries.md).
 Новые contracts добавляются по [плану](roadmap.md), не как private Tauri-only features.
+
+## DDD и ограничения кода
+
+Нормативны [DDD и границы контекстов](../architecture/ddd.md) и [ADR-0016](../decisions/0016-ddd-bounded-contexts.md). Краткие правила для каждой реализации:
+
+- сначала определить bounded context и владельца инварианта;
+- domain не знает filesystem/process/OS/UI, application зависит от ports, adapters подключает composition root;
+- context не импортирует infrastructure другого context;
+- transport/Tauri/plugin adapter только валидирует boundary и вызывает use case;
+- Shared Kernel type добавляется при стабильной общей семантике и минимум двух потребителях;
+- `lib.rs`/`main.rs` целятся в 150 строк, production module — в 400; превышение — ratchet и повод проверить ответственность, не команда механически разрезать aggregate;
+- существующий превышающий файл не растёт без документированного исключения owner/reason/review milestone;
+- domain получает invariant tests, application — use-case tests через ports, adapter — contract/fault tests.
+
+Текущий перенос идёт по [DDD migration R1–R4](roadmap.md#ddd-migration). До любого перемещения code R1 фиксирует characterization tests и автоматические boundary gates. Каждый срез сохраняет зелёную сборку и отдельный rollback commit; большой одновременный rewrite запрещён.
 
 ## Локальная проверка 2026-10-12
 

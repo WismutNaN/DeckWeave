@@ -1,6 +1,6 @@
 # Модуль: Local API
 
-**Ответственность:** экспортирует application commands, queries, subscriptions, auth, revisions и operation tracking для UI/CLI/Codex.
+**Ответственность:** Application Gateway экспортирует commands, queries, subscriptions, authorization, stable errors и operation tracking для UI/CLI/Codex; Local API является одним из тонких transport adapters.
 **Расположение:** contracts в `crates/deckweave-application/`, transports в `crates/deckweave-api/`, client в `apps/cli/`.
 
 ## Публичный интерфейс
@@ -19,12 +19,14 @@
 | Модуль | Что использует |
 |---|---|
 | Application contracts | Commands/queries/service ports; реализацию Host передаёт composition root |
+| Bounded context ports | Маршрутизация use cases без импорта их infrastructure |
 | Principal context | Authenticated identity; authorization проверяет service, не только transport |
 | Diagnostics | Operation trace |
 
 ## Инварианты
 
 - Transport adapters не содержат business logic.
+- Gateway не меняет aggregates напрямую: он вызывает application use case контекста-владельца.
 - Mutations имеют durable idempotency receipt и command-specific preconditions; apply проверяет draft и active revision.
 - Apply отделён от draft edit.
 - Dangerous operation требует scoped confirmation.

@@ -39,6 +39,14 @@ Fixtures используют «обычную» observe-only клавиатур
 
 Нажатие keyboard key создаёт layer token для группы устройств; энкодер Stream Deck временно меняет назначение, а его light/display показывает активный слой. Release исходной key освобождает тот же token. Disconnect клавиатуры, change mapping во время hold и два одновременных owners не оставляют stuck layer/output. Observe mode не подавляет ввод в ОС; selective suppression требует отдельной actual capability.
 
+## Клавиатура ноутбука → поиск Zotero → PDF
+
+Bundled Platform Input provider наблюдает назначенную комбинацию в pass-through mode и создаёт нормализованное edge event. Automation вызывает `zotero.search`, затем открывает host-owned `InteractionSession`. Desktop overlay получает focus, показывает строку поиска и bounded страницы `ItemRef`; Zotero provider отвечает за запрос, metadata и attachment references, но не за окно.
+
+После выбора terminal typed result возвращается только исходному invocation. Следующий step вызывает `zotero.open_attachment` и открывает/focuses конкретный PDF. `Escape`, закрытие окна, timeout, потеря provider или удалённый item завершают session явным cancel/error и не открывают случайный последний результат. Две быстрые горячие клавиши имеют разные session IDs и не смешивают query, selection и continuation. Если OS hook не различает физические клавиатуры, UI честно показывает source как «Системная клавиатура».
+
+Reference fixture использует fake search provider, проверяет keyboard navigation, pagination, cancel и concurrent sessions. Реальный Zotero adapter получает отдельный version/API gate; private query/history не попадают в profile или default logs.
+
 ## Микрофон → обработка → виртуальный endpoint
 
 Media graph согласует rate/channel layout, выбирает filter и virtual sink. Control graph меняет gain/bypass и читает meters. Audio buffers остаются в media plane. Fixtures: plugin crash, hotplug, sample-rate change, grant revoke и unavailable virtual endpoint. До отдельного backend/driver gate это P2; запись файла для Handy может появиться раньше и не считается low-latency microphone replacement.
@@ -51,6 +59,7 @@ Media graph согласует rate/channel layout, выбирает filter и v
 | Mail и Telegram | DW-AU-011, DW-AU-013, DW-AU-014 | Unknown mail outcome и paginated fake feed в Фазе 11 | Account/API limits и privacy fixtures отдельного package |
 | RGB wave/cooldown | DW-SF-009, DW-SF-010 | Irregular virtual keyboard и fake clock в Фазах 9/11 | RGB provider с подтверждённой geometry/transport |
 | Слои и разные inputs | DW-AU-003, DW-AU-010, DW-WS-007 | Owner cleanup, mixed descriptor fixtures в Фазах 2/3/11 | Suppression/onboard features имеют отдельный platform gate |
+| Keyboard → Zotero interaction | DW-AU-015, DW-PL-008, DW-IN-007, DW-IN-008 | Bundled fake input + concurrent search sessions в Фазах 7/13 | Version-pinned Zotero provider и OS keyboard evidence |
 | Audio graph | DW-MD-001, DW-MD-004 | Negative negotiation/descriptor fixtures в Фазе 2 | Backend/latency/virtual endpoint ADR после v1 |
 
 До стабилизации SDK нужны несколько независимых fake providers, а не один универсальный fixture с закодированными знаниями о всех устройствах. Они проверяют возможность добавить capability без special-case в core; hardware tests позже подтверждают физическую реализацию.

@@ -1,6 +1,6 @@
-# Модуль: Domain & Protocol
+# Модуль: Shared Kernel & Protocol
 
-**Ответственность:** владеет стабильными идентификаторами, descriptors, schemas, envelopes и versioned wire contracts DeckWeave.
+**Ответственность:** владеет только стабильными общими идентификаторами, descriptors, schemas, envelopes и versioned wire contracts DeckWeave. Domain aggregates и use cases отдельных bounded contexts сюда не переносятся.
 **Расположение:** `crates/deckweave-domain/`, `crates/deckweave-protocol/`, `protocol/`.
 
 ## Публичный интерфейс
@@ -34,6 +34,7 @@
 - `session_generation` обязателен для runtime messages.
 - Source monotonic time всегда имеет clock domain; host ingress time/order не выводится из remote timestamp.
 - Permissive protocol/SDK не импортирует GPL domain; преобразование wire ↔ application types находится со стороны application.
+- Общий GPL type появляется здесь только при стабильной семантике и минимум двух bounded-context consumers; иначе он остаётся в контексте-владельце.
 
 ## Намеренно НЕ обрабатывает
 
@@ -46,6 +47,8 @@
 ## Заметки для агента
 
 > Это самый стабильный слой. Не добавлять «удобное» поле только для N4 Pro или Windows. Namespaced extension предпочтительнее изменения core vocabulary. Protocol package лицензируется отдельно под MIT OR Apache-2.0; application domain implementation может оставаться GPL.
+
+Этот модуль является минимальным Shared Kernel по [DDD policy](../ddd.md#shared-kernel), а не универсальным `domain` crate для любой бизнес-логики.
 
 Семантика типов: [Lifecycle](../../contracts/lifecycle.md#разные-виды-версий). `ApplicationService`/commands/queries размещаются отдельно в `deckweave-application`, без реализации Host и transports.
 

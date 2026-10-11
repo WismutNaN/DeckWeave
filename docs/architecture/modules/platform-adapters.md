@@ -1,6 +1,6 @@
 # Модуль: Platform Adapters
 
-**Ответственность:** предоставляет OS-dependent input/output, active application, volume/media и virtual targets как isolated plugin contributions. Locks, autostart и credentials принадлежат [Host Platform Services](host-platform-services.md).
+**Ответственность:** предоставляет OS-dependent input/output, active application, volume/media и virtual targets как isolated plugin contributions. Bundled normal-keyboard path уточнён в [Platform Input](platform-input.md). Locks, autostart и credentials принадлежат [Host Platform Services](host-platform-services.md).
 **Расположение:** `plugins/platform-windows/`, позже `plugins/platform-linux/` и `plugins/platform-macos/`.
 
 ## Публичный интерфейс
@@ -42,3 +42,5 @@
 ## Заметки для агента
 
 > Первая Windows contribution: media commands, volume/mute, application launch/focus и active-window state. Full interception следует отдельной фазой после recovery design.
+
+Обычная клавиатура поставляется тем же first-party package и видна пользователю как базовая возможность, но не получает скрытого core API. Observe/pass-through включается как безопасный default; intercept и emit остаются отдельными grants.

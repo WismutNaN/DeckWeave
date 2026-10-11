@@ -32,6 +32,7 @@ DeckWeave использует единый package/manifest format, но нес
 | `ActionProvider` | Typed input/result commands и jobs: OS, apps, HTTP, OBS, scripts; bounded artifact access |
 | `StateProvider` | Versioned states и events; notifications history через отдельный query command |
 | `AutomationProvider` | Custom transform/condition/action nodes без изменения engine |
+| `InteractionProvider` | Query/picker/form data и typed selection для host-owned interaction session |
 | `RendererProvider` | Declarative scene nodes/templates или custom widget contribution |
 | `ProtocolBridge` | OpenAction/Elgato, позже Companion/MIDI/OSC и иные ecosystems |
 | `MediaNodeProvider` | Sources/filters/sinks только для specialized media runtime |
@@ -72,6 +73,7 @@ Manifest не содержит secrets, install scripts и произвольн�
 | Isolated control | Length-delimited Protobuf over stdio | Devices, actions, states, automation | User-trusted executable, crash-isolated |
 | OpenAction compatibility | Local WebSocket/JSON внутри process tree | Unmodified legacy packages и PI | Legacy permissions, отдельный host |
 | Widget | Scoped messages + rendered frames | Custom web widget/property UI | Web sandbox + process isolation |
+| Interaction web | Scoped session bridge | Только custom view host-owned interaction; schema-native views остаются в desktop | Web sandbox + process isolation |
 | Trusted media | Native ABI/shared/ring buffers | Audio/video nodes | High-trust native code |
 | Remote agent | Authenticated network control + negotiated streams | Remote capabilities | Paired remote trust |
 | Built-in audited | Direct Rust traits | Только базовая plumbing/test infrastructure | Core review |
@@ -169,6 +171,7 @@ Runtime запускается, когда:
 - открыта Device Studio probe session;
 - legacy action появился на active surface;
 - открыт custom property editor, которому нужен runtime;
+- открыта interaction session, которой нужны provider data или custom view;
 - external trigger имеет заранее разрешённую subscription;
 - пользователь явно запускает diagnostics.
 
@@ -189,6 +192,8 @@ Static index никогда не вызывает executable для discover/val
 Editor всегда работает с draft. Live preview использует scoped lease, deadline и восстановление текущей applied scene; apply отзывает конфликтующий preview. Custom editor не получает Tauri commands, filesystem или arbitrary local API token. Dry-run/simulation не открывают этот канал и используют fake targets.
 
 Custom widget отличается от property editor: widget создаёт visual layer для output surface и может получать только явно связанные state/interaction ports.
+
+Interaction view является третьим отдельным видом. Host создаёт `InteractionSession`, владеет окном, focus, cancel/timeout и доставкой typed result. Предпочтителен native list/search/form из schema; package может поставить preset или sandboxed custom view со session-scoped bridge. View не получает Tauri/window API, не вызывает automation continuation и не становится surface layer. Один package может дать `InteractionProvider` данных без custom HTML. Нормативная семантика: [Interaction sessions](automation.md#interaction-sessions) и [Interaction Runtime](../architecture/modules/interaction-runtime.md).
 
 ## Permissions
 

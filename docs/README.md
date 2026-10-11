@@ -1,11 +1,11 @@
 # Документация DeckWeave
 
-DeckWeave объединяет устройства и приложения через плагины: ввод, действия с результатами, визуальные поверхности, подсветку и будущие media streams. Реализован **каркас Фазы 1**, подтверждённый локальными автоматическими проверками Windows; ручная приёмка и GitHub CI ещё не выполнены. Полная архитектурная спецификация описывает целевую систему, а не уже доступные возможности. [Запуск и проверки](implementation/development.md), [статус фаз](implementation/roadmap.md#фаза-1--скелет-репозитория).
+DeckWeave объединяет устройства и приложения через плагины: ввод, действия с результатами, визуальные поверхности, подсветку и будущие media streams. Реализованы protocol/plugin foundations Фаз 1–3 и часть Profile/Application API Фазы 4; runtime apply, automation и реальные device providers ещё не готовы. Состояние подтверждено локальными автоматическими проверками Windows; ручная приёмка и GitHub CI ещё не выполнены. Полная архитектурная спецификация описывает целевую систему, а не уже доступные возможности. [Запуск и проверки](implementation/development.md), [статус фаз](implementation/roadmap.md#фаза-4--profile-revisions-и-application-api).
 
 ## Порядок чтения
 
 1. [Замысел](product/vision.md), [сценарии](product/scenarios.md) и [требования](product/requirements.md): что должно получиться и как это проверить.
-2. [Архитектура](architecture/overview.md): владельцы состояния, процессы и зависимости.
+2. [Архитектура](architecture/overview.md) и [DDD-границы](architecture/ddd.md): владельцы состояния, bounded contexts и зависимости.
 3. Нужный контракт из таблицы ниже и соответствующая [граница модуля](architecture/modules/README.md).
 4. [План реализации](implementation/roadmap.md): ближайший рабочий срез и acceptance gate.
 5. [Решения](decisions/README.md) и [исследование исходников](research/implementation-review.md): почему выбраны эти границы.
@@ -15,7 +15,7 @@ DeckWeave объединяет устройства и приложения че
 | Каталог | Что хранится | Точка входа |
 |---|---|---|
 | `product/` | Назначение, требования, сценарии, режимы и UX | [Замысел](product/vision.md), [режимы](product/modes.md), [UX](product/ux.md) |
-| `architecture/` | Устройство системы и границы модулей | [Обзор](architecture/overview.md), [модули](architecture/modules/README.md) |
+| `architecture/` | Устройство системы, DDD-контексты и границы модулей | [Обзор](architecture/overview.md), [DDD](architecture/ddd.md), [модули](architecture/modules/README.md) |
 | `contracts/` | Нормативное поведение на границах | Таблица ниже |
 | `implementation/` | Порядок реализации, срезы и проверки | [План](implementation/roadmap.md), [разработка](implementation/development.md) |
 | `decisions/` | Нумерованные ADR с причиной выбора | [Реестр ADR](decisions/README.md) |
@@ -39,6 +39,7 @@ DeckWeave объединяет устройства и приложения че
 ## Как расширять документацию
 
 - Новая пользовательская способность начинается со сценария и требования с постоянным ID. Статус design/fixture/real integration различается явно.
+- Новый use case получает владельца в bounded context; adapter не может стать владельцем domain-инварианта. Правила и migration ratchet заданы в [DDD](architecture/ddd.md).
 - Правило поведения записывается в один тематический contract. Обзор и module file кратко описывают границу и ссылаются на правило; plan задаёт проверку, не пересказывает protocol.
 - Изменение общего решения получает следующий ADR; небольшой provider-specific detail остаётся в модуле/исследовании. Новый документ создаётся при отдельной ответственности, а не для каждой сессии обсуждения.
 - Исследование разделяет source observation, вывод для DeckWeave и непроверенную гипотезу. Репозитории/файлы имеют pinned commit; hardware и бинарные releases требуют отдельного evidence.

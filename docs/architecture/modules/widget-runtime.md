@@ -1,6 +1,6 @@
 # Модуль: Widget Runtime
 
-**Ответственность:** lazily исполняет custom web property editors/widgets в изолированном контексте и возвращает scoped messages/frames.
+**Ответственность:** lazily исполняет custom web property editors и surface widgets в изолированном контексте и возвращает scoped messages/frames. Desktop palettes/dialogs с typed user result принадлежат отдельному [Interaction Runtime](interaction-runtime.md).
 **Расположение:** `runtimes/widget-host/`.
 
 ## Публичный интерфейс
@@ -36,6 +36,7 @@
 - hardware output;
 - automation execution;
 - arbitrary browser navigation.
+- host-owned interaction windows и user-selection lifecycle.
 
 ## Заметки для агента
 

@@ -48,6 +48,7 @@ Desktop UI является редактором и наблюдателем lon
 | Device Studio | Discovery, calibration, traces, descriptor project | Device menu/первый запуск |
 | Runtime | Sessions, queues, conflicts, permissions, metrics | Status bar/diagnostics |
 | Plugin Library | Install/update/rollback/catalog/compatibility | Library |
+| Interaction overlay | Поиск, picker, quick form и подтверждение во время automation | Горячая клавиша/action |
 
 Редакторы могут открываться вкладками. Selection сохраняется при переходе Workspace → Graph → Surface.
 
@@ -143,6 +144,25 @@ Package остаётся Indexed до runtime/discovery lease. Для поиск
 3. Пользователь или authorized workflow запускает simulation/apply.
 
 Файлы не меняются за спиной runtime; revision conflict видим обеим сторонам.
+
+### Сценарий: найти материал Zotero горячей клавишей
+
+**Частота:** высокая для исследовательской работы.
+
+1. Пользователь нажимает назначенную комбинацию на штатной клавиатуре.
+2. Компактный host-owned overlay получает focus; ввод сразу попадает в поиск.
+3. Стрелки перемещают selection, `Enter` открывает PDF, `Escape` отменяет session.
+
+Overlay показывает provider/status, поддерживает pagination и не открывает результат до явного выбора. При повторном запуске sessions не перезаписывают друг другу query/result. Недоступный Zotero оставляет понятную ошибку в overlay и trace, не блокируя остальные bindings.
+
+## Interaction overlays
+
+- Окно, focus, placement, timeout и accessibility принадлежат DeckWeave.
+- Базовые list/search/form/confirm views рендерятся host без custom web runtime.
+- Plugin передаёт schema, bounded data pages и typed result; custom view запускается только при необходимости в sandboxed runtime.
+- Overlay полностью управляется клавиатурой, имеет видимый focus и не перехватывает глобальный ввод после закрытия.
+- Закрытие и `Escape` дают explicit cancel; пустой selection не считается success.
+- Это runtime interaction, а не редактор workspace: результат не записывается в profile без отдельного действия.
 
 ## Infinite workspace canvas
 

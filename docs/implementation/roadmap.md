@@ -18,7 +18,7 @@
 | 9 | Backend benchmark/ADR → display renderer/frame protocol → basic LightFrame/ownership → hit testing/preview → editor; diff loss fixture обязателен |
 | 11 | Отдельные срезы по 1–5 дней: layers/cleanup → typed sequence/parallel/results → jobs/artifact broker → collections/notification fixture → lighting envelopes → schedules/Graph UI; один срез не обещает все nodes |
 | 12 | Rust/TS SDK release → Python runtime/SDK → conformance/package-lock update → catalogue metadata |
-| 13 | Browser isolation/offscreen rendering spike → отдельный settings editor → surface widget; неудачный spike требует пересмотра backend/сроков |
+| 13 | Browser isolation/offscreen rendering spike → settings editor/surface widget → host-owned schema interactions → custom interaction view; неудачный spike требует пересмотра backend/сроков |
 | 14 | C0/C1 production host → C2 PI/settings → C3 dial/feedback → replacement migration; каждый уровень имеет отдельный report |
 | 15 | Probe/inspection → calibration/mapping → capture/conformance; production service не зависит от testkit |
 | 17 | Portable packaging → Linux virtual/CLI → Linux UI/platform smoke; core Linux CI уже работает с Фазы 2 |
@@ -42,13 +42,13 @@
 | 4 | Profile revisions и application API | Draft/validate/apply/rollback через API | L | [~] |
 | 5 | Минимальный automation engine | Source → action → feedback deterministic path | L | [ ] |
 | 6 | Desktop workspace canvas | Устройства и bindings редактируются в UI | L | [ ] |
-| 7 | Windows base provider | Volume/media/app/active-window работают | M | [ ] |
+| 7 | Windows base provider и Platform Input | Volume/media/app/active-window и обычная клавиатура работают | M | [ ] |
 | 8 | N4 Pro hardware provider | Keys/encoders/touch/light/haptic доступны | L | [ ] |
 | 9 | Surface compositor | Полный экран N4 Pro без grid gaps | L | [ ] |
 | 10 | Gamepad и test lab | Второй класс hardware + replay/metrics | M | [ ] |
 | 11 | Layers и сложные automation | Conditions, sequence/parallel, errors, timers | L | [ ] |
 | 12 | Plugin SDK и packaging | Rust/TypeScript/Python SDK, conformance, install/update | L | [ ] |
-| 13 | Widget runtime | Custom settings/widgets изолированы | M | [ ] |
+| 13 | Widget и Interaction runtime | Custom settings/widgets и host-owned interactions изолированы | L | [ ] |
 | 14 | OpenAction compatibility | C0–C3 reference packages работают | L | [ ] |
 | 15 | Device Studio | Standard discovery/calibration/capture | L | [ ] |
 | 16 | Codex, CLI и optional MCP | Полный управляемый API workflow | M | [ ] |
@@ -62,6 +62,44 @@
 - **M2 — Daily N4 Pro:** после Фазы 11 закрыты все P0, включая layers, sequence/parallel/error policies, recording, export и portable data-root policy.
 - **M3 — Extensible beta:** после Фазы 14 доступны SDK и существующие OpenAction plugins.
 - **M4 — v1 foundation:** после Фазы 18 готов публичный Windows release и Linux foundation.
+
+<a id="ddd-migration"></a>
+## DDD migration перед продолжением Фазы 4
+
+**Исходное состояние:** profile storage, draft ApplicationService и host lifecycle уже работают, но крупные модули смешивают aggregate/application/infrastructure, а `deckweave-host` временно содержит dispatch, authorization и error translation.
+
+**Целевое состояние:** bounded contexts и dependency rules из [DDD](../architecture/ddd.md); Workspace Configuration отделён от Profile Store adapter, Host Lifecycle — от Application Gateway, Platform Input и Interaction UI имеют собственные ports/contracts.
+
+**Стратегия:** strangler migration без big-bang rewrite. Каждый срез — отдельный commit; публичные re-export/adapters временно сохраняют существующих потребителей. Новый use case пишется уже в целевой границе. Существующий превышающий size ratchet файл не растёт.
+
+### R1 — Зафиксировать baseline и architecture gates
+
+- [ ] Добавить/актуализировать characterization tests текущих draft, receipts, authorization и host snapshot paths до переноса кода.
+- [ ] Расширить `check-boundaries` правилами context dependencies, thin crate roots и size ratchet; исключения содержат owner/reason/review milestone (→ DW-NF-015).
+- [ ] Сохранить зелёными `npm run check`, full Rust tests и fault tests; записать baseline без изменения runtime behavior.
+
+### R2 — Выделить Workspace Configuration
+
+- [ ] Перенести `WorkspaceDraft`, commands, JSON mutation semantics и revision policy в context domain/application modules (→ [Workspace Configuration](../architecture/modules/workspace-configuration.md)).
+- [ ] Оставить append-only/filesystem/recovery в Profile Store infrastructure adapter за repository ports.
+- [ ] Перенести tests по владельцам: domain invariants, use cases через in-memory ports, storage contract/fault tests.
+- [ ] Сохранить временные re-export; удалить их отдельным commit после перевода всех consumers.
+
+### R3 — Разделить Host Lifecycle и Application Gateway
+
+- [ ] Вынести command/query dispatch, principal scopes, stable error mapping и operation tracking из `deckweave-host`.
+- [ ] Оставить Host владельцем startup/apply/active revision/epochs/recovery; platform-host разбить на узкие adapters без смены публичных ports.
+- [ ] Проверить запрет прямых imports чужой infrastructure и parity in-process client.
+
+### R4 — Подготовить новые расширения
+
+- [ ] Добавить protocol/domain fixtures Platform Input: bundled aggregate keyboard, observe/pass-through, честная granularity, separate intercept/emit.
+- [ ] Добавить InteractionSession ports и fake presenter/provider: search pages, selection/cancel/timeout, concurrent isolation.
+- [ ] Не подключать реальный OS hook, Zotero или custom web runtime до соответствующих Фаз 7/13.
+
+**Rollback:** до удаления compatibility re-export каждый срез откатывается одним commit. Изменение persisted document/wire schema в R1–R4 запрещено без отдельной migration/ADR. Если gate выявляет незафиксированную семантику, перенос останавливается на текущей зелёной версии, добавляется characterization test, затем срез повторяется.
+
+**Gate продолжения Фазы 4:** R1–R3 завершены; operation tracking/apply реализуются через Application Gateway и Host Lifecycle ports, а не в прежнем смешанном crate root. R4 может идти после R3 независимо от apply skeleton.
 
 ---
 
@@ -193,7 +231,7 @@ manifest или PI не выдаётся за runtime compatibility.
 **Цель:** создать безопасный путь read → draft → validate → plan → apply → rollback.
 **Результат:** CLI/test client редактирует virtual workspace, получает conflict и возвращается к snapshot.
 **Трудоёмкость:** L
-**Статус:** [~] В процессе: готовы Profile Store и draft ApplicationService; operation tracking/apply ещё не реализованы.
+**Статус:** [~] В процессе: готовы Profile Store и draft ApplicationService; сначала выполняется DDD migration R1–R3, затем operation tracking/apply.
 
 ### Контекст для агента
 > Plugin lifecycle работает. Active automation пока пуст; фаза строит источник истины и command/query boundary.
@@ -218,7 +256,8 @@ Dry-run использует тот же command vocabulary, но не пише�
 - [x] Реализовать JSON revision store, assets, atomic write и recovery (→ [Модуль: Profile Store](../architecture/modules/profile-store.md)).
 - [x] Реализовать draft commands, undo/redo и named snapshots (→ [ADR-0003](../decisions/0003-storage.md)).
 - [x] Реализовать selective export/import, asset reachability и unresolved credential mapping без запуска packages (→ [Profile Store](../architecture/modules/profile-store.md), [Контракты миграций](../contracts/lifecycle.md#миграции-и-неизвестные-данные)).
-- [ ] Реализовать ApplicationService, expected revision и OperationId (→ [Модуль: Local API](../architecture/modules/local-api.md)).
+- [x] Реализовать transport-independent ApplicationService и expected draft revision (→ [Модуль: Local API](../architecture/modules/local-api.md)).
+- [ ] Реализовать OperationId, durable operation tracking и status queries через Application Gateway (→ [Модуль: Local API](../architecture/modules/local-api.md)).
 - [ ] Реализовать Host apply skeleton с durable commit record, barrier, disruption/degraded policy, package lock и operation receipts (→ [ADR-0012](../decisions/0012-apply-and-execution-lifecycle.md), [Модуль: Host Runtime](../architecture/modules/host-runtime.md)).
 - [x] Проверять principals/scopes внутри ApplicationService, durable dedup до revision check, dry-run без effects (→ [API](../contracts/application-api.md#идемпотентность-и-dry-run)).
 - [x] Добавить in-process test client; HTTP/WS transport отложить до Фазы 16 (→ [Application API](../contracts/application-api.md)).
@@ -305,10 +344,10 @@ Dry-run использует тот же command vocabulary, но не пише�
 
 ---
 
-## Фаза 7 — Windows base provider
+## Фаза 7 — Windows base provider и Platform Input
 
 **Цель:** обеспечить полезные системные actions/states без N4-specific logic.
-**Результат:** virtual controls меняют volume, mute, media playback, запускают app и реагируют на active window.
+**Результат:** virtual controls меняют volume/mute/media и active window; штатная клавиатура создаёт triggers через bundled observe/pass-through provider.
 **Трудоёмкость:** M
 **Статус:** [ ] Не начата
 
@@ -319,6 +358,8 @@ Dry-run использует тот же command vocabulary, но не пише�
 
 - [ ] Реализовать Windows ActionProvider: volume/mute/media/app launch/focus (→ [Модуль: Platform Adapters](../architecture/modules/platform-adapters.md)).
 - [ ] Реализовать StateProvider active application/window и audio endpoint state (→ [Capabilities — State](../contracts/capabilities.md#state)).
+- [ ] Реализовать bundled Platform Input keyboard source с безопасным observe/pass-through default (→ [Модуль: Platform Input](../architecture/modules/platform-input.md), [ADR-0017](../decisions/0017-bundled-platform-input.md)).
+- [ ] Объявлять `physical_device` только при подтверждённой identity, иначе `system_aggregate`; intercept/emit не включать вместе с observe неявно (→ [Capabilities](../contracts/capabilities.md#системная-клавиатура-и-granularity)).
 - [ ] Добавить permission descriptors и unavailable reasons (→ [Безопасность — Permission model](../contracts/security.md#permission-model)).
 - [ ] Добавить origin handling для emitted media/input commands (→ [Модуль: Automation Engine](../architecture/modules/automation-engine.md)).
 
@@ -327,6 +368,7 @@ Dry-run использует тот же command vocabulary, но не пише�
 - [ ] Unit: OS result → domain outcome mapping.
 - [ ] Integration: volume/mute state round-trip на Windows 10/11 CI/manual matrix.
 - [ ] Manual: active-window condition переключает virtual feedback.
+- [ ] Scenario: штатная клавиша вызывает virtual action и продолжает обычное действие ОС; reconnect/повтор не создаёт duplicate edge.
 
 ### Ссылки
 
@@ -508,15 +550,15 @@ Dry-run использует тот же command vocabulary, но не пише�
 
 ---
 
-## Фаза 13 — Widget runtime
+## Фаза 13 — Widget и Interaction runtime
 
-**Цель:** поддержать custom settings UI и surface widgets без зависимости active output от Desktop WebView.
-**Результат:** sample widget получает scoped state, возвращает frame, переживает закрытие UI и изолированно падает.
-**Трудоёмкость:** M
+**Цель:** поддержать custom settings/surface widgets и host-owned runtime interactions без privileged plugin windows.
+**Результат:** sample widget возвращает frame; search interaction возвращает typed selection конкретному invocation и корректно cancel/timeout.
+**Трудоёмкость:** L
 **Статус:** [ ] Не начата
 
 ### Контекст для агента
-> Built-in scene nodes уже покрывают простые widgets. Фаза добавляет только package-provided web content через lazy separate host.
+> Built-in scene nodes уже покрывают простые widgets, а schema-native interactions рендерит desktop host. Lazy separate web host нужен только package-provided custom content.
 
 ### Задачи
 
@@ -524,17 +566,23 @@ Dry-run использует тот же command vocabulary, но не пише�
 - [ ] Реализовать isolated origins, CSP, scoped bridge и rate limits (→ [Безопасность — Web property editors и widgets](../contracts/security.md#web-property-editors-и-widgets)).
 - [ ] Подключить WidgetLayer к compositor без unbounded frames (→ [Модуль: Surface Compositor](../architecture/modules/surface-compositor.md)).
 - [ ] Реализовать schema form → custom editor fallback chain (→ [Plugins — Settings и UI contributions](../contracts/plugins.md#settings-и-ui-contributions)).
+- [ ] Реализовать host-owned schema-native list/search/form/confirm interactions и session lifecycle (→ [Interaction Runtime](../architecture/modules/interaction-runtime.md), [ADR-0018](../decisions/0018-interaction-ui-runtime.md)).
+- [ ] Подключить InteractionProvider pages/result через scoped bridge; custom view переиспользует web isolation без Tauri/window API (→ [Automation](../contracts/automation.md#interaction-sessions)).
+- [ ] Собрать fake keyboard → search → selected ItemRef → open action scenario до реального Zotero package (→ [Сценарий Zotero](../product/scenarios.md#клавиатура-ноутбука--поиск-zotero--pdf)).
 
 ### Тесты
 
 - [ ] Security: forbidden navigation/network/filesystem.
 - [ ] Fault: widget crash/hang leaves host/surface alive.
 - [ ] Performance: frame budget and idle host not launched when unused.
+- [ ] Interaction: concurrent sessions, keyboard navigation, Escape, timeout, provider crash, stale result after apply.
 
 ### Ссылки
 
 - [Требования DW-SF-007–008](../product/requirements.md#surface-feedback-и-n4-pro)
+- [Требования DW-AU-015 и DW-PL-008](../product/requirements.md#назначения-и-автоматизация)
 - [Модуль: Widget Runtime](../architecture/modules/widget-runtime.md)
+- [Модуль: Interaction Runtime](../architecture/modules/interaction-runtime.md)
 
 ---
 

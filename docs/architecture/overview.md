@@ -73,8 +73,8 @@ remote agent
 
 ### Границы компонентов
 
-1. **Domain & Protocol.** ID, descriptors, schemas, envelopes, revisions и ошибки без OS/UI dependencies.
-2. **Application Core.** Registry, draft/apply, automation, orchestration и query snapshots.
+1. **Shared Kernel & Protocol.** Общие ID, descriptors, schemas и envelopes без OS/UI dependencies; это не владелец всех domain models.
+2. **Bounded Contexts.** Workspace Configuration, Host Lifecycle, Application Gateway, Automation, Registry, Plugin Runtime, Surface, Platform Input и Interaction UI.
 3. **Runtime Adapters.** Plugin supervisor, profile store, renderer, local API и diagnostics.
 4. **Platform & Device Plugins.** Windows actions, N4 Pro, gamepad, keyboard, OBS, SprutHub и другие packages.
 5. **Compatibility Runtimes.** OpenAction/Elgato, позже Companion и иные ecosystems.
@@ -83,14 +83,20 @@ remote agent
 
 Зависимости направлены внутрь: domain не импортирует application, application не импортирует конкретный plugin и UI.
 
+### DDD context map
+
+DeckWeave является модульным монолитом с вертикальными bounded contexts. Workspace Configuration владеет draft/revisions; Host Lifecycle — active selection/apply/epochs; Application Gateway — authorization, routing и operation tracking; Platform Input — системными источниками ввода; Interaction UI — короткими host-owned диалогами с typed result. Ни один adapter не становится владельцем бизнес-инварианта.
+
+Нормативная карта, Shared Kernel policy, ограничения кода и поэтапная миграция находятся в [DDD и границы контекстов](ddd.md). Модуль может жить в существующем crate во время миграции, но его dependency direction уже должна соответствовать целевой границе.
+
 ### Направление зависимостей
 
 Стрелка означает compile dependency, а не поток runtime messages:
 
 ```text
 SDK ───────────────> protocol (permissive, без GPL dependencies)
-domain ────────────> protocol
-application ───────> domain (service ports, commands/queries)
+shared domain ─────> protocol
+bounded-context application ──> собственный domain + shared kernel
 diagnostics ───────> domain/protocol (без зависимости от runtimes)
 registry/automation/profiles/surface ──> domain + diagnostics/узкие ports
 host ──────────────> application + реализации core компонентов
@@ -105,17 +111,20 @@ Core получает OS services через injected ports. `platform-host` р�
 
 | Компонент | Ответственность | Публичная граница |
 |---|---|---|
-| Domain & Protocol | Стабильные types, IDs, schemas и wire envelopes | `Descriptor`, `SignalEnvelope`, `CommandEnvelope` |
+| Shared Kernel & Protocol | Стабильные общие types, IDs, schemas и wire envelopes | `Descriptor`, `SignalEnvelope`, `CommandEnvelope` |
+| Workspace Configuration | Draft aggregate, revisions, snapshots и переносимость profile | `WorkspaceDraft`, `DraftCommand`, `WorkspaceRepository` |
 | Host Runtime | Startup, active revision, apply, shutdown и scoped runtime artifacts | `HostCommand`, `HostSnapshot`, `ApplyReport`, `ArtifactBroker` |
 | Capability Registry | Nodes, devices, elements, ports, sessions и availability | `RegistrySnapshot`, `PortRef`, `Availability` |
 | Plugin Supervisor | Index, permissions, spawn, handshake, health, restart | `PackageRecord`, `PluginSession`, `RuntimeLease` |
 | Automation Engine | Compile graph, state/layers, schedule, typed jobs и results | `WorkspaceGraph`, `ExecutionPlan`, `Invocation`, `ExecutionOutcome` |
-| Profile Store | Drafts, immutable revisions, snapshots, assets, import/export | `WorkspaceRevision`, `DraftId`, `ExportSelection` |
+| Profile Store | Infrastructure persistence для Workspace Configuration | `ProfileStoreAdapter`, atomic document/assets ports |
 | Surface Compositor | Display/light scenes, geometry, hit testing и output arbitration | `SurfaceScene`, `LightScene`, `HitRegion`, `FrameIntent` |
 | Widget Runtime | Sandboxed custom web widgets и event-driven snapshots | `WidgetInstance`, `WidgetFrame` |
+| Interaction Runtime | Host-owned palettes/dialogs и typed user selection | `InteractionSession`, `InteractionRequest`, `InteractionResult` |
 | Local API | Commands, queries, subscriptions, auth и dry-run | `CommandApi`, `QueryApi`, `SubscriptionApi` |
 | Compatibility Host | Legacy manifest/lifecycle/context translation | `LegacyContextMap`, `CompatibilityReport` |
 | Platform Adapters | OS input/output, active app, virtual targets и privilege probes | `PlatformCapability`, `InputDecision` |
+| Platform Input | Bundled keyboard/mouse observation, interception и synthetic output | `InputSourceDescriptor`, `InputObservation`, `SyntheticInput` |
 | Device Studio | Probe sessions, calibration, traces и descriptor projects | `ProbeSession`, `CaptureTrace` |
 | Diagnostics / Test Lab | Production instrumentation отдельно от replay fixtures/fakes/conformance; production replay исполняет Automation | `TraceId`, `ReplayReport` |
 | Host Platform Services | Locks, data roots, credentials, autostart, process cleanup | `HostPlatform`, `CredentialBroker` |

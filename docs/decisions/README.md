@@ -17,6 +17,8 @@ ADR фиксирует причину и последствия выбора, а
 | [0011](0011-deployment-modes.md) | Per-user tray host и portable distribution |
 | [0012](0012-apply-and-execution-lifecycle.md) | Durable apply, execution epochs и outcome/recovery semantics |
 | [0013](0013-dependency-and-host-service-boundaries.md) | Ациклические dependencies и минимальные host OS services |
-
 | [0014](0014-specialized-execution-and-results.md) | Общие lifecycle границы, typed jobs/results и специализированные data paths |
 | [0015](0015-device-geometry-and-output-ownership.md) | Geometry, light composition, output ownership и evidence touch capabilities |
+| [0016](0016-ddd-bounded-contexts.md) | Bounded contexts, Shared Kernel и постепенная DDD-миграция |
+| [0017](0017-bundled-platform-input.md) | Обычная клавиатура как bundled first-party provider |
+| [0018](0018-interaction-ui-runtime.md) | Host-owned interaction sessions и plugin views |

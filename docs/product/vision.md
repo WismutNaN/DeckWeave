@@ -26,6 +26,7 @@
 8. Codex читает, изменяет, валидирует и применяет конфигурацию через application API; MCP является необязательным adapter.
 9. В будущем телефон или Steam Deck подключается как remote node с экраном, touch, камерой, микрофоном, динамиком и датчиками.
 10. В будущем отдельный media runtime обрабатывает аудио/видео с низкой задержкой и предоставляет виртуальные endpoints.
+11. Штатная клавиатура ноутбука сразу доступна как bundled input source, а automation может открыть host-owned search/picker и продолжиться с выбранным typed result.
 
 **Технические упоминания:** Rust, Tokio, Tauri 2, Svelte/TypeScript, Rust/TypeScript/Python plugin SDK, Protocol Buffers для native control protocol, OpenAction/Elgato WebSocket compatibility, JSON Schema для settings, HID/Bluetooth, GStreamer/PipeWire/CLAP как media references.
 
@@ -47,7 +48,7 @@
 - формат подписи публичного каталога и release artifacts;
 - конкретный Windows-механизм полного selective interception обычных клавиатур;
 - первый media backend после стабилизации control plane;
-- допустимые ограничения sandbox для custom web widgets на каждой ОС.
+- допустимые ограничения sandbox для custom web widgets и interaction views на каждой ОС.
 
 ## Критический разбор требований
 
@@ -70,6 +71,7 @@
 - **Не event sourcing для пользовательской истории:** draft поддерживает undo/redo, применённые revisions и именованные snapshots; экспорт/импорт остаётся переносом и резервным копированием.
 - **Не Python внутри core:** Python поддерживается как isolated plugin runtime для сложных условий и действий, но не участвует в real-time media thread.
 - **Не «полная поддержка любой ОС» через core:** OS-dependent ввод, вывод, active-window и virtual devices предоставляются platform plugins/adapters.
+- **Не произвольные окна плагинов:** короткие поиски, picker и формы идут через host-owned Interaction UI; plugin поставляет данные/schema или sandboxed view.
 
 ## Подтверждённые архитектурные решения
 
@@ -78,11 +80,13 @@
 3. Полный keyboard interception предусмотрен контрактами, но не блокирует первую N4 Pro вертикаль.
 4. OpenAction/Elgato bridge реализуется раньше Companion bridge.
 5. Приложение/core лицензируются под `GPL-3.0-or-later`; protocol/SDK/examples — под `MIT OR Apache-2.0`.
-6. Первый приоритет — N4 Pro; Bluetooth gamepad является ранней проверкой универсальности; гибкая клавиатура следует далее.
+6. Первый приоритет — N4 Pro; Bluetooth gamepad проверяет универсальность, а обычная клавиатура поставляется bundled provider как базовый trigger source.
 7. Windows 10/11 — первая платформа, Linux — вторая, macOS учитывается в design.
 8. Undo/redo, revisions и snapshots дополняют выборочный экспорт/импорт.
 9. Пользователь самостоятельно определяет доверие к plugin, но DeckWeave обязан показывать permissions, изолировать crash и диагностировать conflict.
 10. Все действия UI должны иметь эквивалент в локальном API с optimistic concurrency, validation и dry-run.
+11. Архитектура остаётся DDD modular monolith: bounded context владеет своими инвариантами, Shared Kernel минимален, adapters подключаются через ports.
+12. Plugin interactions используют host-owned session lifecycle с typed result; surface widgets и property editors остаются отдельными видами UI contribution.
 
 Уточнения аудита 2026-10-12: один active workspace/host на user session; durable commit до runtime cutover, epoch fencing, package lock и host-owned authorization. Это детализация ранее не определённых failure contracts, закреплённая в [ADR-0012](../decisions/0012-apply-and-execution-lifecycle.md) и [ADR-0013](../decisions/0013-dependency-and-host-service-boundaries.md). M2 наступает после Фазы 11; ранняя N4 surface после Фазы 9 остаётся preview.
 

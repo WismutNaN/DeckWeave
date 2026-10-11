@@ -1,6 +1,6 @@
 # Модуль: Profile Store
 
-**Ответственность:** хранит drafts, immutable revisions, package locks, commit/operation records, snapshots, assets, migrations и selective export/import. Actual grants принадлежат отдельному host authorization store.
+**Ответственность:** infrastructure adapter, который надёжно хранит drafts, immutable revisions, package locks, commit/operation records, snapshots и assets по ports контекста [Workspace Configuration](workspace-configuration.md). Domain policy export/import и инварианты draft этому adapter не принадлежат. Actual grants находятся в отдельном host authorization store.
 **Расположение:** `crates/deckweave-profiles/`.
 
 ## Публичный интерфейс
@@ -8,8 +8,8 @@
 | Символ | Тип | Описание |
 |---|---|---|
 | `ProfileStore` | trait/service | Load/save/query revisions |
-| `WorkspaceDraft` | mutable document | Undoable editing state |
-| `WorkspaceRevision` | immutable document | Stored/applied config |
+| `WorkspaceRepositoryAdapter` | adapter | Реализация repository ports Workspace Configuration |
+| `WorkspaceRevisionRecord` | persisted document | Stored config envelope/checksum |
 | `SnapshotRef` | struct | Named pointer/comment |
 | `AssetId` | content hash | Deduplicated asset |
 | `ExportSelection` | struct | Public/private content selection |
@@ -22,6 +22,7 @@
 | Модуль | Что использует |
 |---|---|
 | Domain & Protocol | IDs/document schemas |
+| Workspace Configuration | Repository ports и persisted DTO |
 | Storage adapter port | Atomic replace/flush/lock contract, без зависимости от OS keychain |
 
 ## Инварианты
@@ -40,6 +41,8 @@
 
 ## Намеренно НЕ обрабатывает
 
+- domain commands и JSON mutation semantics;
+- ownership инвариантов WorkspaceDraft;
 - runtime apply;
 - plugin execution;
 - OS keychain implementation;

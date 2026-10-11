@@ -70,6 +70,18 @@ Node
 
 `encoder.relative` всегда `EventOut`: signed steps нельзя заменять последним значением. `touch.points` разделяет down/up/cancel (`EventOut`) и move samples (`ValueOut`, coalesce только между lifecycle edges). `StateOut` не гарантирует доставку каждого перехода; для trigger на каждый переход provider публикует отдельный event. Порядок и overflow recovery: [контракт сигналов](lifecycle.md#порядок-сигналов-и-время).
 
+#### Системная клавиатура и granularity
+
+Обычная клавиатура публикует `button.digital` и связанные gesture/chord observations через bundled Platform Input provider. Descriptor дополнительно указывает:
+
+- `source_granularity`: `physical_device`, `os_logical_device` или `system_aggregate`;
+- подтверждённую identity evidence и confidence;
+- доступные независимо modes: `observe`, `intercept`, `emit`;
+- pass-through/default suppression policy;
+- repeat, scan/key code vocabulary и layout interpretation boundary.
+
+Provider не создаёт стабильную `DeviceIdentity` для физической клавиатуры, если OS hook даёт только общий поток. В этом случае bindings относятся к агрегированному системному source. Observe не обещает suppress; intercept не выполняет async automation в deadline hook. Synthetic events имеют `origin` и output lease. Подробности: [Platform Input](../architecture/modules/platform-input.md) и [Input safety](security.md#input-safety).
+
 ### Непрерывный ввод и датчики
 
 | Capability | Quantity | Обязательные метаданные |
