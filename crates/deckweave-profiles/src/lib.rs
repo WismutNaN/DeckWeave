@@ -18,6 +18,11 @@ pub use draft::{
     DraftCommand, DraftEditor, DraftMutationError, LoadedDraft, MutationKey, MutationOutcome,
     MutationReceipt, WorkspaceDraft,
 };
+pub mod export;
+pub use export::{
+    ExportError, ExportSelection, ImportInspection, ImportResult, ImportRevisionSummary,
+    RevisionExportSelection,
+};
 pub mod snapshot;
 pub use snapshot::{SnapshotMetadata, SnapshotRef};
 
@@ -93,6 +98,7 @@ pub struct ProfileStoreLimits {
     pub maximum_revision_bytes: u64,
     pub maximum_asset_bytes: u64,
     pub maximum_draft_transactions: usize,
+    pub maximum_export_bytes: u64,
 }
 
 impl Default for ProfileStoreLimits {
@@ -101,6 +107,7 @@ impl Default for ProfileStoreLimits {
             maximum_revision_bytes: 16 * 1024 * 1024,
             maximum_asset_bytes: 128 * 1024 * 1024,
             maximum_draft_transactions: 10_000,
+            maximum_export_bytes: 512 * 1024 * 1024,
         }
     }
 }

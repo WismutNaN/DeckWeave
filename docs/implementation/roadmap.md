@@ -193,7 +193,7 @@ manifest или PI не выдаётся за runtime compatibility.
 **Цель:** создать безопасный путь read → draft → validate → plan → apply → rollback.
 **Результат:** CLI/test client редактирует virtual workspace, получает conflict и возвращается к snapshot.
 **Трудоёмкость:** L
-**Статус:** [~] В процессе: готовы revisions/assets, durable drafts, session undo/redo и named snapshots; export/API/apply ещё не реализованы.
+**Статус:** [~] В процессе: готовы Profile Store, drafts/snapshots и selective export/import; ApplicationService/apply ещё не реализованы.
 
 ### Контекст для агента
 > Plugin lifecycle работает. Active automation пока пуст; фаза строит источник истины и command/query boundary.
@@ -202,15 +202,19 @@ manifest или PI не выдаётся за runtime compatibility.
 metadata после bytes. Пути строятся через opaque hash IDs. Второй срез добавил append-only draft
 transactions, atomic head с резервной копией, durable receipts и deduplication до проверки версии.
 Undo/redo ограничен памятью editor session и намеренно не восстанавливается после restart. При чтении
-резервного head следующая mutation сначала безопасно восстанавливает основной указатель. Следующий срез —
-selective export/import и credential placeholders. Named snapshot неизменно ссылается на сохранённую
+резервного head следующая mutation сначала безопасно восстанавливает основной указатель. Третий срез
+добавил selective export/import и credential placeholders. Named snapshot неизменно ссылается на сохранённую
 revision; rollback создаёт новый draft с исходным package lock, не переписывая revision или snapshot.
+Export переносит выбранные revision contents как portable templates: поэтому исключение private section
+не подменяет checksum/identity исходной revision. Import проверяет bundle/assets до публикации, создаёт
+новый draft, оставляет CredentialRef unresolved и не загружает/не запускает package metadata. Следующий
+срез — command/query ApplicationService и in-process client.
 
 ### Задачи
 
 - [x] Реализовать JSON revision store, assets, atomic write и recovery (→ [Модуль: Profile Store](../architecture/modules/profile-store.md)).
 - [x] Реализовать draft commands, undo/redo и named snapshots (→ [ADR-0003](../decisions/0003-storage.md)).
-- [ ] Реализовать selective export/import, asset reachability и unresolved credential mapping без запуска packages (→ [Profile Store](../architecture/modules/profile-store.md), [Контракты миграций](../contracts/lifecycle.md#миграции-и-неизвестные-данные)).
+- [x] Реализовать selective export/import, asset reachability и unresolved credential mapping без запуска packages (→ [Profile Store](../architecture/modules/profile-store.md), [Контракты миграций](../contracts/lifecycle.md#миграции-и-неизвестные-данные)).
 - [ ] Реализовать ApplicationService, expected revision и OperationId (→ [Модуль: Local API](../architecture/modules/local-api.md)).
 - [ ] Реализовать Host apply skeleton с durable commit record, barrier, disruption/degraded policy, package lock и operation receipts (→ [ADR-0012](../decisions/0012-apply-and-execution-lifecycle.md), [Модуль: Host Runtime](../architecture/modules/host-runtime.md)).
 - [ ] Проверять principals/scopes внутри ApplicationService, durable dedup до revision check, dry-run без effects (→ [API](../contracts/application-api.md#идемпотентность-и-dry-run)).
@@ -222,7 +226,7 @@ revision; rollback создаёт новый draft с исходным package l
 - [x] Integration: crash-safe atomic write и recovery corrupted temp.
 - [ ] Scenario: failure до commit оставляет прежнюю выбранную revision; после commit восстанавливается новая без replay actions.
 - [ ] Fault: kill на каждой стадии записи/apply, disk full, grant revoke во время prepare, exclusive handoff failure, concurrent draft edits, повтор key после restart.
-- [ ] Import/export: secrets/grants отсутствуют, unknown fields сохраняются, snapshot rollback использует прежний package hash.
+- [x] Import/export: secrets/grants отсутствуют, unknown fields сохраняются, snapshot rollback использует прежний package hash.
 
 ### Ссылки
 

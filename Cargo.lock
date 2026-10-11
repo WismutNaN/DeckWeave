@@ -840,6 +840,7 @@ dependencies = [
 name = "deckweave-profiles"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "deckweave-application",
  "deckweave-domain",
  "deckweave-platform-host",
