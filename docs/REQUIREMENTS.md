@@ -1,0 +1,131 @@
+# Требования DeckWeave
+
+Документ является проверяемым контрактом продукта. Идентификаторы используются в плане, ADR, тестах и issue tracker. Архитектурно предусмотренная функция не считается реализованной, пока её acceptance criteria не пройдены.
+
+## Приоритеты
+
+- **P0** — обязательное основание первой ежедневной версии.
+- **P1** — обязательное расширение после первой N4 Pro вертикали.
+- **P2** — архитектурно предусмотрено, реализация после стабилизации v1.
+
+## Функциональные требования
+
+### Рабочее пространство и устройства
+
+| ID | Приоритет | Требование | Критерий приёмки |
+|---|---:|---|---|
+| DW-WS-001 | P0 | Workspace объединяет несколько физических, виртуальных, программных и удалённых nodes | В одном workspace событие virtual device меняет output другого provider без изменения core |
+| DW-WS-002 | P0 | Каждый device описывается elements, capabilities и типизированными ports | Неизвестный namespaced port сохраняется и виден в диагностике |
+| DW-WS-003 | P0 | Физическая identity отделена от session и OS path | Reconnect создаёт новую session, но восстанавливает bindings |
+| DW-WS-004 | P0 | UI показывает цифровое представление всех устройств на infinite canvas | Device можно выбрать, переместить и открыть inspector |
+| DW-WS-005 | P1 | Несколько устройств можно группировать как логический unit без потери физической identity | Group получает layout и routes, а disconnect одного участника даёт degraded state |
+| DW-WS-006 | P1 | Virtual keyboard, mouse, gamepad и test surface доступны для тестов | Recorded fixture воспроизводится без реального устройства |
+
+### Назначения и автоматизация
+
+| ID | Приоритет | Требование | Критерий приёмки |
+|---|---:|---|---|
+| DW-AU-001 | P0 | Простая связь source → action создаётся через drag-and-drop или форму | Частый сценарий занимает не более трёх пользовательских действий |
+| DW-AU-002 | P0 | Один event может запускать несколько actions последовательно или параллельно | Порядок и join policy воспроизводимы в simulation |
+| DW-AU-003 | P0 | Conditions, state, variables, timers и temporary layers являются штатными nodes | Удержание клавиши временно меняет назначение N4 Pro и возвращает его после release |
+| DW-AU-004 | P0 | Ошибки имеют настраиваемые stop/continue/retry/fallback policies | Ошибка подсвечивает node и не скрывается успешной соседней ветвью |
+| DW-AU-005 | P1 | Поддерживаются schedules, cycles с явным delay/latch и Pomodoro-like timers | Запрещённый синхронный цикл не компилируется |
+| DW-AU-006 | P1 | Active application/window может участвовать в condition и layer selection | Один control имеет разные bindings в Word и VS Code |
+| DW-AU-007 | P1 | Events записываются и воспроизводятся с monotonic timestamps и fake clock | Один fixture даёт одинаковый итоговый state в повторных тестах |
+| DW-AU-008 | P1 | Конфликтующие owners/routes видимы, а пользователь задаёт priority | UI показывает конкурирующие rules до apply |
+| DW-AU-009 | P1 | Python plugin может реализовать сложное condition/action в отдельном процессе | Timeout Python runtime не блокирует event engine |
+
+### Surface, feedback и N4 Pro
+
+| ID | Приоритет | Требование | Критерий приёмки |
+|---|---:|---|---|
+| DW-SF-001 | P0 | Визуальная surface является непрерывным canvas, не сеткой legacy controls | Изображение заполняет N4 Pro display без искусственных чёрных промежутков |
+| DW-SF-002 | P0 | Scene objects и hit regions редактируются независимо | Текст пересекает границы template cells, а четыре touch regions остаются активными |
+| DW-SF-003 | P0 | Scene поддерживает text, image, icon, shape, group, clipping и state bindings | Mute/recording feedback меняет внешний вид без пересоздания workspace |
+| DW-SF-004 | P0 | N4 Pro plugin предоставляет десять keys, четыре encoders/press, touch coordinates, full display, light и haptic capabilities согласно реально подтверждённому протоколу | Hardware conformance fixture и ручной smoke проходят |
+| DW-SF-005 | P0 | Свет и вибрация управляются раздельно по доступным hardware units | Цвет/яркость каждого доступного кольца и pattern вибрации не зависят от legacy button background |
+| DW-SF-006 | P1 | Renderer использует dirty regions/latest-frame-wins и device FPS budget | Медленный sink не создаёт неограниченную очередь |
+| DW-SF-007 | P1 | Custom widgets могут поставляться plugin package и обновляться по событиям | Widget crash не останавливает surface compositor |
+| DW-SF-008 | P1 | Анимация поддерживается как ограниченный timeline, но статические event-driven updates являются default | Неактивная animation не потребляет frame loop |
+
+### Плагины и совместимость
+
+| ID | Приоритет | Требование | Критерий приёмки |
+|---|---:|---|---|
+| DW-PL-001 | P0 | Manifest индексируется без запуска plugin executable | Каталог contributions доступен при нуле активных сторонних runtimes |
+| DW-PL-002 | P0 | Один активный package работает в отдельном процессе и может предоставлять несколько contributions | Crash package не завершает host и помечает только его ports unavailable |
+| DW-PL-003 | P0 | Protocol поддерживает Rust и TypeScript SDK; Python SDK следует после стабилизации | Reference plugins проходят общий conformance suite |
+| DW-PL-004 | P0 | Settings задаются schema-form или sandboxed custom property editor | Invalid settings не достигают active revision |
+| DW-PL-005 | P0 | Permissions показываются до запуска, scope сохраняется отдельно от profile secrets | Новое permission после update требует повторного подтверждения |
+| DW-PL-006 | P1 | Central catalogue хранит metadata и ссылки на immutable GitHub release artifacts | Установка проверяет hash, а update всегда подтверждается пользователем |
+| DW-CP-001 | P1 | OpenAction/Elgato compatibility host запускает проверенное подмножество существующих plugins без изменения их исходников | Reference packages достигают документированных C0–C3 levels |
+| DW-CP-002 | P2 | Bitfocus Companion bridge подключает modules/variables/actions через публичные или изолированные compatibility interfaces | Companion version несовместимость не ломает native plugins |
+| DW-CP-003 | P1 | Нативный replacement plugin может объявить migration from legacy action | Пользователь видит settings diff и может rollback |
+
+### Системный ввод и hardware provisioning
+
+| ID | Приоритет | Требование | Критерий приёмки |
+|---|---:|---|---|
+| DW-IN-001 | P0 | OS plugin предоставляет media keys, volume/mute, application launch и active-window state | Базовые действия работают на Windows 10/11 |
+| DW-IN-002 | P1 | Input modes различают observe, intercept/suppress и emit | Permission и diagnostics явно показывают фактически доступный mode |
+| DW-IN-003 | P1 | Injected events маркируются для предотвращения self-loop | Emitted key не повторно запускает исходное rule без явного opt-in |
+| DW-IN-004 | P2 | Selective keyboard/mouse replacement использует optional privileged platform component | Отключение компонента возвращает безопасный системный ввод |
+| DW-IN-005 | P1 | Device memory/configuration изменяется только через typed provisioning plan с readback | Неподдерживаемое write отклоняется до отправки устройству |
+| DW-IN-006 | P0 | Firmware flashing находится вне области DeckWeave | Ни один standard permission не позволяет firmware update |
+
+### API, профили и эксплуатация
+
+| ID | Приоритет | Требование | Критерий приёмки |
+|---|---:|---|---|
+| DW-API-001 | P0 | Все операции UI используют общий application service contract | UI не обращается напрямую к plugin process или profile files |
+| DW-API-002 | P0 | Mutations поддерживают expected revision, validate, dry-run и atomic apply | Конфликт двух editors возвращает structured conflict |
+| DW-API-003 | P1 | CLI и Codex используют локальный authenticated API; MCP — optional adapter | MCP можно удалить без потери core API |
+| DW-PR-001 | P0 | Draft имеет undo/redo; applied revisions неизменяемы; доступны named snapshots | После неудачного apply активной остаётся прежняя revision |
+| DW-PR-002 | P0 | Экспорт выбирает workspaces, plugins metadata, assets и private section | Экспорт без secrets не содержит credential values |
+| DW-PR-003 | P1 | Cross-platform import сообщает unavailable contributions, не теряя их settings | Профиль Windows открывается на Linux как degraded, а не повреждается |
+| DW-OP-001 | P0 | Installed mode поддерживает автозапуск, tray и продолжение работы после закрытия окна | Закрытие WebView не прекращает actions |
+| DW-OP-002 | P0 | Portable mode использует выбранный data root и не включает autostart сам | Две установки не смешивают профили |
+| DW-OP-003 | P0 | Диагностика показывает sessions, latency, queue depth, dropped/coalesced values и last error | Причина stale/unavailable port доступна без raw log |
+
+### Будущие remote и media capabilities
+
+| ID | Приоритет | Требование | Критерий приёмки |
+|---|---:|---|---|
+| DW-RM-001 | P2 | Remote agent объявляет display, touch, buttons, sensors, camera, microphone и speaker независимо | Pairing не активирует media capture автоматически |
+| DW-RM-002 | P2 | Control transport не зависит от Wi-Fi или cable carrier | Один capability descriptor сохраняется при смене transport |
+| DW-RM-003 | P2 | Первая роль Steam Deck/Android — widget panel с возвратом touch coordinates | Touch point достигает workspace с правильной transform |
+| DW-MD-001 | P2 | Audio/video buffers не проходят через обычный plugin IPC или automation graph | Benchmark подтверждает отдельный data plane |
+| DW-MD-002 | P2 | Media graph допускает sources, filters, sinks, bypass и virtual OS endpoints | Crash filter приводит к выбранной bypass/stop policy |
+| DW-MD-003 | P2 | Control parameters и meters доступны обычному graph без блокировки media thread | Automation меняет gain через bounded control bridge |
+
+## Нефункциональные требования
+
+| ID | Область | Требование |
+|---|---|---|
+| DW-NF-001 | Надёжность | Внешние данные не приводят к panic host; plugin crash локализуется |
+| DW-NF-002 | Производительность | Digital input → dispatch p95 ≤ 10 ms на reference PC без внешнего сервиса; точный baseline фиксируется benchmark |
+| DW-NF-003 | Память | Неиспользуемые runtimes не запускаются; тяжёлые widget/media hosts являются optional |
+| DW-NF-004 | Backpressure | Все runtime queues bounded; edge events не coalesce, continuous values могут coalesce с метрикой |
+| DW-NF-005 | Переносимость | Domain, protocol и profile crates не импортируют OS-specific APIs |
+| DW-NF-006 | Локализация | UI и plugin schemas поддерживают минимум ru/en без идентификаторов, зависящих от перевода |
+| DW-NF-007 | Наблюдаемость | Correlation/causation IDs проходят через event, action, feedback и diagnostics |
+| DW-NF-008 | Восстановление | Запись профиля атомарна; startup может восстановить последнюю целую revision |
+| DW-NF-009 | Безопасность | Secrets не попадают в profile, logs или default export |
+| DW-NF-010 | Тестируемость | Clock, devices, transports и plugin processes имеют fakes/fixtures |
+| DW-NF-011 | Доступность | Цвет не является единственным признаком состояния; все редакторы доступны с клавиатуры |
+| DW-NF-012 | Публичный проект | Каждый merge оставляет build/test/docs в согласованном состоянии и указывает provenance заимствований |
+
+## Первый сквозной критерий
+
+Первая ежедневная версия считается полезной, когда пользователь на Windows 10/11:
+
+1. запускает DeckWeave в tray;
+2. видит N4 Pro на canvas;
+3. назначает кнопкам запуск приложения и media commands;
+4. использует энкодер для volume и press для mute;
+5. выводит произвольную композицию на полный touch display без сеточных промежутков;
+6. связывает независимые hit regions с actions;
+7. задаёт light и haptic feedback;
+8. закрывает окно, продолжая использовать панель;
+9. записывает тестовый event trace, изменяет draft и безопасно возвращается к snapshot.
+
