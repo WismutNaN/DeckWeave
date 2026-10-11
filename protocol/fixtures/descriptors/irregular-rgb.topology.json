@@ -1,0 +1,32 @@
+{
+  "topologyRevision": 5,
+  "coordinateFrame": {
+    "id": "org.deckweave.coordinate.device_mm",
+    "unit": "millimeter",
+    "origin": { "x": 0.0, "y": 0.0 },
+    "xAxis": { "x": 1.0, "y": 0.0 },
+    "yAxis": { "x": 0.0, "y": 1.0 },
+    "boundsMin": { "x": 0.0, "y": 0.0 },
+    "boundsMax": { "x": 80.0, "y": 40.0 },
+    "confidence": "vendor_documented",
+    "evidence": "fixture-layout-v1"
+  },
+  "lightUnits": [
+    { "lightUnitId": "led-1", "position": { "x": 10.0, "y": 10.0 }, "groups": ["keys"] },
+    { "lightUnitId": "led-2a", "position": { "x": 30.0, "y": 10.0 }, "groups": ["keys"] },
+    { "lightUnitId": "led-2b", "position": { "x": 34.0, "y": 10.0 }, "groups": ["keys"] },
+    { "lightUnitId": "led-shared", "position": { "x": 60.0, "y": 30.0 }, "groups": ["accent"] }
+  ],
+  "groups": [
+    { "lightGroupId": "keys", "label": "Key LEDs" },
+    { "lightGroupId": "accent", "label": "Shared accent" }
+  ],
+  "elementMappings": [
+    { "elementId": "key-1", "lightUnitIds": ["led-1"] },
+    { "elementId": "key-2", "lightUnitIds": ["led-2a", "led-2b"] },
+    { "elementId": "key-no-led", "lightUnitIds": [] },
+    { "elementId": "encoder-1", "lightUnitIds": ["led-shared"] },
+    { "elementId": "encoder-2", "lightUnitIds": ["led-shared"] }
+  ],
+  "org.deckweave.fixture.layout": "irregular-with-hole-and-shared-led"
+}

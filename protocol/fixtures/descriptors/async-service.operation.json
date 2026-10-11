@@ -1,0 +1,32 @@
+{
+  "operationId": "transcribe-audio",
+  "version": 1,
+  "inputSchema": { "id": "org.deckweave.operation.transcribe_input", "version": { "major": 1, "minor": 0 } },
+  "resultSchema": { "id": "org.deckweave.operation.transcript_result", "version": { "major": 1, "minor": 0 } },
+  "errorSchema": { "id": "org.deckweave.error.standard", "version": { "major": 1, "minor": 0 } },
+  "execution": { "kind": "job", "progress": true, "cancellation": true, "reconciliation": true },
+  "effects": ["org.deckweave.effect.external_compute"],
+  "idempotency": {
+    "keyScope": "org.deckweave.idempotency.input_digest",
+    "retentionSeconds": 3600,
+    "outcomeQuery": true
+  },
+  "limits": {
+    "deadlineMs": 300000,
+    "maximumInputBytes": 65536,
+    "maximumOutputBytes": 1048576,
+    "maximumConcurrentInvocations": 2,
+    "maximumQueueDepth": 8,
+    "maximumPerMinute": 20
+  },
+  "resources": [
+    { "scope": "org.deckweave.resource.transcription", "mode": "shared", "holdUntilCleanup": false }
+  ],
+  "dataPolicy": {
+    "sensitiveFields": ["artifactId"],
+    "externalRecipients": [],
+    "traceAllowed": false,
+    "retentionSeconds": 0
+  },
+  "org.deckweave.fixture.completionPredicate": "terminal-outcome"
+}

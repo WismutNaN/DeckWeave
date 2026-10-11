@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://deckweave.dev/schema/plugin-manifest/v1",
+  "title": "PluginManifest",
+  "description": "Static package metadata; indexing this document never executes plugin code.",
+  "type": "object",
+  "required": [
+    "manifestVersion",
+    "packageId",
+    "version",
+    "license",
+    "source",
+    "artifacts",
+    "runtimeGroups",
+    "contributions",
+    "protocolRange",
+    "permissions",
+    "schemas"
+  ],
+  "properties": {
+    "manifestVersion": { "const": 1 },
+    "packageId": { "$ref": "#/$defs/namespacedId" },
+    "version": { "$ref": "#/$defs/semver" },
+    "license": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "source": {
+      "type": "object",
+      "required": ["repository", "revision"],
+      "properties": {
+        "repository": { "type": "string", "format": "uri" },
+        "revision": { "type": "string", "minLength": 7, "maxLength": 128 },
+        "provenance": { "type": "string", "maxLength": 2048 }
+      },
+      "additionalProperties": {}
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "os", "architecture", "entrypoint", "sha256"],
+        "properties": {
+          "id": { "$ref": "#/$defs/localId" },
+          "os": { "enum": ["windows", "linux", "macos"] },
+          "architecture": { "enum": ["x86_64", "aarch64"] },
+          "entrypoint": { "$ref": "#/$defs/packagePath" },
+          "sha256": { "$ref": "#/$defs/sha256" }
+        },
+        "additionalProperties": {}
+      }
+    },
+    "runtimeGroups": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "runtimeClass", "artifactId"],
+        "properties": {
+          "id": { "$ref": "#/$defs/localId" },
+          "runtimeClass": {
+            "enum": [
+              "isolated_control",
+              "openaction_compatibility",
+              "widget",
+              "trusted_media",
+              "remote_agent",
+              "built_in_audited"
+            ]
+          },
+          "artifactId": { "$ref": "#/$defs/localId" }
+        },
+        "additionalProperties": {}
+      }
+    },
+    "contributions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "runtimeGroupId", "descriptor"],
+        "properties": {
+          "id": { "$ref": "#/$defs/localId" },
+          "type": { "$ref": "#/$defs/namespacedId" },
+          "runtimeGroupId": { "$ref": "#/$defs/localId" },
+          "descriptor": { "type": "object", "additionalProperties": {} },
+          "activationConditions": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/namespacedId" }
+          }
+        },
+        "additionalProperties": {}
+      }
+    },
+    "protocolRange": { "$ref": "#/$defs/versionRange" },
+    "permissions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["scope", "reason"],
+        "properties": {
+          "scope": { "$ref": "#/$defs/namespacedId" },
+          "reason": { "type": "string", "minLength": 1, "maxLength": 1024 },
+          "optional": { "type": "boolean", "default": false }
+        },
+        "additionalProperties": {}
+      }
+    },
+    "schemas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "version", "path", "sha256"],
+        "properties": {
+          "id": { "$ref": "#/$defs/namespacedId" },
+          "version": { "$ref": "#/$defs/schemaVersion" },
+          "path": { "$ref": "#/$defs/packagePath" },
+          "sha256": { "$ref": "#/$defs/sha256" }
+        },
+        "additionalProperties": {}
+      }
+    },
+    "assets": { "type": "array", "items": { "type": "object", "additionalProperties": {} } },
+    "dependencies": { "type": "array", "items": { "type": "object", "additionalProperties": {} } },
+    "migrations": { "type": "array", "items": { "type": "object", "additionalProperties": {} } }
+  },
+  "additionalProperties": {},
+  "$defs": {
+    "localId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+    },
+    "namespacedId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*(\\.[A-Za-z0-9][A-Za-z0-9_-]*)+$",
+      "maxLength": 128
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+    },
+    "sha256": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" },
+    "packagePath": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]*(?:/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$",
+      "maxLength": 512
+    },
+    "schemaVersion": {
+      "type": "object",
+      "required": ["major", "minor"],
+      "properties": {
+        "major": { "type": "integer", "minimum": 0 },
+        "minor": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "versionRange": {
+      "type": "object",
+      "required": ["minimum", "maximum"],
+      "properties": {
+        "minimum": { "$ref": "#/$defs/schemaVersion" },
+        "maximum": { "$ref": "#/$defs/schemaVersion" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

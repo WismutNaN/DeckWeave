@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "workspaceId": "workspace-fixture",
+  "revisionId": "revision-fixture-1",
+  "packageLock": [
+    {
+      "packageId": "org.deckweave.fixture.keyboard",
+      "version": "0.1.0",
+      "artifactSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "document": { "nodes": [], "futureGraphMetadata": { "revision": 2 } },
+  "assets": [],
+  "extensions": { "org.example.profile": { "present": true } },
+  "futureOptionalField": "preserve"
+}

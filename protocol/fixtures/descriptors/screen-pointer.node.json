@@ -1,0 +1,71 @@
+{
+  "nodeId": "local-node",
+  "kind": "local",
+  "label": "Touch surface",
+  "descriptorRevision": 3,
+  "devices": [
+    {
+      "identity": "touch-surface-fixture",
+      "providerId": "fixture-surface-provider",
+      "kind": "physical",
+      "label": "Full-screen touch surface",
+      "elements": [
+        {
+          "elementId": "surface-main",
+          "label": "Main surface",
+          "capabilities": [
+            {
+              "capabilityId": "surface-display",
+              "kind": "org.deckweave.output.display_surface",
+              "ports": [
+                {
+                  "portId": "surface.frame",
+                  "kind": "FrameIn",
+                  "direction": "input",
+                  "semantics": "frame",
+                  "schema": {
+                    "id": "org.deckweave.frame.image",
+                    "version": { "major": 1, "minor": 0 }
+                  },
+                  "compatibleVersions": {
+                    "minimum": { "major": 1, "minor": 0 },
+                    "maximum": { "major": 1, "minor": 0 }
+                  },
+                  "availability": { "status": "available" },
+                  "lifetime": "always",
+                  "descriptorRevision": 3,
+                  "tags": ["surface", "full-frame"]
+                }
+              ]
+            },
+            {
+              "capabilityId": "surface-pointer",
+              "kind": "org.deckweave.input.pointer_absolute",
+              "ports": [
+                {
+                  "portId": "surface.pointer",
+                  "kind": "EventOut",
+                  "direction": "output",
+                  "semantics": "event",
+                  "schema": {
+                    "id": "org.deckweave.signal.pointer_sample",
+                    "version": { "major": 1, "minor": 0 }
+                  },
+                  "compatibleVersions": {
+                    "minimum": { "major": 1, "minor": 0 },
+                    "maximum": { "major": 1, "minor": 0 }
+                  },
+                  "coordinateSpace": "org.deckweave.coordinate.surface_normalized",
+                  "availability": { "status": "available" },
+                  "lifetime": "always",
+                  "descriptorRevision": 3,
+                  "tags": ["surface", "pointer"]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

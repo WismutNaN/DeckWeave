@@ -1,0 +1,7 @@
+{
+  "schemaId": "org.deckweave.fixture.settings",
+  "schemaVersion": { "major": 1, "minor": 0 },
+  "values": { "mode": "observe", "futureThreshold": 0.75 },
+  "extensions": { "org.example.future": { "enabled": true } },
+  "futureOptionalField": [1, 2, 3]
+}

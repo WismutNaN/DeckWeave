@@ -1,0 +1,245 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+syntax = "proto3";
+
+package deckweave.v1;
+
+// The control protocol never carries raw audio or video buffers.
+message ProtocolVersion {
+  uint32 major = 1;
+  uint32 minor = 2;
+}
+
+message ProtocolVersionRange {
+  ProtocolVersion minimum = 1;
+  ProtocolVersion maximum = 2;
+}
+
+message SchemaReference {
+  string id = 1;
+  uint32 major = 2;
+  uint32 minor = 3;
+}
+
+message SchemaRequirement {
+  string id = 1;
+  uint32 minimum_major = 2;
+  uint32 minimum_minor = 3;
+  uint32 maximum_major = 4;
+  uint32 maximum_minor = 5;
+  bool required = 6;
+}
+
+message NegotiatedSchema {
+  SchemaReference schema = 1;
+}
+
+message FeatureRequirement {
+  string id = 1;
+  uint32 minimum_version = 2;
+  uint32 maximum_version = 3;
+  bool required = 4;
+}
+
+message NegotiatedFeature {
+  string id = 1;
+  uint32 version = 2;
+}
+
+message ProtocolLimits {
+  uint64 maximum_message_bytes = 1;
+  uint64 maximum_chunk_bytes = 2;
+  uint32 maximum_concurrent_jobs = 3;
+  uint64 maximum_artifact_bytes = 4;
+  uint32 maximum_events_per_second = 5;
+}
+
+message TraceContext {
+  string trace_id = 1;
+  optional string correlation_id = 2;
+  optional string causation_id = 3;
+}
+
+message OpaquePayload {
+  SchemaReference schema = 1;
+  bytes value = 2;
+}
+
+message Hello {
+  ProtocolVersionRange protocol = 1;
+  string package_id = 2;
+  string runtime_group = 3;
+  bytes one_time_token = 4;
+  repeated FeatureRequirement features = 5;
+  repeated SchemaRequirement schemas = 6;
+  ProtocolLimits limits = 7;
+}
+
+message HelloAck {
+  ProtocolVersion selected_protocol = 1;
+  string plugin_session_id = 2;
+  repeated NegotiatedFeature features = 3;
+  repeated NegotiatedSchema schemas = 4;
+  ProtocolLimits limits = 5;
+}
+
+message ActivationRequest {
+  string runtime_lease_id = 1;
+  string contribution_id = 2;
+  OpaquePayload settings = 3;
+}
+
+message ActivationReply {
+  string runtime_lease_id = 1;
+  uint64 descriptor_revision = 2;
+  OpaquePayload descriptor = 3;
+}
+
+message DeactivationRequest {
+  string runtime_lease_id = 1;
+  string reason = 2;
+}
+
+message DescriptorSnapshot {
+  uint64 descriptor_revision = 1;
+  OpaquePayload descriptor = 2;
+}
+
+message DescriptorDelta {
+  uint64 base_revision = 1;
+  uint64 descriptor_revision = 2;
+  repeated OpaquePayload upserts = 3;
+  repeated string removed_ids = 4;
+}
+
+message Signal {
+  string source_port_id = 1;
+  uint64 device_session_generation = 2;
+  uint64 sequence = 3;
+  uint64 captured_ticks = 4;
+  string clock_domain_id = 5;
+  optional string wall_clock_rfc3339 = 6;
+  OpaquePayload payload = 7;
+}
+
+message InvocationRequest {
+  string invocation_id = 1;
+  string run_id = 2;
+  string operation_id = 3;
+  uint64 activation_epoch = 4;
+  uint64 descriptor_revision = 5;
+  uint64 deadline_host_ticks = 6;
+  optional string idempotency_key = 7;
+  OpaquePayload input = 8;
+}
+
+enum ErrorCategory {
+  ERROR_CATEGORY_UNSPECIFIED = 0;
+  ERROR_CATEGORY_INVALID_INPUT = 1;
+  ERROR_CATEGORY_UNSUPPORTED = 2;
+  ERROR_CATEGORY_UNAVAILABLE = 3;
+  ERROR_CATEGORY_PERMISSION_DENIED = 4;
+  ERROR_CATEGORY_RESOURCE_BUSY = 5;
+  ERROR_CATEGORY_DEADLINE_EXCEEDED = 6;
+  ERROR_CATEGORY_CANCELLED = 7;
+  ERROR_CATEGORY_TRANSIENT_EXTERNAL = 8;
+  ERROR_CATEGORY_PERMANENT_EXTERNAL = 9;
+  ERROR_CATEGORY_UNKNOWN_OUTCOME = 10;
+  ERROR_CATEGORY_INTERNAL = 11;
+}
+
+message StructuredError {
+  ErrorCategory category = 1;
+  string code = 2;
+  string message_key = 3;
+  map<string, string> details = 4;
+  optional string diagnostic_attachment_id = 5;
+}
+
+message TerminalOutcome {
+  string invocation_id = 1;
+  oneof result {
+    OpaquePayload succeeded = 2;
+    StructuredError failed = 3;
+    StructuredError cancelled = 4;
+    StructuredError unknown_outcome = 5;
+  }
+}
+
+message InvocationReply {
+  string invocation_id = 1;
+  oneof reply {
+    TerminalOutcome terminal = 2;
+    string accepted_job_id = 3;
+    StructuredError rejected = 4;
+  }
+}
+
+message JobProgress {
+  string invocation_id = 1;
+  string job_id = 2;
+  uint32 sequence = 3;
+  optional double fraction = 4;
+  OpaquePayload details = 5;
+}
+
+message CancelRequest {
+  string invocation_id = 1;
+  optional string job_id = 2;
+  string reason = 3;
+}
+
+message Heartbeat {
+  uint64 host_ticks = 1;
+  uint32 active_jobs = 2;
+}
+
+message BackpressureNotice {
+  string lane = 1;
+  uint64 dropped_or_coalesced = 2;
+  string policy = 3;
+}
+
+message FramePacket {
+  string target_port_id = 1;
+  uint64 activation_epoch = 2;
+  uint64 descriptor_revision = 3;
+  uint64 frame_id = 4;
+  optional uint64 base_frame_id = 5;
+  uint32 chunk_index = 6;
+  uint32 chunk_count = 7;
+  OpaquePayload chunk = 8;
+}
+
+message FrameReceipt {
+  string target_port_id = 1;
+  uint64 frame_id = 2;
+  bool accepted = 3;
+  bool applied = 4;
+  optional StructuredError error = 5;
+}
+
+message ProtocolEnvelope {
+  ProtocolVersion wire_version = 1;
+  uint64 session_generation = 2;
+  uint64 message_id = 3;
+  TraceContext trace = 4;
+  oneof body {
+    Hello hello = 10;
+    HelloAck hello_ack = 11;
+    ActivationRequest activate = 12;
+    ActivationReply activated = 13;
+    DeactivationRequest deactivate = 14;
+    DescriptorSnapshot descriptor_snapshot = 15;
+    DescriptorDelta descriptor_delta = 16;
+    Signal signal = 17;
+    InvocationRequest invoke = 18;
+    InvocationReply invocation_reply = 19;
+    JobProgress job_progress = 20;
+    TerminalOutcome job_outcome = 21;
+    CancelRequest cancel = 22;
+    Heartbeat heartbeat = 23;
+    BackpressureNotice backpressure = 24;
+    FramePacket frame = 25;
+    FrameReceipt frame_receipt = 26;
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://deckweave.dev/schema/settings-document/v1",
+  "title": "SettingsDocument",
+  "type": "object",
+  "required": ["schemaId", "schemaVersion", "values"],
+  "properties": {
+    "schemaId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*(\\.[A-Za-z0-9][A-Za-z0-9_-]*)+$",
+      "maxLength": 128
+    },
+    "schemaVersion": {
+      "type": "object",
+      "required": ["major", "minor"],
+      "properties": {
+        "major": { "type": "integer", "minimum": 0 },
+        "minor": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "values": { "type": "object", "additionalProperties": {} },
+    "extensions": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*(\\.[A-Za-z0-9][A-Za-z0-9_-]*)+$"
+      },
+      "additionalProperties": {}
+    }
+  },
+  "additionalProperties": {}
+}

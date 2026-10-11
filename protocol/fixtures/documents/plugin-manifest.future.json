@@ -1,0 +1,47 @@
+{
+  "manifestVersion": 1,
+  "packageId": "org.deckweave.fixture.keyboard",
+  "version": "0.1.0",
+  "license": "MIT OR Apache-2.0",
+  "source": {
+    "repository": "https://example.invalid/deckweave/fixture",
+    "revision": "0123456789abcdef",
+    "futureSourceProof": { "algorithm": "future-v2" }
+  },
+  "artifacts": [
+    {
+      "id": "windows-x64",
+      "os": "windows",
+      "architecture": "x86_64",
+      "entrypoint": "bin/fixture.exe",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "runtimeGroups": [
+    { "id": "control", "runtimeClass": "isolated_control", "artifactId": "windows-x64" }
+  ],
+  "contributions": [
+    {
+      "id": "keyboard",
+      "type": "org.deckweave.device_provider",
+      "runtimeGroupId": "control",
+      "descriptor": { "kind": "keyboard" }
+    }
+  ],
+  "protocolRange": {
+    "minimum": { "major": 1, "minor": 0 },
+    "maximum": { "major": 1, "minor": 1 }
+  },
+  "permissions": [
+    { "scope": "org.deckweave.device.observe", "reason": "Observe fixture input" }
+  ],
+  "schemas": [
+    {
+      "id": "org.deckweave.fixture.settings",
+      "version": { "major": 1, "minor": 0 },
+      "path": "schema/settings.json",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  ],
+  "futureOptionalField": { "mustSurvive": true }
+}

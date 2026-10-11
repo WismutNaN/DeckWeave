@@ -1,6 +1,6 @@
 # Разработка и запуск
 
-Скелет фазы 1 использует Rust 1.98.1 из rust-toolchain.toml, Node.js 22.12+ и npm.
+Скелет фазы 1 и contracts фазы 2 используют Rust 1.98.1 из rust-toolchain.toml, Node.js 22.12+ и npm.
 Windows требует MSVC Build Tools и WebView2 Runtime. Требования ОС: [документация Tauri](https://v2.tauri.app/start/prerequisites/).
 
 ## Установка зависимостей
@@ -52,6 +52,18 @@ npm run build -- --debug
 
 ## Проверки
 
+После изменения `.proto` или JSON Schema обновите generated Rust/TypeScript boundary:
+
+```powershell
+npm run generate:contracts
+npm run check:generated
+```
+
+Rust Protobuf types генерируются `prost-build` в `OUT_DIR`, Rust document types — `typify` при компиляции,
+а отслеживаемые TypeScript types — Buf Protobuf-ES и `json-schema-to-typescript`.
+`check:generated` повторяет генерацию и отклоняет нестабильный либо забытый diff.
+Общий wire fixture `protocol/fixtures/wire/heartbeat-envelope.hex` читают обе реализации.
+
 ```powershell
 npm run check
 cargo fmt --all -- --check
@@ -88,13 +100,15 @@ PowerShell harness также проверяет отсутствие WebView2 p
 
 ОС освобождение writer lock после принудительного завершения дочернего процесса проверяется
 отдельным Rust integration test. Production plugin processes и их tree cleanup появятся в фазе 3;
-фаза 1 не запускает plugins, API listener или hardware.
+фазы 1–2 не запускают plugins, API listener или hardware.
 
 ## Границы реализации
 
-В фазе 1 доступны lifecycle, каталоги, блокировки, opt-in автозапуск и read-only HostSnapshot.
+В фазах 1–2 доступны lifecycle, каталоги, блокировки, opt-in автозапуск, read-only HostSnapshot
+и versioned domain/protocol contracts с fixtures.
 Главный экран показывает состояние настоящего host, но устройства, bindings и список plugins пока не реализованы.
-Окончательные wire messages не зафиксированы; deckweave-protocol содержит только permissive package boundary.
+Control envelope и document schemas зафиксированы как эволюционирующая граница, но SDK ещё не стабилизирован.
+Remote/media пока представлены только descriptors; transport и raw buffer ABI намеренно отсутствуют.
 
 Правила зависимостей проверяет scripts/check-boundaries.mjs согласно
 [ADR-0013](../decisions/0013-dependency-and-host-service-boundaries.md).

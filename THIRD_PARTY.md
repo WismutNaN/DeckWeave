@@ -1,6 +1,6 @@
 # Источники и зависимости
 
-Фаза 1 не включает vendored код драйверов, OpenDeck или других приложений.
+Фазы 1–2 не включают vendored код драйверов, OpenDeck или других приложений.
 Использованы опубликованные API библиотек; реализации DeckWeave написаны в этом репозитории.
 Точные версии, registry sources и checksums Rust-зависимостей находятся в [Cargo.lock](Cargo.lock),
 JavaScript-зависимостей — в [package-lock.json](package-lock.json).
@@ -14,6 +14,10 @@ JavaScript-зависимостей — в [package-lock.json](package-lock.json
 | fs2 | [fs2](https://github.com/danburkert/fs2-rs) | OS-backed файловые блокировки; не PID-файлы |
 | windows-sys, windows-registry | [windows-rs](https://github.com/microsoft/windows-rs) | Windows session и строго HKCU-регистрация автозапуска |
 | serde, thiserror | [serde](https://github.com/serde-rs/serde), [thiserror](https://github.com/dtolnay/thiserror) | Application snapshot и типизированные ошибки |
+| Prost, protoc-bin-vendored | [tokio-rs/prost](https://github.com/tokio-rs/prost), [protobuf-src/protoc-bin-vendored](https://github.com/protobuf-src/protoc-bin-vendored) | Rust Protobuf types и воспроизводимый protoc для control protocol |
+| Buf CLI, Protobuf-ES | [bufbuild/buf](https://github.com/bufbuild/buf), [bufbuild/protobuf-es](https://github.com/bufbuild/protobuf-es) | Lint `.proto` и TypeScript wire types; install scripts разрешены только для закреплённых версий |
+| Typify | [oxidecomputer/typify](https://github.com/oxidecomputer/typify) | Rust document types из JSON Schema; schema-valued `additionalProperties` сохраняют расширения |
+| JSON Schema to TypeScript, Ajv | [bcherny/json-schema-to-typescript](https://github.com/bcherny/json-schema-to-typescript), [ajv-validator/ajv](https://github.com/ajv-validator/ajv) | TypeScript document types и Draft 2020-12 fixture validation |
 | tempfile | [tempfile](https://github.com/Stebalien/tempfile) | Только тестовые каталоги |
 | github-slugger | [github-slugger](https://github.com/Flet/github-slugger) | Проверка Markdown anchors |
 | cargo-deny | [cargo-deny](https://github.com/EmbarkStudios/cargo-deny) | CI-проверка лицензий, источников и advisories |
@@ -28,6 +32,8 @@ PNG/ICO получены штатной командой Tauri icon; исход�
 При добавлении vendored фрагмента записываются: repository URL, commit, paths, license/notices, изменения,
 стратегия обновления и тест. Изменение состава dependencies фиксируется lockfile и проходит cargo-deny.
 Для npm `check-boundaries` проверяет известные license expressions, registry.npmjs.org и sha512 integrity.
+Проверены составные выражения `(Apache-2.0 AND BSD-3-Clause)` у `@bufbuild/protobuf` и
+`Python-2.0` у транзитивного `argparse`; оба являются разрешительными лицензиями, исходный код в DeckWeave не копировался.
 
 ## Проверенные исключения dependency policy
 

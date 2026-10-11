@@ -1,0 +1,23 @@
+{
+  "nodeId": "remote-android-fixture",
+  "channels": [
+    {
+      "kind": "control",
+      "carrier": "org.deckweave.transport.local_network",
+      "schemas": [
+        { "id": "org.deckweave.remote.control", "version": { "major": 1, "minor": 0 } }
+      ],
+      "maximumMessageBytes": 1048576,
+      "clockUncertaintyNs": 5000000,
+      "org.deckweave.fixture.carrierChange": "semantic-descriptor-stable"
+    },
+    {
+      "kind": "media",
+      "carrier": "org.deckweave.transport.negotiated_stream",
+      "schemas": [],
+      "maximumMessageBytes": 65536,
+      "clockUncertaintyNs": 5000000,
+      "org.deckweave.stream.bufferAbi": "intentionally-undefined"
+    }
+  ]
+}

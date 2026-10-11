@@ -1,0 +1,45 @@
+{
+  "nodeId": "local-node",
+  "kind": "local",
+  "label": "Software services",
+  "descriptorRevision": 4,
+  "services": [
+    {
+      "serviceId": "fixture-transcription",
+      "providerId": "fixture-service-provider",
+      "label": "Fixture transcription",
+      "elements": [
+        {
+          "elementId": "transcribe",
+          "label": "Transcribe audio artifact",
+          "capabilities": [
+            {
+              "capabilityId": "transcribe-operation",
+              "kind": "org.deckweave.service.transcription",
+              "ports": [
+                {
+                  "portId": "transcribe.invoke",
+                  "kind": "CommandIn",
+                  "direction": "input",
+                  "semantics": "command",
+                  "schema": {
+                    "id": "org.deckweave.operation.transcribe_input",
+                    "version": { "major": 1, "minor": 0 }
+                  },
+                  "compatibleVersions": {
+                    "minimum": { "major": 1, "minor": 0 },
+                    "maximum": { "major": 1, "minor": 0 }
+                  },
+                  "availability": { "status": "available" },
+                  "lifetime": "requestable",
+                  "descriptorRevision": 4,
+                  "tags": ["job", "artifact-input"]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://deckweave.dev/schema/workspace-profile/v1",
+  "title": "WorkspaceProfile",
+  "description": "Portable profile envelope. Full workspace semantics are introduced with the profile store.",
+  "type": "object",
+  "required": ["schemaVersion", "workspaceId", "revisionId", "packageLock", "document"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "workspaceId": { "$ref": "#/$defs/id" },
+    "revisionId": { "$ref": "#/$defs/id" },
+    "packageLock": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["packageId", "version", "artifactSha256"],
+        "properties": {
+          "packageId": { "$ref": "#/$defs/namespacedId" },
+          "version": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "artifactSha256": { "$ref": "#/$defs/sha256" },
+          "source": { "type": "string", "format": "uri" }
+        },
+        "additionalProperties": {}
+      }
+    },
+    "document": { "type": "object", "additionalProperties": {} },
+    "assets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "sha256", "mediaType", "sizeBytes"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "sha256": { "$ref": "#/$defs/sha256" },
+          "mediaType": { "type": "string", "minLength": 1, "maxLength": 256 },
+          "sizeBytes": { "type": "integer", "minimum": 0 }
+        },
+        "additionalProperties": {}
+      }
+    },
+    "privateSection": {
+      "type": "object",
+      "description": "Optional separately selected export section; credential values remain forbidden.",
+      "additionalProperties": {}
+    },
+    "extensions": { "type": "object", "additionalProperties": {} }
+  },
+  "additionalProperties": {},
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$" },
+    "namespacedId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*(\\.[A-Za-z0-9][A-Za-z0-9_-]*)+$",
+      "maxLength": 128
+    },
+    "sha256": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" }
+  }
+}

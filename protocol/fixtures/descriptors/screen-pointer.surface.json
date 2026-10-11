@@ -1,0 +1,18 @@
+{
+  "widthPixels": 800,
+  "heightPixels": 100,
+  "rotationDegrees": 0,
+  "pixelAspectRatio": 1.0,
+  "coordinateSpace": "org.deckweave.coordinate.surface_normalized",
+  "coordinateTransform": { "matrix": [0.00125, 0.0, 0.0, 0.01, 0.0, 0.0] },
+  "pixelFormats": ["image/png", "image/raw-rgba8"],
+  "colorSpace": "srgb",
+  "alpha": true,
+  "preferredFps": 30,
+  "maximumFps": 60,
+  "fullFrame": true,
+  "partialUpdate": true,
+  "atlas": true,
+  "persistentFrame": true,
+  "org.deckweave.fixture.hitTest": "coordinate-sample-only"
+}

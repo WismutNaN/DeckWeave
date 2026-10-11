@@ -1,0 +1,49 @@
+{
+  "nodeId": "local-node",
+  "kind": "local",
+  "label": "Analog keyboard",
+  "descriptorRevision": 2,
+  "devices": [
+    {
+      "identity": "keyboard-analog-fixture",
+      "providerId": "fixture-analog-provider",
+      "kind": "physical",
+      "label": "Analog keyboard",
+      "elements": [
+        {
+          "elementId": "key-w",
+          "label": "W",
+          "capabilities": [
+            {
+              "capabilityId": "key-w-travel",
+              "kind": "org.deckweave.input.key_travel",
+              "ports": [
+                {
+                  "portId": "key-w.travel",
+                  "kind": "ValueOut",
+                  "direction": "output",
+                  "semantics": "value",
+                  "schema": {
+                    "id": "org.deckweave.signal.normalized_scalar",
+                    "version": { "major": 1, "minor": 0 }
+                  },
+                  "compatibleVersions": {
+                    "minimum": { "major": 1, "minor": 0 },
+                    "maximum": { "major": 1, "minor": 1 }
+                  },
+                  "unit": "normalized",
+                  "range": { "minimum": 0.0, "maximum": 1.0, "center": 0.0, "precision": 0.001 },
+                  "rate": { "preferredHz": 250.0, "maximumHz": 1000.0, "maximumLatencyMs": 8 },
+                  "availability": { "status": "available" },
+                  "lifetime": "always",
+                  "descriptorRevision": 2,
+                  "tags": ["keyboard", "analog"]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

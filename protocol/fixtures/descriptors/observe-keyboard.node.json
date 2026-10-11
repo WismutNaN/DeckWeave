@@ -1,0 +1,50 @@
+{
+  "nodeId": "local-node",
+  "kind": "local",
+  "label": "Observe-only keyboard",
+  "descriptorRevision": 1,
+  "devices": [
+    {
+      "identity": "keyboard-observe-fixture",
+      "providerId": "fixture-hid-provider",
+      "kind": "physical",
+      "label": "USB keyboard",
+      "evidence": [
+        { "kind": "org.deckweave.identity.usb", "value": "1234:5678", "confidence": 1.0 }
+      ],
+      "elements": [
+        {
+          "elementId": "key-a",
+          "label": "A",
+          "capabilities": [
+            {
+              "capabilityId": "key-a-button",
+              "kind": "org.deckweave.input.button",
+              "ports": [
+                {
+                  "portId": "key-a.edge",
+                  "kind": "EventOut",
+                  "direction": "output",
+                  "semantics": "event",
+                  "schema": {
+                    "id": "org.deckweave.signal.button_edge",
+                    "version": { "major": 1, "minor": 0 }
+                  },
+                  "compatibleVersions": {
+                    "minimum": { "major": 1, "minor": 0 },
+                    "maximum": { "major": 1, "minor": 0 }
+                  },
+                  "availability": { "status": "available" },
+                  "lifetime": "always",
+                  "descriptorRevision": 1,
+                  "tags": ["keyboard", "observe"]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "org.deckweave.fixture.futureDeviceField": { "preserved": true }
+    }
+  ]
+}

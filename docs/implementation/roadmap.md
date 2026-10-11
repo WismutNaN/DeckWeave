@@ -37,7 +37,7 @@
 | Фаза | Название | Результат | Трудоёмкость | Статус |
 |---:|---|---|:---:|:---:|
 | 1 | Скелет репозитория | Workspace компилируется, UI shell и CI запускаются | S | [~] |
-| 2 | Domain и protocol contracts | Versioned types/schemas/generated code | M | [ ] |
+| 2 | Domain и protocol contracts | Versioned types/schemas/generated code | M | [x] |
 | 3 | Plugin supervisor и virtual package | Первый изолированный plugin end-to-end | L | [ ] |
 | 4 | Profile revisions и application API | Draft/validate/apply/rollback через API | L | [ ] |
 | 5 | Минимальный automation engine | Source → action → feedback deterministic path | L | [ ] |
@@ -108,28 +108,33 @@
 **Цель:** зафиксировать минимальную capability/revision/message model до реализации runtime.
 **Результат:** schemas генерируют Rust/TypeScript types; compatibility fixtures подтверждают round-trip.
 **Трудоёмкость:** M
-**Статус:** [ ] Не начата
+**Статус:** [x] Готово
 
 ### Контекст для агента
-> Скелет готов, но типов domain ещё нет. Реализуется только минимальный vocabulary плюс extension mechanism; remote/media получают descriptors, но не runtime.
+> Реализован минимальный vocabulary плюс extension mechanism; remote/media имеют только descriptors, без transport/runtime и buffer ABI. Следующая фаза может опираться на зафиксированные fixtures и generated types.
 
 ### Задачи
 
-- [ ] Реализовать IDs, descriptors, port kinds, envelopes, outcomes и errors (→ [Модуль: Domain & Protocol](../architecture/modules/domain-protocol.md)).
-- [ ] Создать Protobuf control envelope и JSON Schemas manifest/settings/profile (→ [Модель плагинов — Native control protocol](../contracts/plugins.md#native-control-protocol)).
-- [ ] Реализовать unknown-field/schema-version round-trip tests (→ [Архитектура — Правила эволюции](../architecture/overview.md#правила-эволюции)).
-- [ ] Зарезервировать namespaced stream/remote extension boundary без обещания стабильного buffer ABI до будущего spike (→ [Модуль: Remote Agent](../architecture/modules/remote-agent.md), [Модуль: Media Runtime](../architecture/modules/media-runtime.md)).
-- [ ] Создать generator task для Rust/TypeScript types (→ [Модель плагинов — SDK](../contracts/plugins.md#sdk)).
-- [ ] Зафиксировать HostBootId/ActivationEpoch, ingress order/clock domains и permissive protocol → SDK boundary; добавить domain/protocol Linux CI (→ [ADR-0013](../decisions/0013-dependency-and-host-service-boundaries.md), [Контракты сигналов](../contracts/lifecycle.md#порядок-сигналов-и-время)).
-- [ ] Задать input/result/error, InvocationId/JobId, artifact reference и dynamic descriptor schemas; согласование required features/limits (DW-WS-007, DW-PL-007) проверить до SDK freeze (→ [Automation](../contracts/automation.md), [Plugins](../contracts/plugins.md)).
-- [ ] Добавить независимые descriptor fixtures observe keyboard, analog travel, irregular RGB topology, screen/pointer, async service и media template; не создавать production media (→ [Lighting](../contracts/lighting.md), [Media](../contracts/media.md), [Сценарии](../product/scenarios.md)).
+- [x] Реализовать IDs, descriptors, port kinds, envelopes, outcomes и errors (→ [Модуль: Domain & Protocol](../architecture/modules/domain-protocol.md)).
+- [x] Создать Protobuf control envelope и JSON Schemas manifest/settings/profile (→ [Модель плагинов — Native control protocol](../contracts/plugins.md#native-control-protocol)).
+- [x] Реализовать unknown-field/schema-version round-trip tests (→ [Архитектура — Правила эволюции](../architecture/overview.md#правила-эволюции)).
+- [x] Зарезервировать namespaced stream/remote extension boundary без обещания стабильного buffer ABI до будущего spike (→ [Модуль: Remote Agent](../architecture/modules/remote-agent.md), [Модуль: Media Runtime](../architecture/modules/media-runtime.md)).
+- [x] Создать generator task для Rust/TypeScript types (→ [Модель плагинов — SDK](../contracts/plugins.md#sdk)).
+- [x] Зафиксировать HostBootId/ActivationEpoch, ingress order/clock domains и permissive protocol → SDK boundary; добавить domain/protocol Linux CI (→ [ADR-0013](../decisions/0013-dependency-and-host-service-boundaries.md), [Контракты сигналов](../contracts/lifecycle.md#порядок-сигналов-и-время)).
+- [x] Задать input/result/error, InvocationId/JobId, artifact reference и dynamic descriptor schemas; согласование required features/limits (DW-WS-007, DW-PL-007) проверить до SDK freeze (→ [Automation](../contracts/automation.md), [Plugins](../contracts/plugins.md)).
+- [x] Добавить независимые descriptor fixtures observe keyboard, analog travel, irregular RGB topology, screen/pointer, async service и media template; не создавать production media (→ [Lighting](../contracts/lighting.md), [Media](../contracts/media.md), [Сценарии](../product/scenarios.md)).
 
 ### Тесты
 
-- [ ] Юнит: ID/descriptor/envelope validation и stable serialization.
-- [ ] Property-based: unknown optional fields и invalid ranges.
-- [ ] Contract: Rust и TypeScript читают один fixture одинаково.
-- [ ] Contract: unknown fields/enums/presence проверяются на выбранных codegen libraries; JSON round-trip тестируется отдельно от wire.
+- [x] Юнит: ID/descriptor/envelope validation и stable serialization.
+- [x] Property-based: unknown optional fields и invalid ranges.
+- [x] Contract: Rust и TypeScript читают один fixture одинаково.
+- [x] Contract: unknown fields/enums/presence проверяются на выбранных codegen libraries; JSON round-trip тестируется отдельно от wire.
+
+Контрактная приёмка использует общий hex wire fixture, три расширяемых document fixtures и независимые domain fixtures.
+Prost typed decode намеренно не считается прозрачным relay для неизвестных wire fields; opaque bytes сохраняются отдельно.
+Protobuf-ES retention, неизвестные enum numbers и optional presence проверяются тестами. Linux/Windows core CI выполняет
+generation drift check, TypeScript contracts и Rust domain/protocol tests.
 
 ### Ссылки
 

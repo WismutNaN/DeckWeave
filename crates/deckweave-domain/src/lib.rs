@@ -1,10 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Минимальное состояние host; модель устройств появится в фазе 2.
+//! Application-domain vocabulary. Wire DTOs remain in `deckweave-protocol`.
 
-use serde::Serialize;
+pub mod automation;
+pub mod capability;
+pub mod ids;
+pub mod lighting;
+pub mod media;
+pub mod remote;
+pub mod schema;
+pub mod visual;
+
+use serde::{Deserialize, Serialize};
 
 /// Состояние процесса host независимо от видимости окна.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum LifecycleState {
     Running,
@@ -12,7 +21,7 @@ pub enum LifecycleState {
 }
 
 /// Политика размещения данных и автозапуска.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DeploymentMode {
     Installed,

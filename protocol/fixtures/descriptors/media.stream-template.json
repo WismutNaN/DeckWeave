@@ -1,0 +1,15 @@
+{
+  "templateId": "org.deckweave.stream.microphone_pcm",
+  "direction": "output",
+  "availability": "requestable",
+  "formats": [
+    {
+      "mediaType": "audio/pcm",
+      "properties": { "sampleFormats": ["f32le", "s16le"], "sampleRates": [48000], "channels": [1, 2] }
+    }
+  ],
+  "bufferBounds": { "minimumBytes": 192, "maximumBytes": 38400, "maximumInFlight": 4 },
+  "maximumLatencyMs": 20,
+  "clockDomainRequired": true,
+  "org.deckweave.stream.dataPlane": "not-selected"
+}

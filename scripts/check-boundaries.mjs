@@ -88,6 +88,8 @@ const npmLicenses = new Set([
   "ISC",
   "MPL-2.0",
   "BSD-3-Clause",
+  "(Apache-2.0 AND BSD-3-Clause)",
+  "Python-2.0",
 ]);
 const npmLock = JSON.parse(fs.readFileSync("package-lock.json", "utf8"));
 for (const [location, pkg] of Object.entries(npmLock.packages)) {
