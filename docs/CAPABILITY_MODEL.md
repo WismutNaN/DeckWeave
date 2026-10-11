@@ -30,7 +30,7 @@ Node
 | `StateOut` | output | Последнее наблюдаемое состояние | Snapshot + revision + freshness |
 | `CommandIn` | input | Именованная операция с outcome | Bounded concurrency/deadline |
 | `ValueIn` | input | Желаемое значение параметра | Latest desired value или explicit ramp |
-| `FrameIn` | input | Full/diff frame для surface | Latest-frame-wins |
+| `FrameIn` | input | Full/diff frame для surface | Latest full-frame wins; diff требует подтверждённой базы |
 | `HapticIn` | input | Tactile pattern | Bounded pattern queue/replace policy |
 | `StreamOut` | output | Negotiated high-rate stream | Отдельный data plane |
 | `StreamIn` | input | Sink negotiated stream | Отдельный data plane |
@@ -63,6 +63,8 @@ Node
 | `encoder.press` | pressed/released | Может принадлежать тому же element |
 | `gesture.discrete` | gesture ID + phase | Vocabulary объявляет provider |
 | `contact.presence` | entered/left | Например, proximity/touch presence |
+
+`encoder.relative` всегда `EventOut`: signed steps нельзя заменять последним значением. `touch.points` разделяет down/up/cancel (`EventOut`) и move samples (`ValueOut`, coalesce только между lifecycle edges). `StateOut` не гарантирует доставку каждого перехода; для trigger на каждый переход provider публикует отдельный event. Порядок и overflow recovery: [контракт сигналов](RUNTIME_CONTRACTS.md#порядок-сигналов-и-время).
 
 ### Непрерывный ввод и датчики
 
@@ -190,7 +192,7 @@ Persistent device memory/configuration не моделируется обычн�
 - recovery guidance;
 - explicit exclusion firmware update.
 
-Automation graph не может вызвать provisioning без отдельного confirmation token. Provider никогда не предоставляет «raw USB report» как generic action.
+Automation graph не может вызвать provisioning. Даже с confirmation token это отдельная application operation с собственным plan/readback/recovery. Provider никогда не предоставляет «raw USB report» как generic action.
 
 ## Resource capabilities
 
@@ -204,6 +206,8 @@ Automation graph не может вызвать provisioning без отдель
 - platform requirements.
 
 Workspace compiler обнаруживает конфликт leases до apply, где это возможно.
+
+Registry разрешает leases по canonical physical resource key, независимо от package/port aliases. Probe и preview используют тот же arbiter. Exclusive handoff между версиями provider может требовать downtime; v1 не обещает одновременное prepare двух exclusive owners ([контракт resources](RUNTIME_CONTRACTS.md#resources-discovery-и-версии-packages)).
 
 ## Идентичность и evidence
 
@@ -225,15 +229,16 @@ VID/PID не являются уникальной identity. Provider прикл
 `SignalEnvelope` содержит:
 
 - `session_generation`;
-- monotonically increasing `sequence` в source scope;
-- monotonic `captured_at`;
+- monotonically increasing `sequence` в объявленном session/source-stream scope;
+- monotonic `captured_at` вместе с `ClockDomainId` источника;
+- назначенные host `received_at`, `IngressOrdinal`, `HostBootId` и `ActivationEpoch`;
 - optional wall-clock timestamp;
 - `quality`: fresh/stale/estimated/degraded;
 - `origin`: physical/synthetic/remote/replay;
 - trace/correlation/causation IDs;
 - schema-validated payload.
 
-Tap/hold, debounce, chords и haptic timing используют monotonic clock. Calendar schedule использует explicit timezone и DST policy. Replay подменяет clock, но не меняет domain types.
+Tap/hold, debounce и chords v1 используют host monotonic clock после ingress; timestamps разных clock domains напрямую не сравниваются. Haptic timing, переданный устройству, относится к его объявленной timing policy. Calendar schedule использует timezone, DST и missed-fire policy. Replay записывает порядок ingress, timer firings и external outcomes ([контракт времени](RUNTIME_CONTRACTS.md#порядок-сигналов-и-время)).
 
 ## Совместимость портов
 
@@ -243,9 +248,11 @@ Edge разрешается, если:
 2. schema/version совпадает или есть explicit converter;
 3. units и coordinate spaces совместимы;
 4. rate/latency hints не нарушают hard constraints;
-5. permissions/grants доступны;
+5. требуемые permissions известны; отсутствующие grants видны в draft, но блокируют execution обязательного route;
 6. required resource lease разрешим;
-7. edge не создаёт запрещённый synchronous cycle.
+7. edge не создаёт цикл без положительного delay/ожидания нового внешнего события и execution budget.
+
+Редактирование offline draft не требует подключённого устройства. Compiler различает структурную совместимость и runtime readiness; missing provider/grant сохраняет данные и даёт report, а не удаляет edge. Unknown required schema/semantics запрещает исполнение.
 
 Безопасные converters могут предлагаться автоматически, но всегда видны в graph. Примеры: `0..255 → 0..1`, поворот coordinates, unit conversion. Semantic guess запрещён.
 
@@ -285,4 +292,3 @@ Workspace хранит требуемую semantic capability, а не случ�
 - UI layout и hardware geometry связаны transform, но не тождественны.
 - Permission привязано к contribution, resource scope и user grant.
 - Provisioning, control command и firmware update никогда не смешиваются.
-

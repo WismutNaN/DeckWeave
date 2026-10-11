@@ -29,7 +29,9 @@ Permission состоит из:
 - human-readable reason;
 - grant revision.
 
-Manifest request — не grant. Runtime не получает ресурс, если request не соответствует сохранённому grant.
+Manifest request — не grant. Host broker не выдаёт ресурс или command dispatch без соответствующего актуального grant. Это enforcement внутри DeckWeave, а не запрет native executable обращаться к OS напрямую.
+
+Grants принадлежат host authorization store, не profile revision. Они привязаны к principal/package, resource и grant revision; импорт, rollback и совпадение package ID не выдают доверие заново. Отзыв блокирует новые dispatch, инвалидирует broker handles и вызывает bounded cancel/cleanup; уже выполненный внешний эффект не отменяется автоматически. Prepare/commit повторно проверяют grants, чтобы отзыв во время apply не обходился старым plan.
 
 Особо чувствительные permissions:
 
@@ -44,6 +46,8 @@ Manifest request — не grant. Runtime не получает ресурс, е�
 
 Изменение permission set в update блокирует activation до подтверждения.
 
+Scopes contributions не создают memory isolation внутри общей runtime group. Перед выдачей secret UI/authorization учитывают суммарное доверие к process; отдельная trust boundary требует отдельного runtime. Даже отдельные процессы под тем же OS user не являются защитой от malicious native code без sandbox.
+
 ## Опасные операции
 
 Трёхступенчатая модель:
@@ -53,6 +57,8 @@ Manifest request — не grant. Runtime не получает ресурс, е�
 3. **Execute:** host проверяет token, session generation, deadline и performs operation.
 
 Так работают provisioning, exclusive input interception, plugin install с high-risk permissions и future media capture. Confirmation нельзя переиспользовать для другого plan.
+
+Token выдаёт host authorization broker после решения пользователя либо ранее выданного точного scope authorized client. Read/draft credential не может сам создать grant или confirmation. Token привязан к principal, operation kind, plan hash, resource identity/session, grant revision и TTL; consume фиксируется один раз, retry с тем же operation key читает receipt. После изменения plan/session/grant требуется новая проверка. Provisioning отсутствует в automation graph даже при наличии token — только отдельная application operation.
 
 Firmware flashing запрещён и не может быть включён generic permission.
 
@@ -66,16 +72,20 @@ Firmware flashing запрещён и не может быть включён ge
 - Logs, traces, crash reports и plugin protocol проходят redaction.
 - Plugin получает secret только в scoped operation или через broker, если integration позволяет не раскрывать value.
 
+Credential broker и OS store adapter входят в минимальные host platform services, а не lazy platform plugin. Profile Store знает только references. Import создаёт unresolved references; local credential/grant mapping выполняется отдельно, не по совпадению имени. Redaction применяется до записи diagnostic копии сообщения; secret-bearing wire payload предназначенному plugin не подменяется отредактированной строкой.
+
 ## Local API
 
 - Только loopback bind.
 - Случайный bearer/session token с user-only ACL.
 - Origin/CSRF checks для HTTP.
 - Rate/size limits.
-- Separate read/draft/apply/admin scopes, когда появятся внешние clients.
+- Read/draft/apply/admin scopes обязательны с первого ApplicationService; каждый adapter передаёт principal, service проверяет authorization.
 - Dangerous command использует confirmation token.
 - API discovery file не содержит reusable remote credential.
 - Remote access к local API отсутствует по умолчанию.
+
+Origin/Host validation и WebSocket handshake auth обязательны отдельно от CORS. Browser cookies не используются как implicit authority; bearer token не передаётся в URL/logs. Discovery не содержит общего admin credential. Отзыв client token закрывает subscriptions и запрещает новый dispatch в его scope, не отменяя уже committed effects.
 
 ## Plugin install/update
 
@@ -91,7 +101,7 @@ Install scripts запрещены. Каталог не делает package д�
 
 ## Web property editors и widgets
 
-- Unique origin/session per package/context.
+- Отдельный browser context/storage partition и origin на package/session; непредсказуемый URL path сам по себе не создаёт origin isolation.
 - Content Security Policy и запрет `file://` navigation.
 - Scoped message bridge с schema validation.
 - Никаких Tauri privileged commands.
@@ -99,6 +109,8 @@ Install scripts запрещены. Каталог не делает package д�
 - Files только через user-selected broker.
 - Frame/input rate limits.
 - Crash/hang не останавливает compositor/host.
+
+Origin различается по scheme/host/port либо является sandboxed opaque origin; path не участвует в этой границе ([HTML Standard](https://html.spec.whatwg.org/multipage/browsers.html#origin)). Loopback ports без раздельного browser storage недостаточны для изоляции cookies. Поэтому backend обязан разделять storage, запрещать service workers и проверять cross-context fetch/storage/bridge fixtures. Если legacy PI требует несовместимого доступа, соответствующая возможность помечается unsupported; ослаблять общий privileged bridge нельзя.
 
 ## Remote agents
 
@@ -147,4 +159,3 @@ Install scripts запрещены. Каталог не делает package д�
 ## Incident/diagnostics
 
 Diagnostics bundle по умолчанию содержит versions, health, redacted errors и metrics. Raw input, window titles, notification text, URLs и media samples требуют отдельного opt-in. Перед export показывается точный состав bundle.
-

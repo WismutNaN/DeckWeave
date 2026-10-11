@@ -27,12 +27,14 @@ Stored revision ──open──> Draft ──validate──> Validated draft
 |---|---|
 | Draft | Редактируемая копия; hardware и automation ещё не изменены |
 | Validated draft | Schema, references, permissions и graph constraints проверены |
-| Applying | Host применяет рассчитанный diff, сохраняя старую revision рабочей до commit |
+| Applying | Host сохраняет candidate и готовит diff; barrier/handoff может временно приостановить затронутые routes |
 | Applied | Runtime подтверждает новую immutable revision |
-| Degraded | Revision применена частично только там, где политика это допускает; причины видимы |
-| Rejected | Apply не выполнен; активной остаётся прежняя revision |
+| Degraded | Выбрана одна целая revision; её unavailable routes остановлены по объявленной policy, причины видимы |
+| Rejected | Commit не выполнен; выбранной остаётся прежняя revision, возможный failed handoff отражён в health |
 
 Undo/redo действует внутри draft. Named snapshot ссылается на immutable revision и позволяет явный rollback.
+
+Commit/recovery и судьба pending actions определены в [RUNTIME_CONTRACTS.md](RUNTIME_CONTRACTS.md#сохранение-и-apply). После durable commit нельзя вернуть `Rejected` или молча восстановить старый graph; rollback является новым apply.
 
 ## Уровни настройки элемента
 
@@ -61,12 +63,12 @@ Observe не обещает возможность suppress. Emit обязан �
 
 | Runtime class | Процесс | Назначение |
 |---|---|---|
-| Isolated control | Один дочерний процесс на активный package | Device, action, state, automation extensions |
+| Isolated control | Один дочерний процесс на активную runtime group package | Device, action, state, automation extensions |
 | OpenAction compatibility | Отдельное process tree | Legacy plugins и property inspectors |
 | Widget | Lazy optional renderer process | Custom web widgets вне desktop WebView |
 | Trusted media | Специализированный process с real-time threads | Audio/video sources, filters и sinks |
 | Remote | Отдельный paired node | Android, Steam Deck, другой ПК |
-| Built-in audited | Внутри host, минимальный набор | Clock, virtual fixture transport, application plumbing |
+| Built-in audited | Внутри host, минимальный набор | Clock, locks, data roots, credentials, autostart, process cleanup; fixtures только в test adapter |
 
 Несколько contributions одного package разделяют runtime, но имеют отдельные instances, settings, scopes и health.
 
@@ -86,7 +88,7 @@ Observe не обещает возможность suppress. Emit обязан �
 - **Event-driven:** default; scene пересобирается только при изменении связанного state.
 - **Timeline:** ограниченная animation с заявленным FPS и duration.
 - **Continuous:** разрешается только для plugin/widget с явным resource budget.
-- **Preview:** временная сцена с deadline и гарантированным возвратом к applied scene.
+- **Preview:** временный output lease с deadline; stop/expiry возвращает текущую applied scene при доступном sink, disconnect даёт явный unavailable report.
 
 ## Режимы ошибок automation
 
@@ -107,4 +109,3 @@ Global «игнорировать все ошибки» отсутствует. 
 - Widget panel является первым remote display use case.
 - Window streaming и virtual monitor являются отдельными capabilities.
 - Media graph имеет `stopped`, `running`, `bypassed` и `degraded`; bypass доступен только при корректной совместимости форматов.
-

@@ -21,7 +21,7 @@
 | Plugin Supervisor | Process lifecycle |
 | Capability Registry | Target ports |
 | Surface Compositor | Image/title/state feedback |
-| Profile Store | Namespaced settings |
+| Application settings port | Versioned draft/legacy runtime overlay; без прямой записи profile files |
 
 ## Инварианты
 
@@ -30,6 +30,8 @@
 - PI не получает DeckWeave privileged API.
 - Unsupported event диагностируется, а не silently accepted.
 - Host запускается только при active legacy lease.
+- Legacy settings updates не мутируют applied revision: scoped overlay и явный merge в draft через application service.
+- PI использует отдельный origin/storage partition; случайный path недостаточен.
 
 ## Намеренно НЕ обрабатывает
 
@@ -41,4 +43,3 @@
 ## Заметки для агента
 
 > Реализация опирается на published protocols и versioned open fixtures. GPL reuse допускается только с provenance/license review и не должно затягивать Stream Deck domain в core.
-

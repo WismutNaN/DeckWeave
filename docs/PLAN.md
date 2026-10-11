@@ -1,6 +1,28 @@
 # План реализации DeckWeave
 
-План рассчитан на одного разработчика или одного coding agent за фазу. Каждая фаза длится ориентировочно 1–5 рабочих дней, заканчивается работающей системой и не включает скрытую реализацию будущих компонентов.
+План рассчитан на одного разработчика или одного coding agent. Фазы ниже — последовательные результаты, а не обещание завершить весь L-объём за 1–5 дней. Перед началом L-фаза разбивается на рабочие срезы до 1–5 дней с самостоятельной демонстрацией; размер уточняется по результатам spike и предыдущего среза. Незавершённый backend/контракт нельзя скрывать в оценке следующей фазы.
+
+## Обязательные зависимости и срезы
+
+Нормативные failure/ordering contracts: [RUNTIME_CONTRACTS.md](RUNTIME_CONTRACTS.md). При расхождении module summary с контрактом сначала исправляется документация. Спецификация ещё не подтверждена implementation tests.
+
+| Фаза | Последовательные срезы и gate |
+|---|---|
+| 3 | Static index → handshake/virtual provider → leases/discovery/restart; отдельно ранний C0/C1 compatibility spike на pinned open fixture |
+| 4 | Revision/assets store → draft/receipts/export → apply/recovery; fault matrix до hardware |
+| 5 | Compiler → scheduler/ordering → async outcomes/epochs/replay; performance baseline |
+| 6 | Canvas/select → schema-form binding → draft/apply/health; готовый preset укладывается в click budget |
+| 8 | Protocol/identity fixtures → inputs → frames/light/haptic; неподтверждённый hardware не считается реализованным |
+| 9 | Backend benchmark/ADR → renderer/frame protocol → hit testing/preview → editor; diff loss fixture обязателен |
+| 11 | Layers/cleanup → sequence/parallel/error semantics → schedules/Graph UI; один срез не обещает все nodes |
+| 12 | Rust/TS SDK release → Python runtime/SDK → conformance/package-lock update → catalogue metadata |
+| 13 | Browser isolation/offscreen rendering spike → отдельный settings editor → surface widget; неудачный spike требует пересмотра backend/сроков |
+| 14 | C0/C1 production host → C2 PI/settings → C3 dial/feedback → replacement migration; каждый уровень имеет отдельный report |
+| 15 | Probe/inspection → calibration/mapping → capture/conformance; production service не зависит от testkit |
+| 17 | Portable packaging → Linux virtual/CLI → Linux UI/platform smoke; core Linux CI уже работает с Фазы 2 |
+| 18 | Recovery/security matrix → performance/soak → release/docs; новые features не добавляются |
+
+Каждый срез получает конкретную fixture, rollback/disable path и рабочую промежуточную сборку. Это не параллельные задачи с неявными зависимостями.
 
 ## Легенда статусов
 
@@ -34,7 +56,8 @@
 ## Milestones
 
 - **M1 — Architecture proof:** после Фазы 5 virtual input вызывает isolated action и feedback.
-- **M2 — Daily N4 Pro:** после Фазы 9 panel управляет Windows и выводит свободную full-screen scene.
+- **M2a — N4 Pro preview:** после Фазы 9 panel управляет Windows и выводит full-screen scene; сложные P0 automation ещё не закрыты.
+- **M2 — Daily N4 Pro:** после Фазы 11 закрыты все P0, включая layers, sequence/parallel/error policies, recording, export и portable data-root policy.
 - **M3 — Extensible beta:** после Фазы 14 доступны SDK и существующие OpenAction plugins.
 - **M4 — v1 foundation:** после Фазы 18 готов публичный Windows release и Linux foundation.
 
@@ -56,14 +79,17 @@
 - [ ] Создать только необходимые каталоги из целевой структуры (→ [Архитектура — Целевая структура репозитория](ARCHITECTURE.md#целевая-структура-репозитория)).
 - [ ] Создать Rust crates/apps с пустыми публичными boundaries (→ [Модуль: Domain & Protocol](../modules/domain-protocol.md), [Модуль: Host Runtime](../modules/host-runtime.md)).
 - [ ] Создать Tauri/Svelte shell: окно, tray, close-to-tray, явный Exit (→ [Модуль: Desktop Shell](../modules/desktop-shell.md)).
+- [ ] Реализовать single-instance/data-root locks, installed/portable root selection и optional autostart; portable ничего не регистрирует сам (→ [Host Platform Services](../modules/host-platform-services.md)).
 - [ ] Зафиксировать GPL и permissive package license files/headers (→ [ADR-0007](adr/0007-licensing.md)).
 - [ ] Настроить format/lint/test/license/provenance checks в CI (→ [Модуль: Diagnostics & Test Lab](../modules/diagnostics-test-lab.md)).
+- [ ] Включить docs-check: paths/anchors, requirement IDs, PLAN → modules и JSON examples (→ [Обзор документации](README.md)).
 
 ### Тесты
 
 - [ ] Юнит: каждый crate импортируется без panic.
 - [ ] Интеграционный: desktop стартует, окно закрывается, tray host остаётся жив.
 - [ ] Ручная проверка: Exit из tray завершает process без orphan children.
+- [ ] Lifecycle: второй запуск с тем же root открывает UI; другой root не запускает второй hardware owner; crash освобождает lock.
 
 ### Ссылки
 
@@ -88,14 +114,16 @@
 - [ ] Реализовать IDs, descriptors, port kinds, envelopes, outcomes и errors (→ [Модуль: Domain & Protocol](../modules/domain-protocol.md)).
 - [ ] Создать Protobuf control envelope и JSON Schemas manifest/settings/profile (→ [Модель плагинов — Native control protocol](PLUGIN_MODEL.md#native-control-protocol)).
 - [ ] Реализовать unknown-field/schema-version round-trip tests (→ [Архитектура — Правила эволюции](ARCHITECTURE.md#правила-эволюции)).
-- [ ] Зафиксировать reserved `StreamPort`/remote descriptors без data plane (→ [Модуль: Remote Agent](../modules/remote-agent.md), [Модуль: Media Runtime](../modules/media-runtime.md)).
+- [ ] Зарезервировать namespaced stream/remote extension boundary без обещания стабильного buffer ABI до будущего spike (→ [Модуль: Remote Agent](../modules/remote-agent.md), [Модуль: Media Runtime](../modules/media-runtime.md)).
 - [ ] Создать generator task для Rust/TypeScript types (→ [Модель плагинов — SDK](PLUGIN_MODEL.md#sdk)).
+- [ ] Зафиксировать HostBootId/ActivationEpoch, ingress order/clock domains и permissive protocol → SDK boundary; добавить domain/protocol Linux CI (→ [ADR-0013](adr/0013-dependency-and-host-service-boundaries.md), [Контракты сигналов](RUNTIME_CONTRACTS.md#порядок-сигналов-и-время)).
 
 ### Тесты
 
 - [ ] Юнит: ID/descriptor/envelope validation и stable serialization.
 - [ ] Property-based: unknown optional fields и invalid ranges.
 - [ ] Contract: Rust и TypeScript читают один fixture одинаково.
+- [ ] Contract: unknown fields/enums/presence проверяются на выбранных codegen libraries; JSON round-trip тестируется отдельно от wire.
 
 ### Ссылки
 
@@ -121,12 +149,15 @@
 - [ ] Реализовать Capability Registry и session invalidation (→ [Модуль: Capability Registry](../modules/capability-registry.md)).
 - [ ] Создать permissive virtual DeviceProvider/ActionProvider example (→ [Модуль: Diagnostics & Test Lab](../modules/diagnostics-test-lab.md)).
 - [ ] Добавить restart/backoff/circuit-breaker tests (→ [ADR-0005](adr/0005-failure-isolation.md)).
+- [ ] Добавить scoped discovery lease до первого binding, canonical resource arbiter и host authorization/credential ports (→ [Runtime contracts](RUNTIME_CONTRACTS.md#resources-discovery-и-версии-packages), [Host Platform Services](../modules/host-platform-services.md)).
+- [ ] Подтвердить минимальные Rust/TS SDK helpers одним wire fixture; провести ограниченный C0/C1 spike с pinned open plugin до инвестиций в custom web UI (→ [SDK](PLUGIN_MODEL.md#sdk), [Compatibility Host](../modules/compatibility-host.md)).
 
 ### Тесты
 
 - [ ] Юнит: manifest/permission/session state machines.
 - [ ] Интеграционный: index без process; lease starts; release stops after grace.
 - [ ] Fault injection: crash, hang, oversized message, late old-session event.
+- [ ] Ownership: discovery на пустом workspace; два provider aliases/probe не получают один exclusive interface.
 
 ### Ссылки
 
@@ -149,15 +180,19 @@
 
 - [ ] Реализовать JSON revision store, assets, atomic write и recovery (→ [Модуль: Profile Store](../modules/profile-store.md)).
 - [ ] Реализовать draft commands, undo/redo и named snapshots (→ [ADR-0003](adr/0003-storage.md)).
+- [ ] Реализовать selective export/import, asset reachability и unresolved credential mapping без запуска packages (→ [Profile Store](../modules/profile-store.md), [Контракты миграций](RUNTIME_CONTRACTS.md#миграции-и-неизвестные-данные)).
 - [ ] Реализовать ApplicationService, expected revision и OperationId (→ [Модуль: Local API](../modules/local-api.md)).
-- [ ] Реализовать Host apply skeleton с prepare/cutover/failure report (→ [Модуль: Host Runtime](../modules/host-runtime.md)).
+- [ ] Реализовать Host apply skeleton с durable commit record, barrier, disruption/degraded policy, package lock и operation receipts (→ [ADR-0012](adr/0012-apply-and-execution-lifecycle.md), [Модуль: Host Runtime](../modules/host-runtime.md)).
+- [ ] Проверять principals/scopes внутри ApplicationService, durable dedup до revision check, dry-run без effects (→ [API](API.md#идемпотентность-и-dry-run)).
 - [ ] Добавить in-process test client; HTTP/WS transport отложить до Фазы 16 (→ [API.md](API.md)).
 
 ### Тесты
 
 - [ ] Юнит: draft commands, undo/redo, revision conflicts.
 - [ ] Integration: crash-safe atomic write и recovery corrupted temp.
-- [ ] Scenario: failed activation leaves previous revision active.
+- [ ] Scenario: failure до commit оставляет прежнюю выбранную revision; после commit восстанавливается новая без replay actions.
+- [ ] Fault: kill на каждой стадии записи/apply, disk full, grant revoke во время prepare, exclusive handoff failure, concurrent draft edits, повтор key после restart.
+- [ ] Import/export: secrets/grants отсутствуют, unknown fields сохраняются, snapshot rollback использует прежний package hash.
 
 ### Ссылки
 
@@ -183,12 +218,15 @@
 - [ ] Разделить edge queue и coalescing value lane (→ [Архитектура — Конкурентность и QoS](ARCHITECTURE.md#конкурентность-и-qos)).
 - [ ] Реализовать trace/correlation/causation и basic loop guard (→ [Модуль: Diagnostics & Test Lab](../modules/diagnostics-test-lab.md)).
 - [ ] Подключить compile/plan/apply к Host Runtime (→ [Модуль: Host Runtime](../modules/host-runtime.md)).
+- [ ] Реализовать execution epochs, held-output cleanup, bounded cancellation и unknown-outcome retry policy (→ [Lifecycle effects](RUNTIME_CONTRACTS.md#executions-cancellation-и-смена-плана)).
+- [ ] Создать минимальный opt-in recorder/replay с outcomes и без live dispatch; UI/расширенные fixtures следуют в Фазе 10 (→ [Diagnostics & Test Lab](../modules/diagnostics-test-lab.md)).
 
 ### Тесты
 
 - [ ] Юнит: graph validation, schema mismatch, cycle rejection.
 - [ ] Deterministic: один fixture + fake clock даёт identical final state.
 - [ ] Performance baseline: virtual input → dispatch latency.
+- [ ] Ordering/fault: encoder +1,+1,-1 не теряется; axis-before-button не подменяется будущим axis; edge overflow освобождает held outputs; late completion после apply не запускает action.
 
 ### Ссылки
 
@@ -211,7 +249,7 @@
 
 - [ ] Реализовать virtualized infinite canvas и device cards (→ [Модуль: Desktop Shell](../modules/desktop-shell.md)).
 - [ ] Реализовать action library/search и drag-and-drop binding (→ [UI — Progressive disclosure](UI.md#progressive-disclosure)).
-- [ ] Реализовать inspector, draft status, inline validation, undo/redo/apply (→ [Модуль: Profile Store](../modules/profile-store.md)).
+- [ ] Реализовать schema-form inspector, draft status, inline validation, undo/redo/apply (→ [Модуль: Profile Store](../modules/profile-store.md), [Settings UI](PLUGIN_MODEL.md#settings-и-ui-contributions)).
 - [ ] Реализовать Runtime health summary и no-device/first-run states (→ [UI — Состояния интерфейса](UI.md#состояния-интерфейса)).
 - [ ] Добавить ru/en localization skeleton и keyboard navigation (→ [UI.md](UI.md)).
 
@@ -305,6 +343,8 @@
 - [ ] Реализовать independent hit regions и coordinate transforms (→ [ADR-0009](adr/0009-surface-scene-model.md)).
 - [ ] Реализовать dirty invalidation, per-surface FPS и latest-frame-wins (→ [Архитектура — Scene → hardware frame](ARCHITECTURE.md#scene--hardware-frame)).
 - [ ] Реализовать Surface editor: visual/hit layers, snap templates, preview/stop (→ [UI — Surface editor](UI.md#surface-editor)).
+- [ ] Выбрать renderer по benchmark ADR; реализовать frame/base IDs, full resync и preview lease/TTL с отзывом при apply (→ [Frames и preview](RUNTIME_CONTRACTS.md#frames-и-preview)).
+- [ ] Добавить bounded timeline для стандартных scene nodes (→ [Surface Compositor](../modules/surface-compositor.md)).
 - [ ] Создать стандартные text/icon/image/state widgets без browser runtime (→ [CAPABILITY_MODEL.md — Визуальные поверхности](CAPABILITY_MODEL.md#визуальные-поверхности)).
 
 ### Тесты
@@ -312,6 +352,7 @@
 - [ ] Golden image: full canvas и transforms.
 - [ ] Hit-test: raw → transformed point → correct region.
 - [ ] Load: slow fake sink keeps bounded frame queue.
+- [ ] Fault: пропущенный diff/ACK вызывает полный кадр; preview expiry после apply восстанавливает новую сцену, preview touch не запускает production action.
 - [ ] Manual: N4 Pro full-screen scene без чёрных промежутков.
 
 ### Ссылки
@@ -337,6 +378,7 @@
 - [ ] Публиковать gyro/accelerometer, rumble/light только при actual support (→ [CAPABILITY_MODEL.md — Непрерывный ввод и датчики](CAPABILITY_MODEL.md#непрерывный-ввод-и-датчики)).
 - [ ] Реализовать bounded event recorder и redacted trace format (→ [Модуль: Diagnostics & Test Lab](../modules/diagnostics-test-lab.md)).
 - [ ] Реализовать replay runner/fake clock/virtual device fixture (→ [Требования DW-AU-007](REQUIREMENTS.md#назначения-и-автоматизация)).
+- [ ] Добавить fake keyboard/mouse/gamepad/surface и production SimulationRunner UI без dependency на testkit; OS virtual endpoints не требуются для этих fixtures (→ [Automation Engine](../modules/automation-engine.md), [Diagnostics & Test Lab](../modules/diagnostics-test-lab.md)).
 - [ ] Добавить latency/queue/drop metrics в Runtime UI (→ [Модуль: Desktop Shell](../modules/desktop-shell.md)).
 
 ### Тесты
@@ -369,13 +411,15 @@
 - [ ] Добавить monotonic timers, schedules с timezone/DST и bounded cycles (→ [CAPABILITY_MODEL.md — Временная семантика](CAPABILITY_MODEL.md#временная-семантика)).
 - [ ] Реализовать Graph editor, collapsed groups и execution timeline (→ [UI — Graph editor](UI.md#graph-editor)).
 - [ ] Реализовать conflict/priority diagnostics (→ [Требования DW-AU-008](REQUIREMENTS.md#назначения-и-автоматизация)).
+- [ ] Реализовать logical device groups без потери member identity и cleanup temporary layers на disconnect/epoch change (→ [Capability Registry](../modules/capability-registry.md), [Execution lifecycle](RUNTIME_CONTRACTS.md#executions-cancellation-и-смена-плана)).
 
 ### Тесты
 
 - [ ] State-machine: tap/hold/chord/layer release.
-- [ ] Parallel/error: deterministic outcomes under reordered external completions.
+- [ ] Parallel/error: один recorded completion order воспроизводим; разные порядки проверяют явную join/priority policy, а не обещание одинаковых внешних effects.
 - [ ] Time: fake clock, timezone/DST schedule.
 - [ ] Manual: held keyboard/gamepad control changes N4 encoder assignment.
+- [ ] Gate M2: все P0 требования и первый сквозной критерий выполнены, включая export/portable roots/recording; evidence привязано к ID требований.
 
 ### Ссылки
 
@@ -401,6 +445,7 @@
 - [ ] Опубликовать Python SDK для isolated conditions/actions с timeout/cancellation fixtures (→ [Модель плагинов — Языки](PLUGIN_MODEL.md#языки)).
 - [ ] Реализовать conformance CLI/fixtures/report (→ [Модуль: Diagnostics & Test Lab](../modules/diagnostics-test-lab.md)).
 - [ ] Реализовать staging install/update/rollback и permission diff (→ [Модуль: Plugin Supervisor](../modules/plugin-supervisor.md)).
+- [ ] Проверять exact artifact hashes/package lock, one-active-version conflict и bounded declarative settings migration без executable hooks (→ [Runtime contracts](RUNTIME_CONTRACTS.md#resources-discovery-и-версии-packages)).
 - [ ] Описать metadata catalogue format с GitHub immutable artifacts (→ [Модель плагинов — Пакетирование и каталог](PLUGIN_MODEL.md#пакетирование-и-каталог)).
 
 ### Тесты
@@ -461,6 +506,7 @@
 - [ ] Реализовать legacy manifest indexing C0 (→ [Модуль: Compatibility Host](../modules/compatibility-host.md)).
 - [ ] Реализовать registration/lifecycle/key events/settings C1 (→ [COMPATIBILITY.md — Уровни совместимости](COMPATIBILITY.md#уровни-совместимости)).
 - [ ] Реализовать scoped Property Inspector C2 (→ [COMPATIBILITY.md — Property Inspector](COMPATIBILITY.md#property-inspector)).
+- [ ] Реализовать runtime settings overlay, explicit merge в draft и native replacement migration с rollback (→ [Compatibility settings](COMPATIBILITY.md#property-inspector), [Миграция](COMPATIBILITY.md#миграция-в-нативный-plugin)).
 - [ ] Реализовать dial/touch/image/title/state bridge C3 (→ [Модуль: Surface Compositor](../modules/surface-compositor.md)).
 - [ ] Публиковать exact version/OS compatibility matrix (→ [Модуль: Diagnostics & Test Lab](../modules/diagnostics-test-lab.md)).
 
@@ -468,6 +514,7 @@
 
 - [ ] Conformance fixtures lifecycle/settings/feedback/dial/PI.
 - [ ] Fault: legacy crash/re-register/slow/oversized.
+- [ ] Isolation/settings: два PI не видят чужие storage/bridge; setSettings/restart не мутирует immutable revision и не перезаписывает открытый draft.
 - [ ] Manual: несколько открытых reference packages на N4 Pro layout.
 
 ### Ссылки
@@ -530,6 +577,7 @@
 
 - [ ] Contract: direct/HTTP/CLI/MCP adapters дают одинаковые results.
 - [ ] Security: external bind/origin/token/confirmation rejection.
+- [ ] API: повтор mutation после потерянного ответа/restart, payload conflict, expired dedup epoch, revoke principal и snapshot/delta resync.
 - [ ] End-to-end: Codex-like client builds and applies N4 workspace.
 
 ### Ссылки
@@ -551,8 +599,8 @@
 
 ### Задачи
 
-- [ ] Реализовать installed/portable data-root/startup policies (→ [Модуль: Host Runtime](../modules/host-runtime.md)).
-- [ ] Добавить selective export/import и cross-platform unavailable report (→ [Модуль: Profile Store](../modules/profile-store.md)).
+- [ ] Упаковать installed/portable builds поверх data-root/startup policies Фазы 1, проверить update и writable/removable root (→ [Модуль: Host Runtime](../modules/host-runtime.md)).
+- [ ] Расширить export/import Фазы 4 cross-platform unavailable report и Linux fixtures (→ [Модуль: Profile Store](../modules/profile-store.md)).
 - [ ] Создать Linux platform package skeleton и active-window/basic action spike (→ [Модуль: Platform Adapters](../modules/platform-adapters.md)).
 - [ ] Запустить core/plugin/virtual/UI smoke в Linux CI (→ [Архитектура — Технологические решения](ARCHITECTURE.md#технологические-решения)).
 - [ ] Документировать platform matrix и secret portability (→ [MODES.md](MODES.md), [SECURITY.md](SECURITY.md)).
@@ -658,3 +706,5 @@
 - public API change имеет compatibility note;
 - заимствование имеет provenance/license;
 - фаза демонстрируется без незавершённого следующего этапа.
+- P0/P1 acceptance связывается с конкретной fixture; runtime assertions не считаются выполненными по одной документации.
+- Локальные Markdown paths/anchors, ссылки PLAN → modules и отсутствие production → testkit/SDK → GPL dependencies проверяются автоматически.

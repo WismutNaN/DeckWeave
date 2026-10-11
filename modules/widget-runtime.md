@@ -18,13 +18,14 @@
 | Модуль | Что использует |
 |---|---|
 | Plugin Supervisor | Package/session/grants |
-| Surface Compositor | Frame consumer |
+| Protocol/frame port | Выдаёт WidgetFrame; consumer compositor подключён composition root, compile dependency на него отсутствует |
 | Local API broker | Только scoped settings operations |
 
 ## Инварианты
 
 - Никаких privileged Tauri commands.
 - Origin/token scoped package+instance.
+- Random URL path не является origin isolation; storage partition и bridge authorization проверяются отдельно.
 - Network/filesystem только через granted broker.
 - Frame/input rate и memory bounded.
 - Closing Desktop WebView не останавливает active widget host.
@@ -39,4 +40,3 @@
 ## Заметки для агента
 
 > Не запускать widget host, если active scenes используют только built-in scene nodes. Точный embeddable browser backend выбирается отдельным spike с Windows/Linux tests.
-

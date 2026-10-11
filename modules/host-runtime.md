@@ -12,6 +12,7 @@
 | `HostSnapshot` | immutable struct | Согласованный query snapshot |
 | `ApplyPlan`, `ApplyReport` | struct | Resource diff и результат cutover |
 | `LifecycleState` | enum | Starting/Running/Degraded/Stopping |
+| `ActivationEpoch`, `ApplyCommitRecord` | value/document | Runtime generation и durable точка выбора revision |
 
 ## Зависимости
 
@@ -23,11 +24,15 @@
 | Automation Engine | Compiled plan |
 | Profile Store | Revisions |
 | Diagnostics | Health/trace |
+| Application contracts | Реализуемые commands/queries/service ports |
+| Host Platform Services | Injected locks, data roots, credentials и process cleanup |
 
 ## Инварианты
 
-- В каждый момент есть не более одной active revision workspace.
-- Old revision работает до логического cutover.
+- V1 имеет один host на OS user session и один active workspace; Store защищён writer lock.
+- Old revision работает до barrier; disruptive exclusive handoff требует явной downtime policy.
+- Candidate/assets/package lock сохраняются до commit; после durable commit новая revision остаётся выбранной даже при degraded recovery.
+- Effects/timers/frames/completions ограждены HostBootId/ActivationEpoch; старый outcome не запускает новую continuation.
 - Частичный failure не выдаётся за successful apply.
 - WebView lifecycle не управляет host lifecycle.
 - Shutdown имеет bounded stages и safe-output attempt.
@@ -41,5 +46,4 @@
 
 ## Заметки для агента
 
-> Использовать сериализованного owner для mutable host state. Не держать async lock во время внешнего plugin call. Apply — orchestrated saga с prepare/cutover/cleanup, а не ACID для hardware.
-
+> Использовать сериализованного owner для mutable host state. Не держать async lock во время внешнего plugin call. Обязательны [порядок apply/crash recovery](../docs/RUNTIME_CONTRACTS.md#сохранение-и-apply) и bounded cleanup held outputs. После commit rollback — новая operation, не обещание отмены внешнего эффекта.

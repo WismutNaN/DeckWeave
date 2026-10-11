@@ -19,7 +19,8 @@ DeckWeave должен запускаться при входе Windows, раб�
 
 ## Последствия
 
+Уточнение 2026-10-12: [ADR-0013](0013-dependency-and-host-service-boundaries.md) задаёт single-instance lock пользовательской сессии и writer lock data root до API/plugin startup. Другой portable root не запускает второй host одновременно. Autostart/credentials/locks реализуются host services, не lazy plugins.
+
 **Становится проще:** доступ к user-session devices/apps, один источник состояния и portable build.  
 **Становится сложнее:** crash desktop process останавливает runtime; нужен recovery.  
 **Закрывает дверь на:** multi-user/system-service deployment в v1.
-

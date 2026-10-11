@@ -8,13 +8,16 @@ DeckWeave — публичная modular desktop platform для объедин�
 2. [REQUIREMENTS.md](REQUIREMENTS.md) — проверяемые требования и первая сквозная приёмка.
 3. [MODES.md](MODES.md) — как сочетаются deployment, workspace, input и plugin modes.
 4. [ARCHITECTURE.md](ARCHITECTURE.md) — границы системы и data flow.
-5. [PLAN.md](PLAN.md) — порядок реализации короткими рабочими фазами.
+5. [RUNTIME_CONTRACTS.md](RUNTIME_CONTRACTS.md) — совместные контракты отказа, порядка и восстановления.
+6. [PLAN.md](PLAN.md) — порядок реализации рабочими срезами.
 
 ## Спецификации
 
 | Документ | Назначение |
 |---|---|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Системный контекст, процессы, компоненты и evolution rules |
+| [RUNTIME_CONTRACTS.md](RUNTIME_CONTRACTS.md) | Нормативные apply/recovery, epochs, ordering, resources, frames и migrations |
+| [ARCHITECTURE_AUDIT.md](ARCHITECTURE_AUDIT.md) | Аудит 2026-10-12: проблемы, исправления, проверки и оставшиеся spikes |
 | [CAPABILITY_MODEL.md](CAPABILITY_MODEL.md) | Nodes, devices, elements, ports, identity и временная семантика |
 | [PLUGIN_MODEL.md](PLUGIN_MODEL.md) | Package format, contributions, protocol, lifecycle, SDK и catalog |
 | [COMPATIBILITY.md](COMPATIBILITY.md) | OpenAction/Elgato levels и будущий Companion bridge |
@@ -39,6 +42,8 @@ DeckWeave — публичная modular desktop platform для объедин�
 | [0009](adr/0009-surface-scene-model.md) | Непрерывный scene canvas и независимые hit regions |
 | [0010](adr/0010-compiled-automation-plan.md) | Draft graph компилируется в immutable execution plan |
 | [0011](adr/0011-deployment-modes.md) | Per-user tray host и portable distribution |
+| [0012](adr/0012-apply-and-execution-lifecycle.md) | Durable apply, execution epochs и outcome/recovery semantics |
+| [0013](adr/0013-dependency-and-host-service-boundaries.md) | Ациклические dependencies и минимальные host OS services |
 
 ## Модули
 
@@ -46,6 +51,7 @@ DeckWeave — публичная modular desktop platform для объедин�
 |---|---|
 | [Domain & Protocol](../modules/domain-protocol.md) | Стабильные ID, schemas, envelopes и wire contracts |
 | [Host Runtime](../modules/host-runtime.md) | Lifecycle, active revision и координация |
+| [Host Platform Services](../modules/host-platform-services.md) | Locks, data roots, credentials, grants, autostart и process cleanup |
 | [Capability Registry](../modules/capability-registry.md) | Nodes, devices, elements, ports и availability |
 | [Plugin Supervisor](../modules/plugin-supervisor.md) | Discovery, permissions, process lifecycle и health |
 | [Automation Engine](../modules/automation-engine.md) | Compile, state, layers, schedules и execution |
@@ -65,5 +71,4 @@ DeckWeave — публичная modular desktop platform для объедин�
 
 ## Текущий статус
 
-Текущая фаза: **архитектурная спецификация завершена; реализация не начата**. Следующая работа — [Фаза 1](PLAN.md#фаза-1--скелет-репозитория). Ни одна отложенная возможность не должна добавляться в core раньше своего acceptance test и ADR.
-
+Текущая фаза: **спецификация пересмотрена аудитом 2026-10-12; реализация не начата**. Следующая работа — [Фаза 1](PLAN.md#фаза-1--скелет-репозитория). Контракты остаются требованиями до прохождения fixtures; ни одна отложенная возможность не должна добавляться в core раньше своего acceptance test и ADR. Исторический `research/stack.md` не является нормативной спецификацией.

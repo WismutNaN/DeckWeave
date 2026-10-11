@@ -20,7 +20,7 @@
 |---|---|
 | Domain & Protocol | Handshake/envelopes |
 | Capability Registry | Registration lifecycle |
-| Profile Store | Grants/package metadata |
+| Package index / host authorization ports | Immutable package metadata и текущие grants; профиль не является grant store |
 | Diagnostics | Logs/metrics |
 
 ## Инварианты
@@ -31,6 +31,10 @@
 - Restart создаёт новую session generation.
 - Все queues, messages и timeouts bounded.
 - Expanded permissions блокируют automatic activation.
+- Runtime key = package/artifact hash/group; v1 разрешает одну active version package на host.
+- Discovery до первого binding требует scoped lease; static index не запускает provider.
+- Prepare не исполняет user actions; exclusive handoff объявляет downtime и использует общий ResourceLease arbiter.
+- Grant revoke блокирует dispatch и инициирует cleanup, без обещания отменить уже выполненный effect.
 
 ## Намеренно НЕ обрабатывает
 
@@ -43,3 +47,4 @@
 
 > Stderr — diagnostics, stdout — framed protocol; никогда не смешивать. Process tree cleanup должен тестироваться на Windows и Linux. Circuit breaker важнее бесконечного restart loop.
 
+Обязательны [resource/version/discovery contracts](../docs/RUNTIME_CONTRACTS.md#resources-discovery-и-версии-packages) и package-lock validation при apply/update/rollback.

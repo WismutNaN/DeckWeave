@@ -30,6 +30,8 @@
 - Late reports after disconnect ignored by session generation.
 - Ring brightness/color reflect actual protocol, never simulated as image background.
 - Safe cleanup/keepalive behavior tested.
+- Encoder signed deltas и touch down/up/cancel не coalesce; latest move sample не заменяет lifecycle edge.
+- Frame receipt различает transport acceptance и известное applied state; без подтверждаемой diff base используются full frames.
 
 ## Намеренно НЕ обрабатывает
 
@@ -41,4 +43,3 @@
 ## Заметки для агента
 
 > Сначала подтвердить protocol behavior на реальном N4 Pro и SDK fixtures. Unsupported per-ring capability must be reported honestly. Haptic complex patterns may degrade to timed on/off with explicit quality.
-

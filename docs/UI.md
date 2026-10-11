@@ -122,7 +122,7 @@ Graph показывает logical order и pending async boundaries.
 2. Просмотреть source, license, runtimes, permissions и conformance.
 3. Установить.
 
-Package остаётся Indexed и не запускается, пока contribution не используется.
+Package остаётся Indexed до runtime/discovery lease. Для поиска первого устройства пользователь включает scoped discovery; появление candidate не открывает exclusive/output доступ автоматически.
 
 ### Сценарий: восстановиться после ошибки
 
@@ -180,9 +180,9 @@ Visual roles:
 ```
 
 - Port shape/icon and label supplement color.
-- Invalid edge is blocked before creation and explains schema/unit mismatch.
+- Структурно несовместимый edge отклоняется с объяснением schema/unit mismatch. Offline device/missing grant сохраняет draft edge и показывает readiness issue до apply.
 - Auto converter is inserted as visible node.
-- Cycle requires explicit delay/latch.
+- Cycle требует положительного delay либо нового внешнего события и execution budget; один latch не разрешает loop.
 - Group can be collapsed and named as reusable template.
 - Error policy and async boundary are visible.
 - Simulation timeline highlights executed/skipped/failed nodes.
@@ -231,6 +231,10 @@ Package card показывает:
 - External API mutation появляется как отдельная undoable command с actor/source.
 - Export/import не заменяет undo.
 
+Подтверждённые draft edits сохраняются до ответа API; после restart последняя draft version восстанавливается, а отсутствие in-memory undo history показывается явно. Apply progress различает prepare, возможный downtime/handoff, commit и health. До commit доступен cancel; после commit — новый rollback apply. Export/rollback не выдаёт grants и не переносит secrets по совпадению имени.
+
+Hardware preview имеет TTL/stop и отдельный lease. Apply отзывает конфликтующий preview, а stop восстанавливает текущую applied scene. Touch во время preview тестирует hit regions в editor и не запускает production actions. Simulation использует fake targets.
+
 ## Состояния интерфейса
 
 | Состояние | Что показываем |
@@ -241,7 +245,7 @@ Package card показывает:
 | Indexed plugin | Contributions видны, runtime = not running |
 | Missing permission | Resource, reason, requested scope, grant/deny |
 | Draft invalid | Inline issue + переход к node/field |
-| Applying | Stages/progress; old revision продолжает работу |
+| Applying | Prepare/barrier/commit progress, affected routes и объявленный downtime; прежняя revision работает до barrier |
 | Applied | Ненавязчивое confirmation + revision |
 | Degraded | Затронутые ports/routes и продолжающие работу части |
 | Device disconnected | Card остаётся, ports серые, reconnect status |
@@ -274,4 +278,3 @@ Package card показывает:
 - Preview frames не проходят через Svelte state tree.
 - WebView closure не влияет на host.
 - Large trace открывается paginated/streamed, а не целиком.
-

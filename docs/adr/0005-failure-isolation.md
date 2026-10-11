@@ -19,7 +19,8 @@
 
 ## Последствия
 
+Уточнение 2026-10-12: [ADR-0012](0012-apply-and-execution-lifecycle.md) разделяет failure до и после commit. Прежняя revision остаётся выбранной только до commit; после него новая revision может быть degraded, а rollback выполняется отдельно. В v1 активен один workspace, crash локализует affected routes/groups.
+
 **Становится проще:** локализовать crash и показывать точное состояние пользователю.  
 **Становится сложнее:** каждый модуль должен определять cancellation и recovery semantics.  
 **Закрывает дверь на:** `unwrap` на внешних данных и неограниченные каналы в runtime paths.
-

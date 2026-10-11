@@ -7,7 +7,8 @@
 
 | Символ | Тип | Описание |
 |---|---|---|
-| `WorkspaceId`, `RevisionId` | value types | Стабильная identity workspace/revision |
+| `WorkspaceId`, `WorkspaceRevisionId`, `DraftVersion` | value types | Configuration identity и optimistic editing version |
+| `HostBootId`, `ActivationEpoch`, `IngressOrdinal` | value types | Runtime lifetime и упорядочение ingress |
 | `NodeDescriptor`, `DeviceDescriptor` | struct | Объявленная topology |
 | `PortDescriptor`, `SchemaRef` | struct | Typed connection contract |
 | `SignalEnvelope` | struct | Event/value/state с time/session/trace |
@@ -26,9 +27,11 @@
 
 - ID не зависят от локализованных labels и OS paths.
 - Wire types не содержат UI framework или device-specific commands.
-- Unknown optional fields сохраняются, если format это допускает.
+- Unknown optional document/settings fields сохраняются; wire relay использует opaque bytes, codegen round-trip проверяется fixtures.
 - Edge/value/state semantics различаются типом, а не convention.
 - `session_generation` обязателен для runtime messages.
+- Source monotonic time всегда имеет clock domain; host ingress time/order не выводится из remote timestamp.
+- Permissive protocol/SDK не импортирует GPL domain; преобразование wire ↔ application types находится со стороны application.
 
 ## Намеренно НЕ обрабатывает
 
@@ -42,3 +45,4 @@
 
 > Это самый стабильный слой. Не добавлять «удобное» поле только для N4 Pro или Windows. Namespaced extension предпочтительнее изменения core vocabulary. Protocol package лицензируется отдельно под MIT OR Apache-2.0; application domain implementation может оставаться GPL.
 
+Семантика типов: [RUNTIME_CONTRACTS.md](../docs/RUNTIME_CONTRACTS.md#разные-виды-версий). `ApplicationService`/commands/queries размещаются отдельно в `deckweave-application`, без реализации Host и transports.

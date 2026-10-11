@@ -19,7 +19,8 @@
 
 ## Последствия
 
+Уточнение 2026-10-12: [ADR-0012](0012-apply-and-execution-lifecycle.md) вводит execution epochs/drain/cleanup. [Replay contract](../RUNTIME_CONTRACTS.md#детерминизм-и-циклы) включает initial state, ingress order, timer firings и external outcomes; fake clock и одни input events недостаточны для воспроизведения async graph. Цикл требует положительного delay/нового внешнего события и budget.
+
 **Становится проще:** predictable hot path, simulation, trace, rollback и cycle detection.  
 **Становится сложнее:** нужен compiler и явная семантика каждого node.  
 **Закрывает дверь на:** произвольную мутацию active graph plugin-ом и скрытые async side effects.
-

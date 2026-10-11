@@ -19,6 +19,8 @@
 
 ## Последствия
 
+Уточнение 2026-10-12: [контракт сигналов](../RUNTIME_CONTRACTS.md#порядок-сигналов-и-время) задаёт общий ingress order и ограничивает coalescing границами edge/timer/barrier. Encoder deltas не являются latest values; clocks разных источников напрямую не сравниваются.
+
 **Становится проще:** измерять latency, применять backpressure и не смешивать аудио с automation events.  
 **Становится сложнее:** control parameters и media graph должны иметь отдельный bridge.  
 **Закрывает дверь на:** обработку микрофонных buffers обычным ActionProvider или WebSocket handler.

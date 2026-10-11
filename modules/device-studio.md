@@ -1,7 +1,7 @@
 # Модуль: Device Studio
 
 **Ответственность:** поддерживает discovery, live inspection, calibration, safe protocol capture, declarative mapping и provider conformance.
-**Расположение:** application services в `crates/deckweave-testkit/` и UI в `ui/desktop/`.
+**Расположение:** application services в `crates/deckweave-device-studio/` и UI в `ui/desktop/`; conformance fixtures в testkit, без production dependency на него.
 
 ## Публичный интерфейс
 
@@ -29,6 +29,7 @@
 - Raw capture не попадает в default diagnostics export.
 - Calibration не изменяет physical quantity semantics.
 - Generated descriptor проходит validation до install/use.
+- Probe использует общий ResourceLease arbiter; active exclusive device не открывается вторым handle.
 
 ## Намеренно НЕ обрабатывает
 
@@ -39,4 +40,3 @@
 ## Заметки для агента
 
 > Standard HID/gamepad path должен работать без Rust code. Vendor protocol project может стать input для Codex/plugin author, но генерация package не считается доказательством safety.
-

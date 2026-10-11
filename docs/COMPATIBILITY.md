@@ -66,7 +66,7 @@ Legacy context обычно связывает device, profile, controller и po
 | `Keypad` action instance | Binding к `button.digital` и одному или нескольким visual targets |
 | `Encoder` action instance | Binding к `encoder.relative`/`encoder.press` и optional surface region |
 | `keyDown`/`keyUp` | Edge events без coalescing |
-| `dialRotate` | Relative value event с сохранением signed delta |
+| `dialRotate` | `EventOut` с signed delta, без latest-value coalescing |
 | `setImage` | Scene asset/update для выбранного visual target |
 | `setTitle` | Text scene node, если target поддерживает текстовую композицию |
 | `setState` | Legacy action state внутри binding |
@@ -91,13 +91,19 @@ Legacy context обычно связывает device, profile, controller и po
 
 ## Property Inspector
 
-- Отдельный origin на loopback с непредсказуемым session path.
+- Отдельный origin и browser storage partition на package/session; случайный session path не считается origin isolation.
 - CSP и запрет навигации на `file://`.
 - Scoped token связан с package/action/context и имеет TTL.
 - Сообщения проходят через legacy PI bridge, а не Tauri privileged commands.
 - Сетевые запросы PI регулируются permission policy package.
 - Закрытие PI не останавливает action runtime.
 - Ошибка PI не помечает device disconnected.
+
+Legacy `setSettings`/`setGlobalSettings` из active plugin создают versioned runtime settings overlay, scoped package/binding, и возвращаются plugin через legacy protocol. Они не мутируют immutable revision или открытый draft. Overlay хранится отдельно, показывается UI как external settings diff и переносится в draft явной командой с expected version; при rollback/rebind overlay старого контекста не применяется автоматически. PI редактирует draft settings через broker, live preview изолирован. Persistence/restart этих settings входит в C1/C2 fixtures; если конкретный plugin требует иной семантики, report ограничивает compatibility claim.
+
+Overlay привязан к workspace revision, package hash, settings schema и binding либо package-global scope. Обычный restart той же revision восстанавливает его; переход revision требует явного merge/reset, а не переноса по совпадению context ID. Mutations проходят host application broker и его persistence/limits, не direct file write. Scheme полей, содержащих secrets, требует credential mapping; generic raw settings не становятся исключением из redaction/export policy.
+
+Browser origin/storage/bridge isolation проверяется по [SECURITY.md](SECURITY.md#web-property-editors-и-widgets). Нельзя обходить её ради legacy inspector.
 
 ## Conformance suite
 

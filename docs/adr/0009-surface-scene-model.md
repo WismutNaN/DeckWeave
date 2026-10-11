@@ -19,7 +19,8 @@ N4 Pro имеет общий сенсорный экран, способный �
 
 ## Последствия
 
+Уточнение 2026-10-12: [frame contract](../RUNTIME_CONTRACTS.md#frames-и-preview) разрешает latest-frame-wins для полных кадров; diff требует подтверждённой базы и full resync после потери. Preview имеет отдельный lease/TTL, а touch lifecycle — edge semantics.
+
 **Становится проще:** единый фон, текст вне сетки, widgets, animations и разные surface geometries.  
 **Становится сложнее:** нужны compositor, transforms, dirty regions и отдельный editor.  
 **Закрывает дверь на:** представление общего display как обязательного набора независимых кнопочных картинок.
-

@@ -6,6 +6,8 @@ DeckWeave должен начать с N4 Pro и обычных системны
 
 Архитектура оптимизируется не под максимальное число функций в первом релизе, а под дешёвое добавление нового provider без изменения уже работающих контрактов.
 
+Нормативный порядок apply/recovery, execution epochs, signals, leases и frames задан в [RUNTIME_CONTRACTS.md](RUNTIME_CONTRACTS.md). При реализации этот документ читается вместе с модульной спецификацией.
+
 ## Системный контекст
 
 ```text
@@ -41,7 +43,7 @@ deckweave-desktop.exe
 ├── Tauri WebView, создаваемый/скрываемый независимо от runtime
 ├── local API listener, только loopback
 └── Plugin Supervisor
-    ├── один process на активный native control package
+    ├── один process на активную runtime group native control package
     ├── openaction-host process tree, только при legacy actions
     ├── widget-host, только при custom web widgets
     └── media-host, только при future media graph
@@ -51,6 +53,8 @@ remote agent
 ```
 
 В v1 нет system-wide daemon и многопользовательского сервера. «Host» — роль long-lived per-user desktop process, а не отдельная обязательная служба. Авария всего процесса останавливает runtime; crash WebView или закрытие окна — нет.
+
+В v1 разрешён один host на пользовательскую сессию и один active workspace; другие workspaces можно хранить и редактировать. Single-instance и data-root writer locks приобретаются до запуска API/plugins. См. [правила владения](RUNTIME_CONTRACTS.md#владение-host-и-workspace).
 
 ## Архитектурные слои
 
@@ -64,6 +68,24 @@ remote agent
 
 Зависимости направлены внутрь: domain не импортирует application, application не импортирует конкретный plugin и UI.
 
+### Направление зависимостей
+
+Стрелка означает compile dependency, а не поток runtime messages:
+
+```text
+SDK ───────────────> protocol (permissive, без GPL dependencies)
+domain ────────────> protocol
+application ───────> domain (service ports, commands/queries)
+diagnostics ───────> domain/protocol (без зависимости от runtimes)
+registry/automation/profiles/surface ──> domain + diagnostics/узкие ports
+host ──────────────> application + реализации core компонентов
+api adapters ──────> application (без зависимости от host implementation)
+desktop composition ──> host + api + platform-host + runtime adapters
+testkit/tests ─────> тестируемые компоненты (только test/dev направление)
+```
+
+Core получает OS services через injected ports. `platform-host` реализует locks, data roots, credentials, autostart и process cleanup; пользовательские input/volume/window actions остаются isolated plugins. Store не импортирует keychain, Surface не импортирует widget-host, production code не импортирует testkit. Подробнее: [ADR-0013](adr/0013-dependency-and-host-service-boundaries.md).
+
 ## Компоненты
 
 | Компонент | Ответственность | Публичная граница |
@@ -73,14 +95,15 @@ remote agent
 | Capability Registry | Nodes, devices, elements, ports, sessions и availability | `RegistrySnapshot`, `PortRef`, `Availability` |
 | Plugin Supervisor | Index, permissions, spawn, handshake, health, restart | `PackageRecord`, `PluginSession`, `RuntimeLease` |
 | Automation Engine | Validate/compile graph, state/layers, schedule и execution | `WorkspaceGraph`, `ExecutionPlan`, `ExecutionOutcome` |
-| Profile Store | Drafts, immutable revisions, snapshots, assets, import/export | `ProfileRevision`, `DraftId`, `ExportSelection` |
+| Profile Store | Drafts, immutable revisions, snapshots, assets, import/export | `WorkspaceRevision`, `DraftId`, `ExportSelection` |
 | Surface Compositor | Scene graph, bindings, hit testing, raster plan и frame dispatch | `SurfaceScene`, `HitRegion`, `FrameIntent` |
 | Widget Runtime | Sandboxed custom web widgets и event-driven snapshots | `WidgetInstance`, `WidgetFrame` |
 | Local API | Commands, queries, subscriptions, auth и dry-run | `CommandApi`, `QueryApi`, `SubscriptionApi` |
 | Compatibility Host | Legacy manifest/lifecycle/context translation | `LegacyContextMap`, `CompatibilityReport` |
 | Platform Adapters | OS input/output, active app, virtual targets и privilege probes | `PlatformCapability`, `InputDecision` |
 | Device Studio | Probe sessions, calibration, traces и descriptor projects | `ProbeSession`, `CaptureTrace` |
-| Diagnostics & Test Lab | Metrics, structured logs, recording/replay, fixtures | `TraceId`, `ReplayReport` |
+| Diagnostics / Test Lab | Production instrumentation отдельно от replay fixtures/fakes/conformance; production replay исполняет Automation | `TraceId`, `ReplayReport` |
+| Host Platform Services | Locks, data roots, credentials, autostart, process cleanup | `HostPlatform`, `CredentialBroker` |
 | Remote Agent Gateway | Pairing, capability advertisement и revocable grants | `RemoteNodeSession`, `RemoteGrant` |
 | Media Runtime | Negotiated stream graph и real-time processing | `MediaGraphPlan`, `StreamEndpoint` |
 
@@ -120,7 +143,8 @@ Host
 - `ElementId` стабилен в пределах descriptor compatibility.
 - `PortId` не содержит переводимый UI label.
 - `BindingId` стабилен в workspace; legacy context остаётся временным.
-- `RevisionId` является content-derived или однозначно связанным с неизменяемым документом.
+- `WorkspaceRevisionId` однозначно связан с неизменяемым документом и checksum; rollback создаёт новый ID.
+- `HostBootId`/`ActivationEpoch` отделяют исполнения даже при повторной активации той же revision.
 
 ### Инварианты
 
@@ -129,7 +153,7 @@ Host
 - Отсутствующее/stale state не преобразуется в `false` или ноль.
 - Никакой UI component не владеет hardware handle.
 - Graph edge существует только между совместимыми schemas/units либо через явный converter.
-- Синхронный cycle запрещён; cycle требует state/delay/latch node.
+- Синхронный cycle запрещён; cycle требует положительного delay или ожидания нового внешнего события и execution budget.
 - Persistent provisioning не исполняется как побочный эффект обычного workspace apply.
 - Secrets хранятся по reference и не входят в profile revision.
 - Unsupported и temporarily unavailable являются разными состояниями.
@@ -149,17 +173,17 @@ ValidatedGraph
     │ compile, resolve ports, precompute routes and policies
     v
 ExecutionPlan + ActivationPlan
-    │ prepare plugin sessions / assets / surfaces
+    │ persist candidate + prepare resources без новых outputs
     v
-Atomic logical cutover to new Revision
+Quiesce / drain / revalidate → durable commit record → epoch cutover
     │
-    ├── success: retire old resources
-    └── failure: keep old Revision, emit ApplyReport
+    ├── до commit: прежняя revision; report о failed prepare/handoff
+    └── после commit: новая revision; applied/degraded/recovery report
 ```
 
 `ExecutionPlan` является immutable и не содержит UI geometry, кроме явно скомпилированных surface/touch transforms. `ActivationPlan` описывает resource diff: packages to start/stop, device leases, subscriptions и surface targets.
 
-Apply имеет логическую транзакцию, но не притворяется аппаратной транзакцией. Reversible runtime changes подготавливаются до cutover. Необратимые provisioning actions запускаются отдельной подтверждаемой операцией с readback и собственным recovery report.
+Apply имеет логическую транзакцию, но не является аппаратной транзакцией. Exclusive provider handoff может требовать разрешённого downtime; после durable commit возврат выполняется новым apply. Pending actions, held outputs и late completions обрабатываются по [контракту lifecycle](RUNTIME_CONTRACTS.md#executions-cancellation-и-смена-плана). Provisioning запускается отдельной подтверждаемой операцией с readback и собственным recovery report.
 
 ## Data flow
 
@@ -168,7 +192,7 @@ Apply имеет логическую транзакцию, но не притв
 
 1. Provider отправляет `SignalEnvelope` с source port, session generation, sequence, monotonic time и payload.
 2. Transport проверяет размер/version; Registry проверяет активность source.
-3. Edge попадает в bounded edge queue; latest-value update — в coalescing value slot.
+3. Host присваивает ingress ordinal/epoch; edge и latest-value lane сохраняют порядок относительно barriers по [контракту сигналов](RUNTIME_CONTRACTS.md#порядок-сигналов-и-время).
 4. Workspace scheduler обрабатывает сигнал относительно одного `ExecutionPlan` и одного логического clock.
 5. Engine обновляет state/layers и создаёт ноль или несколько `CommandIntent`.
 6. Independent branches запускаются параллельно; зависимые steps следуют explicit ordering/join policy.
@@ -186,18 +210,18 @@ Apply имеет логическую транзакцию, но не притв
 3. Application service применяет command, сохраняет undo record и возвращает validation delta.
 4. `validate` строит полный report без side effects.
 5. `plan` рассчитывает activation diff и resource/permission requirements.
-6. Пользователь или агент вызывает `apply` с expected base revision.
-7. Host готовит новые sessions, assets и plan; затем делает logical cutover.
-8. Profile Store атомарно сохраняет immutable revision и snapshot metadata.
-9. При ошибке old plan продолжает работу; client получает точный failed stage.
+6. Пользователь или агент вызывает `apply` с expected active revision, draft version и plan hash.
+7. Store сохраняет candidate revision/assets/package lock; Host готовит sessions и resources без исполнения новых actions.
+8. На cutover barrier Host повторяет проверки, Store публикует durable commit record, затем Host переключает epoch/plan.
+9. До commit ошибка сохраняет прежнюю выбранную revision; после commit новая остаётся выбранной с явным health/recovery report. Порядок и crash matrix: [контракт apply](RUNTIME_CONTRACTS.md#сохранение-и-apply).
 
 ### Plugin discovery и activation
 
 1. Installer распаковывает artifact в staging, проверяет path traversal, hash, manifest и schemas.
 2. Indexer сохраняет metadata без запуска executable.
-3. Workspace compiler определяет требуемые contribution instances.
+3. Workspace compiler определяет contribution instances; разрешённый discovery/probe lease также может запустить provider до появления первого binding.
 4. Supervisor сравнивает permissions и platform/architecture.
-5. Host запускает один package process с one-time session token.
+5. Host запускает process для runtime group зафиксированного artifact с one-time session token.
 6. Plugin и host согласуют protocol range и descriptors.
 7. После validation создаются runtime leases для contributions.
 8. При отсутствии leases, subscribers и pending work process останавливается после grace period.
@@ -209,8 +233,8 @@ Apply имеет логическую транзакцию, но не притв
 2. Compositor рассчитывает layout и dirty regions в logical coordinates.
 3. Static/vector/text nodes рендерятся встроенным backend; custom widget даёт bounded bitmap/layer.
 4. Scene преобразуется в preferred pixel format конкретного `FrameIn`.
-5. Frame scheduler соблюдает max FPS и latest-frame-wins.
-6. Provider подтверждает accepted frame и, если умеет, partial update.
+5. Frame scheduler соблюдает max FPS; latest-frame-wins применяется к полному desired frame, diff требует подтверждённой базы.
+6. Provider различает accepted и applied receipt; потеря base/ACK вызывает full-frame resync по [контракту frames](RUNTIME_CONTRACTS.md#frames-и-preview).
 7. Touch coordinate проходит обратную transform и hit test независимо от visual cell grid.
 
 ### Local API / Codex
@@ -242,9 +266,9 @@ Remote pairing создаёт `NodeIdentity` и grants, а не автомати
 |---|---|---|
 | Application commands | Сериализованный owner состояния host/draft | Bounded request queue, deadlines |
 | Edge events | Упорядоченная workspace lane | Не coalesce; overflow = явная fault/degraded policy |
-| Continuous values | Latest-value slots с sequence | Coalesce разрешён, drops измеряются |
+| Continuous values | Latest-value segments с sequence/ingress order | Coalesce до следующего edge/barrier, drops измеряются |
 | Async actions | Task execution вне scheduler; outcome возвращается message | Concurrency limit на provider/action |
-| Surface frames | Per-surface scheduler | Latest-frame-wins, FPS budget |
+| Surface frames | Per-surface scheduler | Latest full-frame wins; diff только от подтверждённой базы |
 | UI subscriptions | Throttled snapshots/deltas | Slow client пропускает промежуточные snapshots |
 | Logs/traces | Bounded rotating storage | Sampling для high-frequency values |
 | Audio/video | Отдельный media runtime | Ring/shared buffers по backend contract |
@@ -299,7 +323,7 @@ pub trait ApplicationService {
 
 Обязательные свойства:
 
-- все mutation commands имеют idempotency key и expected revision;
+- mutation commands имеют idempotency key и command-specific preconditions; apply проверяет draft и active revision отдельно;
 - activation token не переиспользуется между plugin sessions;
 - cancellation и deadline являются частью длительной операции;
 - schemas versioned и согласуются при handshake;
@@ -310,7 +334,7 @@ pub trait ApplicationService {
 
 ## Plugin control protocol
 
-Native control plugins используют versioned length-delimited Protocol Buffers по inherited stdio pipes. Это даёт code generation для Rust/TypeScript/Python, unknown-field evolution, бинарные limits и не требует слушающего TCP port. Message envelope поддерживает request/response, events, cancellation, heartbeat, session generation и flow-control notices.
+Native control plugins используют versioned length-delimited Protocol Buffers по inherited stdio pipes. Это даёт code generation для Rust/TypeScript/Python, additive wire evolution, бинарные limits и не требует слушающего TCP port. Message envelope поддерживает request/response, events, cancellation, heartbeat, session generation и flow-control notices. Round-trip unknown fields проверяется для конкретных SDK; typed decode/re-encode не считается transparent relay автоматически.
 
 Named pipes/Unix sockets могут быть добавлены для attachable runtimes, но не являются вторым доменным API. Legacy OpenAction продолжает использовать ожидаемый WebSocket/JSON protocol внутри compatibility host.
 
@@ -391,13 +415,17 @@ DeckWeave/
 ├── crates/
 │   ├── deckweave-domain/
 │   ├── deckweave-protocol/
+│   ├── deckweave-application/     # commands/queries и service ports
 │   ├── deckweave-host/
+│   ├── deckweave-platform-host/   # locks, credentials, autostart
 │   ├── deckweave-registry/
 │   ├── deckweave-automation/
 │   ├── deckweave-profiles/
 │   ├── deckweave-surface/
 │   ├── deckweave-plugin-supervisor/
 │   ├── deckweave-api/
+│   ├── deckweave-diagnostics/     # production instrumentation
+│   ├── deckweave-device-studio/   # diagnostic application service
 │   └── deckweave-testkit/
 ├── runtimes/
 │   ├── openaction-host/
@@ -457,7 +485,7 @@ DeckWeave/
 | UI snapshot | Не чаще configured throttle; slow UI не влияет на engine |
 | N4 Pro frame | Device max FPS; очередь не длиннее current + latest |
 | Plugin activation | Не блокирует host startup; deadline и progress |
-| Apply | Old revision работает до cutover; validation не блокирует UI thread |
+| Apply | Old revision работает до barrier; disruptive handoff объявляет downtime; validation вне UI thread |
 | Audio callback, future | Backend-specific buffer deadline; zero blocking/allocation in callback |
 
 Числа пересматриваются только по benchmark evidence и фиксируются ADR.
@@ -500,8 +528,8 @@ DeckWeave/
 1. Новый standard capability добавляется после двух независимых providers либо общеупотребимого стандарта.
 2. Device-specific field остаётся namespaced extension.
 3. Breaking wire change создаёт новую major protocol version; host может поддерживать несколько соседних majors через adapters.
-4. Profile migrations являются pure transformations и всегда создают report/backup.
-5. Unknown optional fields сохраняются round-trip.
+4. Profile migrations являются pure transformations с report/backup; package migrations v1 декларативны и не запускают executable.
+5. Unknown optional document/settings fields сохраняются round-trip; неизвестная обязательная семантика блокирует execution, wire relay сохраняет opaque bytes.
 6. Новый runtime class требует ADR; contribution type сам по себе не требует отдельного процесса.
 7. Heavy dependency не добавляется в desktop baseline, если может быть optional runtime/plugin.
 8. UI feature не получает приватный путь к core; сначала расширяется application service.

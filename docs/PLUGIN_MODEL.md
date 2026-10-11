@@ -36,7 +36,7 @@ DeckWeave использует единый package/manifest format, но нес
 | `ProtocolBridge` | OpenAction/Elgato, позже Companion/MIDI/OSC и иные ecosystems |
 | `MediaNodeProvider` | Sources/filters/sinks только для specialized media runtime |
 | `RemoteNodeProvider` | Discovery/pairing remote agents и capability projection |
-| `PlatformProvider` | OS-specific input/output, active app, virtual devices, credential access |
+| `PlatformProvider` | OS-specific input/output, active app, virtual devices; credentials только через host broker |
 
 Package может объявить несколько contributions. Runtime class определяется entrypoint/contribution group, а не названием package.
 
@@ -59,7 +59,7 @@ Manifest читается и валидируется без запуска exec
 | `schemas` | Versioned settings/ports/results schemas |
 | `assets` | Icons, localization, templates, property editors/widgets |
 | `dependencies` | External runtime/system dependencies |
-| `migrations` | Settings/profile migration declarations |
+| `migrations` | Ограниченные декларативные settings transforms, исполняемые host без plugin code |
 
 Manifest не содержит secrets, install scripts и произвольные команды определения совместимости. Dynamic discovery разрешена только внутри заранее объявленной contribution.
 
@@ -79,6 +79,8 @@ WASM может появиться как дополнительный control r
 ## Один процесс на package
 
 Default: один процесс на активную `runtime_group` package. Несколько instances и contributions multiplexed внутри session.
+
+Ключ runtime включает package ID, artifact hash и group. В v1 одновременно активна одна version package на host; exact version/hash записывается в revision package lock. Установка новой версии не меняет active lock. Порядок обновления и exclusive handoff описаны в [контрактах resources](RUNTIME_CONTRACTS.md#resources-discovery-и-версии-packages).
 
 Преимущества:
 
@@ -111,9 +113,11 @@ Protocol envelope поддерживает:
 - backpressure notices;
 - structured errors;
 - schema references;
-- chunked bounded assets/metadata, но не raw media streams.
+- chunked bounded assets/metadata и `FramePacket` для `FrameIn`, но не audio/video streams.
 
-Host применяет hard limits на frame/message size, nesting, concurrent requests и startup time. Unknown optional fields сохраняются по правилам Protobuf; semantic breaking changes требуют новой major.
+Host применяет hard limits на frame/message size, nesting, concurrent requests и startup time. Wire compatibility не гарантирует unknown-field round-trip в каждой codegen library: endpoint может пропустить optional metadata, relay сохраняет opaque bytes, JSON settings сохраняют unknown keys отдельно. Unknown required command/feature отклоняется; обязательные features согласуются handshake, semantic breaking changes требуют новой major. Это проверяется на Rust/TS/Python fixtures, включая enum/presence/unknown fields.
+
+Frame chunks не занимают неограниченный участок stdio очереди: control/heartbeat/cancel имеют бюджет задержки и scheduling между bounded chunks. Partial frames передаются с base frame ID; потеря ACK требует full resync ([контракт frames](RUNTIME_CONTRACTS.md#frames-и-preview)).
 
 ## Lifecycle
 
@@ -146,12 +150,14 @@ CircuitOpen / Disabled
 - stop имеет deadline, затем host завершает только plugin process tree;
 - crash loop открывает circuit и требует user action;
 - active hardware/resource lease предотвращает idle stop.
+- persisted discovery subscription также удерживает runtime; user disable прекращает её и не возобновляется автоматически.
 
 ## Activation
 
 Runtime запускается, когда:
 
 - contribution присутствует в active `ExecutionPlan`;
+- пользователь включил scoped discovery lease, чтобы обнаружить device до первого binding;
 - открыта Device Studio probe session;
 - legacy action появился на active surface;
 - открыт custom property editor, которому нужен runtime;
@@ -159,6 +165,8 @@ Runtime запускается, когда:
 - пользователь явно запускает diagnostics.
 
 Activation condition не может самостоятельно расширять permissions. Runtime может остановиться после grace period, если leases, subscribers и pending operations отсутствуют.
+
+Static index никогда не вызывает executable для discover/validate/migrate. Runtime discovery является отдельной разрешённой операцией; найденный candidate не даёт exclusive/output permission. `prepare` обязан отличаться от запуска пользовательских effects; не умеющий это provider объявляет disruptive handoff. RuntimeLease удерживает процесс, ResourceLease выдаётся Registry на canonical physical resource — probe не обходит этот механизм.
 
 ## Settings и UI contributions
 
@@ -170,7 +178,7 @@ Activation condition не может самостоятельно расширя
 4. legacy OpenAction/Elgato property inspector;
 5. generic JSON editor только для diagnostics.
 
-Editor всегда работает с draft. Live preview использует scoped preview channel, deadline и rollback. Custom editor не получает Tauri commands, filesystem или arbitrary local API token.
+Editor всегда работает с draft. Live preview использует scoped lease, deadline и восстановление текущей applied scene; apply отзывает конфликтующий preview. Custom editor не получает Tauri commands, filesystem или arbitrary local API token. Dry-run/simulation не открывают этот канал и используют fake targets.
 
 Custom widget отличается от property editor: widget создаёт visual layer для output surface и может получать только явно связанные state/interaction ports.
 
@@ -201,6 +209,8 @@ Manifest requests permission; user grant определяет фактическ
 
 Process isolation не предотвращает злонамеренный plugin от действий, доступных его OS user. DeckWeave честно показывает эту границу и не называет её полной sandbox.
 
+Contributions одной runtime group разделяют память/OS process и фактически доверяют друг другу. Host проверяет scopes для каждого broker request, но не обещает изоляцию secret уже переданного соседнему instance. UI показывает суммарные permissions группы; требование разной trust boundary означает отдельную runtime group/процесс, а не только другой ContributionId.
+
 ## Пакетирование и каталог
 
 Central catalogue является подписанным/версионированным metadata index, а не магазином исполняемого кода:
@@ -212,7 +222,7 @@ Central catalogue является подписанным/версиониров
 - conformance/compatibility results;
 - update channel.
 
-Установка всегда использует staging и immutable version directory. Никаких install-time scripts. User выбирает update policy; новая версия не заменяет active version до validation и successful activation plan. Rollback сохраняет предыдущий artifact.
+Установка всегда использует staging и immutable version directory. Никаких install-time scripts. V1 требует подтверждения каждого update; update policy пока регулирует проверку наличия/уведомления. Новая версия не заменяет active lock до validation и committed activation plan. Rollback сохраняет предыдущий artifact и settings revision, но не восстанавливает отозванные grants.
 
 Direct local package installation остаётся доступной, но помечается source/trust.
 
@@ -223,6 +233,7 @@ Direct local package installation остаётся доступной, но по
 - Contribution ID стабилен между совместимыми releases.
 - Unknown optional settings сохраняются round-trip.
 - Breaking settings migration создаёт report и новую profile revision.
+- V1 использует host-owned core migrations и bounded declarative package transforms; arbitrary executable hooks не запускаются при import/validate. Missing migration оставляет данные opaque/unavailable ([контракт миграций](RUNTIME_CONTRACTS.md#миграции-и-неизвестные-данные)).
 - Host не запускает unsupported major.
 - Deprecation имеет минимум один documented replacement path.
 
@@ -239,6 +250,8 @@ Direct local package installation остаётся доступной, но по
 - минимальные example plugins;
 - conformance report format;
 - package/archive tooling.
+
+SDK/generated wire types не импортируют GPL `deckweave-domain`, host или production testkit. SDK harness работает через public wire contract; внутренние fixture runners могут оставаться GPL. CI проверяет transitive package boundaries ([ADR-0013](adr/0013-dependency-and-host-service-boundaries.md)).
 
 ### Языки
 
@@ -298,4 +311,3 @@ Human message локализуется UI/package, но category и machine deta
 - custom editor с privileged Tauri bridge;
 - compatibility claim без versioned fixture;
 - автоматическое переписывание исходников legacy plugin.
-

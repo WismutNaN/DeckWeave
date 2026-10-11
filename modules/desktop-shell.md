@@ -29,6 +29,7 @@
 - Long operation отображается по OperationId.
 - ru/en text не используется как identity.
 - Основной сценарий assignment ≤ 3 действия.
+- Apply progress различает prepare/barrier/commit и degraded health; после commit доступен новый rollback, а не фиктивный cancel.
 
 ## Намеренно НЕ обрабатывает
 
@@ -40,4 +41,3 @@
 ## Заметки для агента
 
 > Canvas и graph virtualized. Runtime events не должны попадать в глобальное Svelte state без throttle. External API changes отображаются diff, а не silently overwrite current draft.
-

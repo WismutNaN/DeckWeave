@@ -20,6 +20,8 @@
 
 ## Последствия
 
+Уточнение 2026-10-12: [ADR-0012](0012-apply-and-execution-lifecycle.md) задаёт durable commit record до runtime cutover. `fsync/rename` выше обозначает требование к storage adapter, а не готовую одинаковую реализацию для всех ОС. Revision/assets/package lock/receipt публикуются в заданном порядке; undo stack может быть in-memory, подтверждённый draft document — durable. Grants не входят в переносимую revision.
+
 **Становится проще:** экспорт, diff, backup, ручная диагностика и перенос профилей.  
 **Становится сложнее:** cross-document references и migrations нужно проектировать явно.  
 **Закрывает дверь на:** хранение telemetry/event history без отдельного bounded журнала или будущего index store.

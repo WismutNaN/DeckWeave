@@ -8,6 +8,8 @@
 - **P1** — обязательное расширение после первой N4 Pro вертикали.
 - **P2** — архитектурно предусмотрено, реализация после стабилизации v1.
 
+Все P0 должны быть закрыты к milestone **M2 после Фазы 11**. Фаза 9 даёт N4 Pro preview, но ещё не подтверждает готовность layers/parallel/error policies. P1 закрываются к v1; P2 не входят в release gate. Статус каждого требования до появления implementation evidence — не реализовано.
+
 ## Функциональные требования
 
 ### Рабочее пространство и устройства
@@ -19,7 +21,7 @@
 | DW-WS-003 | P0 | Физическая identity отделена от session и OS path | Reconnect создаёт новую session, но восстанавливает bindings |
 | DW-WS-004 | P0 | UI показывает цифровое представление всех устройств на infinite canvas | Device можно выбрать, переместить и открыть inspector |
 | DW-WS-005 | P1 | Несколько устройств можно группировать как логический unit без потери физической identity | Group получает layout и routes, а disconnect одного участника даёт degraded state |
-| DW-WS-006 | P1 | Virtual keyboard, mouse, gamepad и test surface доступны для тестов | Recorded fixture воспроизводится без реального устройства |
+| DW-WS-006 | P1 | Fake keyboard, mouse, gamepad и test surface доступны simulation/replay без регистрации OS virtual devices | Recorded fixture воспроизводится без hardware и live input emission |
 
 ### Назначения и автоматизация
 
@@ -29,11 +31,12 @@
 | DW-AU-002 | P0 | Один event может запускать несколько actions последовательно или параллельно | Порядок и join policy воспроизводимы в simulation |
 | DW-AU-003 | P0 | Conditions, state, variables, timers и temporary layers являются штатными nodes | Удержание клавиши временно меняет назначение N4 Pro и возвращает его после release |
 | DW-AU-004 | P0 | Ошибки имеют настраиваемые stop/continue/retry/fallback policies | Ошибка подсвечивает node и не скрывается успешной соседней ветвью |
-| DW-AU-005 | P1 | Поддерживаются schedules, cycles с явным delay/latch и Pomodoro-like timers | Запрещённый синхронный цикл не компилируется |
+| DW-AU-005 | P1 | Поддерживаются schedules, cycles с положительным delay/ожиданием нового внешнего события и Pomodoro-like timers | Цикл без временной границы не компилируется; execution/rate budgets ограничены |
 | DW-AU-006 | P1 | Active application/window может участвовать в condition и layer selection | Один control имеет разные bindings в Word и VS Code |
 | DW-AU-007 | P1 | Events записываются и воспроизводятся с monotonic timestamps и fake clock | Один fixture даёт одинаковый итоговый state в повторных тестах |
 | DW-AU-008 | P1 | Конфликтующие owners/routes видимы, а пользователь задаёт priority | UI показывает конкурирующие rules до apply |
 | DW-AU-009 | P1 | Python plugin может реализовать сложное condition/action в отдельном процессе | Timeout Python runtime не блокирует event engine |
+| DW-AU-010 | P0 | Plan epochs, ordering и cleanup предотвращают stale effects и stuck outputs | Late completion после apply не запускает action; release/disconnect/overflow очищают held outputs; encoder deltas не теряются |
 
 ### Surface, feedback и N4 Pro
 
@@ -53,7 +56,7 @@
 | ID | Приоритет | Требование | Критерий приёмки |
 |---|---:|---|---|
 | DW-PL-001 | P0 | Manifest индексируется без запуска plugin executable | Каталог contributions доступен при нуле активных сторонних runtimes |
-| DW-PL-002 | P0 | Один активный package работает в отдельном процессе и может предоставлять несколько contributions | Crash package не завершает host и помечает только его ports unavailable |
+| DW-PL-002 | P0 | Каждая активная runtime group package работает в отдельном процессе и может предоставлять несколько contributions | Crash group не завершает host, affected ports unavailable, остальные groups продолжают работу |
 | DW-PL-003 | P0 | Protocol поддерживает Rust и TypeScript SDK; Python SDK следует после стабилизации | Reference plugins проходят общий conformance suite |
 | DW-PL-004 | P0 | Settings задаются schema-form или sandboxed custom property editor | Invalid settings не достигают active revision |
 | DW-PL-005 | P0 | Permissions показываются до запуска, scope сохраняется отдельно от profile secrets | Новое permission после update требует повторного подтверждения |
@@ -70,7 +73,7 @@
 | DW-IN-002 | P1 | Input modes различают observe, intercept/suppress и emit | Permission и diagnostics явно показывают фактически доступный mode |
 | DW-IN-003 | P1 | Injected events маркируются для предотвращения self-loop | Emitted key не повторно запускает исходное rule без явного opt-in |
 | DW-IN-004 | P2 | Selective keyboard/mouse replacement использует optional privileged platform component | Отключение компонента возвращает безопасный системный ввод |
-| DW-IN-005 | P1 | Device memory/configuration изменяется только через typed provisioning plan с readback | Неподдерживаемое write отклоняется до отправки устройству |
+| DW-IN-005 | P2 | Device memory/configuration изменяется только через отдельный typed provisioning plan с readback | V1 объявляет read-only descriptor и отклоняет write; реализация записи начинается отдельной post-v1 программой |
 | DW-IN-006 | P0 | Firmware flashing находится вне области DeckWeave | Ни один standard permission не позволяет firmware update |
 
 ### API, профили и эксплуатация
@@ -78,14 +81,17 @@
 | ID | Приоритет | Требование | Критерий приёмки |
 |---|---:|---|---|
 | DW-API-001 | P0 | Все операции UI используют общий application service contract | UI не обращается напрямую к plugin process или profile files |
-| DW-API-002 | P0 | Mutations поддерживают expected revision, validate, dry-run и atomic apply | Конфликт двух editors возвращает structured conflict |
+| DW-API-002 | P0 | Mutations имеют command-specific preconditions, durable dedup, validate/dry-run и логически atomic apply | Apply проверяет draft и active revision; повтор после lost response/restart не исполняет mutation второй раз |
 | DW-API-003 | P1 | CLI и Codex используют локальный authenticated API; MCP — optional adapter | MCP можно удалить без потери core API |
-| DW-PR-001 | P0 | Draft имеет undo/redo; applied revisions неизменяемы; доступны named snapshots | После неудачного apply активной остаётся прежняя revision |
+| DW-API-004 | P0 | Authorization проверяется ApplicationService для всех adapters; grants отделены от profiles | Read/draft principal не может apply/grant; revoke во время prepare блокирует dispatch; rollback не возвращает grant |
+| DW-PR-001 | P0 | Draft имеет undo/redo; applied revisions неизменяемы; доступны named snapshots | До commit failure сохраняет прежнюю выбранную revision, после commit startup восстанавливает новую с явным health report |
 | DW-PR-002 | P0 | Экспорт выбирает workspaces, plugins metadata, assets и private section | Экспорт без secrets не содержит credential values |
 | DW-PR-003 | P1 | Cross-platform import сообщает unavailable contributions, не теряя их settings | Профиль Windows открывается на Linux как degraded, а не повреждается |
+| DW-PR-004 | P0 | Revision фиксирует package versions/hashes, assets; import/migrations не запускают executable | Restart/rollback разрешает тот же artifact; unknown data сохраняются, unresolved secrets требуют local mapping |
 | DW-OP-001 | P0 | Installed mode поддерживает автозапуск, tray и продолжение работы после закрытия окна | Закрытие WebView не прекращает actions |
 | DW-OP-002 | P0 | Portable mode использует выбранный data root и не включает autostart сам | Две установки не смешивают профили |
 | DW-OP-003 | P0 | Диагностика показывает sessions, latency, queue depth, dropped/coalesced values и last error | Причина stale/unavailable port доступна без raw log |
+| DW-OP-004 | P0 | Один host на OS user session, один active workspace; roots защищены writer lock | Второй installed/portable запуск не открывает конкурентный Store/hardware owner |
 
 ### Будущие remote и media capabilities
 
@@ -114,6 +120,8 @@
 | DW-NF-010 | Тестируемость | Clock, devices, transports и plugin processes имеют fakes/fixtures |
 | DW-NF-011 | Доступность | Цвет не является единственным признаком состояния; все редакторы доступны с клавиатуры |
 | DW-NF-012 | Публичный проект | Каждый merge оставляет build/test/docs в согласованном состоянии и указывает provenance заимствований |
+| DW-NF-013 | Восстановление кадров | Diff имеет подтверждённую base; drop/timeout/reconnect вызывает full-frame resync |
+| DW-NF-014 | Зависимости | Runtime не импортирует testkit, SDK не импортирует GPL domain/host; OS bootstrap не зависит от lazy plugin |
 
 ## Первый сквозной критерий
 
@@ -128,4 +136,3 @@
 7. задаёт light и haptic feedback;
 8. закрывает окно, продолжая использовать панель;
 9. записывает тестовый event trace, изменяет draft и безопасно возвращается к snapshot.
-

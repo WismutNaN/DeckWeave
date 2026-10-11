@@ -1,6 +1,6 @@
 # Модуль: Platform Adapters
 
-**Ответственность:** предоставляет OS-dependent input/output, active application, volume/media, virtual targets, autostart и credential adapters.
+**Ответственность:** предоставляет OS-dependent input/output, active application, volume/media и virtual targets как isolated plugin contributions. Locks, autostart и credentials принадлежат [Host Platform Services](host-platform-services.md).
 **Расположение:** `plugins/platform-windows/`, позже `plugins/platform-linux/` и `plugins/platform-macos/`.
 
 ## Публичный интерфейс
@@ -29,6 +29,8 @@
 - Privileged helper имеет минимальный contract.
 - Input interception fail-open unless explicit safe policy.
 - OS-specific types переводятся в domain descriptors на boundary.
+- Intercept deadline не ждёт round-trip через async automation/plugin chain; будущий helper использует заранее подготовленное ограниченное decision rule и fail-open timeout.
+- Output key-down/release принадлежит lease; disconnect/revoke/layer switch запускает cleanup.
 
 ## Намеренно НЕ обрабатывает
 
@@ -40,4 +42,3 @@
 ## Заметки для агента
 
 > Первая Windows contribution: media commands, volume/mute, application launch/focus и active-window state. Full interception следует отдельной фазой после recovery design.
-

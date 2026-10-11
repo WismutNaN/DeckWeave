@@ -33,7 +33,7 @@
 
 - DeckWeave полезен задолго до реализации всех задуманных классов устройств;
 - host работает в пользовательской сессии, запускается автоматически и остаётся в tray после закрытия окна;
-- один активный plugin package обычно соответствует одному изолированному процессу, а не процессу на каждую кнопку;
+- одна active runtime group package соответствует изолированному процессу, а contributions/instances разделяют его;
 - plugin process isolation защищает от crash, но не является полной sandbox для злонамеренного кода;
 - UI не находится в критическом пути device events;
 - редкие и тяжёлые функции поставляются отдельно и не увеличивают baseline;
@@ -57,7 +57,7 @@
 - **Progressive disclosure вместо двух режимов UI.** Простая форма и drag-and-drop остаются основным путём, а graph и расширенные настройки раскрывают ту же конфигурацию.
 - **Устройства и системные интеграции — плагины.** N4 Pro и Windows не становятся особыми случаями core.
 - **API-first нужен с начала.** Иначе Codex, CLI и UI неизбежно получат разные возможности.
-- **Процессная изоляция важнее абсолютного минимума RAM.** Lazy activation и один runtime на package дают разумный компромисс.
+- **Процессная изоляция важнее абсолютного минимума RAM.** Lazy activation и один process на runtime group package дают разумный компромисс.
 - **OpenAction/Elgato совместимость нужна рано.** Это снижает риск «мёртвого» проекта без экосистемы.
 - **Control и media paths должны быть разделены.** Ни JSON, ни async automation engine не подходят для audio callback.
 - **Полный canvas и touch coordinates являются базовой моделью surface.** Фиксированная сетка — только template и snap, а не аппаратное ограничение.
@@ -84,3 +84,4 @@
 9. Пользователь самостоятельно определяет доверие к plugin, но DeckWeave обязан показывать permissions, изолировать crash и диагностировать conflict.
 10. Все действия UI должны иметь эквивалент в локальном API с optimistic concurrency, validation и dry-run.
 
+Уточнения аудита 2026-10-12: один active workspace/host на user session; durable commit до runtime cutover, epoch fencing, package lock и host-owned authorization. Это детализация ранее не определённых failure contracts, закреплённая в [ADR-0012](adr/0012-apply-and-execution-lifecycle.md) и [ADR-0013](adr/0013-dependency-and-host-service-boundaries.md). M2 наступает после Фазы 11; ранняя N4 surface после Фазы 9 остаётся preview.
