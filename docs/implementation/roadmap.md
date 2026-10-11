@@ -193,7 +193,7 @@ manifest или PI не выдаётся за runtime compatibility.
 **Цель:** создать безопасный путь read → draft → validate → plan → apply → rollback.
 **Результат:** CLI/test client редактирует virtual workspace, получает conflict и возвращается к snapshot.
 **Трудоёмкость:** L
-**Статус:** [~] В процессе: готовы Profile Store, drafts/snapshots и selective export/import; ApplicationService/apply ещё не реализованы.
+**Статус:** [~] В процессе: готовы Profile Store и draft ApplicationService; operation tracking/apply ещё не реализованы.
 
 ### Контекст для агента
 > Plugin lifecycle работает. Active automation пока пуст; фаза строит источник истины и command/query boundary.
@@ -208,7 +208,10 @@ revision; rollback создаёт новый draft с исходным package l
 Export переносит выбранные revision contents как portable templates: поэтому исключение private section
 не подменяет checksum/identity исходной revision. Import проверяет bundle/assets до публикации, создаёт
 новый draft, оставляет CredentialRef unresolved и не загружает/не запускает package metadata. Следующий
-срез — command/query ApplicationService и in-process client.
+срез добавил transport-independent command/query ApplicationService и in-process client. Profiles
+реализует DraftStore port, а Host проверяет principal scopes, expected DraftVersion и stable API errors.
+Dry-run использует тот же command vocabulary, но не пишет draft и не резервирует idempotency key;
+повтор mutation после restart читает durable receipt. Следующий срез — operation tracking и apply skeleton.
 
 ### Задачи
 
@@ -217,8 +220,8 @@ Export переносит выбранные revision contents как portable t
 - [x] Реализовать selective export/import, asset reachability и unresolved credential mapping без запуска packages (→ [Profile Store](../architecture/modules/profile-store.md), [Контракты миграций](../contracts/lifecycle.md#миграции-и-неизвестные-данные)).
 - [ ] Реализовать ApplicationService, expected revision и OperationId (→ [Модуль: Local API](../architecture/modules/local-api.md)).
 - [ ] Реализовать Host apply skeleton с durable commit record, barrier, disruption/degraded policy, package lock и operation receipts (→ [ADR-0012](../decisions/0012-apply-and-execution-lifecycle.md), [Модуль: Host Runtime](../architecture/modules/host-runtime.md)).
-- [ ] Проверять principals/scopes внутри ApplicationService, durable dedup до revision check, dry-run без effects (→ [API](../contracts/application-api.md#идемпотентность-и-dry-run)).
-- [ ] Добавить in-process test client; HTTP/WS transport отложить до Фазы 16 (→ [Application API](../contracts/application-api.md)).
+- [x] Проверять principals/scopes внутри ApplicationService, durable dedup до revision check, dry-run без effects (→ [API](../contracts/application-api.md#идемпотентность-и-dry-run)).
+- [x] Добавить in-process test client; HTTP/WS transport отложить до Фазы 16 (→ [Application API](../contracts/application-api.md)).
 
 ### Тесты
 

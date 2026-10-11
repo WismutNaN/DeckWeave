@@ -2,6 +2,7 @@
 //! Immutable workspace revisions and content-addressed profile assets.
 
 use deckweave_application::{AtomicFileStore, StorageError};
+pub use deckweave_application::{DraftCommand, MutationKey};
 use deckweave_domain::ids::{AssetId, PackageId, SnapshotId, WorkspaceId, WorkspaceRevisionId};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -15,8 +16,7 @@ use thiserror::Error;
 
 pub mod draft;
 pub use draft::{
-    DraftCommand, DraftEditor, DraftMutationError, LoadedDraft, MutationKey, MutationOutcome,
-    MutationReceipt, WorkspaceDraft,
+    DraftEditor, DraftMutationError, LoadedDraft, MutationOutcome, MutationReceipt, WorkspaceDraft,
 };
 pub mod export;
 pub use export::{

@@ -35,6 +35,7 @@ const allowed = {
     "deckweave-application",
     "deckweave-host",
     "deckweave-platform-host",
+    "deckweave-profiles",
   ],
 };
 function sourceFiles(dir) {

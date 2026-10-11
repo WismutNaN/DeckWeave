@@ -1,9 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use deckweave_application::{ApplicationService, HostSnapshot};
-use deckweave_host::HostRuntime;
-use deckweave_platform_host::{LaunchOptions, NativePlatform, installed_root};
+use deckweave_application::{
+    ApiAuthScope, ApplicationService, DraftStore, HostSnapshot, PrincipalId,
+};
+use deckweave_host::{HostRuntime, InMemoryApiAuthorizer};
+use deckweave_platform_host::{
+    LaunchOptions, NativeAtomicFileStore, NativePlatform, installed_root,
+};
+use deckweave_profiles::{JsonProfileStore, ProfileStoreLimits};
 use std::{path::Path, sync::Arc};
 use tauri::{
     Emitter, Manager,
@@ -106,7 +111,25 @@ fn run(options: LaunchOptions) -> Result<(), Box<dyn std::error::Error>> {
                 &std::env::current_dir()?,
             )?;
             let root = deckweave_application::HostPlatform::data_root(&platform).to_owned();
-            app.manage(HostRuntime::start(Arc::new(platform))?);
+            let authorizer = Arc::new(InMemoryApiAuthorizer::new());
+            authorizer.grant(
+                PrincipalId::try_new("desktop-ui")?,
+                [
+                    ApiAuthScope::Read,
+                    ApiAuthScope::Draft,
+                    ApiAuthScope::Simulation,
+                ],
+            );
+            let draft_store: Arc<dyn DraftStore> = Arc::new(JsonProfileStore::new(
+                root.join("profiles"),
+                Arc::new(NativeAtomicFileStore),
+                ProfileStoreLimits::default(),
+            ));
+            app.manage(HostRuntime::start_with_services(
+                Arc::new(platform),
+                draft_store,
+                authorizer,
+            )?);
 
             // WebView cache принадлежит тому же root; portable не пишет browser
             // profile в общий installed data directory.

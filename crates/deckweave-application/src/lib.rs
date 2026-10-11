@@ -14,6 +14,9 @@ use deckweave_domain::{
 use serde::Serialize;
 use thiserror::Error;
 
+pub mod api;
+pub use api::*;
+
 #[derive(Debug, Error)]
 pub enum PlatformError {
     #[error("{0}")]
@@ -106,7 +109,7 @@ pub trait CredentialBroker: Send + Sync {
     fn revoke(&self, lease_id: &CredentialLeaseId) -> Result<(), CredentialError>;
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HostSnapshot {
     pub lifecycle: LifecycleState,
@@ -116,7 +119,14 @@ pub struct HostSnapshot {
     pub notice: Option<String>,
 }
 
-/// Начальный read-only контракт. Полный command/query API — фаза 4.
+/// Canonical transport-independent contract used by Desktop, CLI and future
+/// local HTTP/MCP adapters. Authorization stays inside the implementation.
 pub trait ApplicationService: Send + Sync {
     fn snapshot(&self) -> HostSnapshot;
+    fn query(&self, context: &RequestContext, query: AppQuery) -> Result<AppQueryResult, ApiError>;
+    fn command(
+        &self,
+        context: &RequestContext,
+        envelope: CommandEnvelope,
+    ) -> Result<AppCommandResult, ApiError>;
 }

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use super::*;
-use deckweave_domain::ids::{DedupEpoch, DraftId, DraftVersion, IdempotencyKey, PrincipalId};
+use deckweave_application::{DraftStore, DraftStoreError, DraftView, StoredDraftMutation};
+use deckweave_domain::ids::{DraftId, DraftVersion};
 use serde::{Deserialize, Serialize};
 use std::{collections::VecDeque, sync::Arc};
 
@@ -21,29 +22,6 @@ pub struct WorkspaceDraft {
     pub extensions: BTreeMap<String, serde_json::Value>,
     #[serde(flatten)]
     pub unknown_fields: BTreeMap<String, serde_json::Value>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum DraftCommand {
-    Set {
-        pointer: String,
-        value: serde_json::Value,
-    },
-    Remove {
-        pointer: String,
-    },
-    ReplaceDocument {
-        document: serde_json::Value,
-    },
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MutationKey {
-    pub principal_id: PrincipalId,
-    pub dedup_epoch: DedupEpoch,
-    pub idempotency_key: IdempotencyKey,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -151,6 +129,36 @@ impl JsonProfileStore {
             draft: chain.transaction.draft,
             recovered_from_backup: chain.recovered_from_backup,
         })
+    }
+
+    pub fn preview_draft_mutation(
+        &self,
+        draft_id: &DraftId,
+        expected_version: DraftVersion,
+        command: &DraftCommand,
+    ) -> Result<WorkspaceDraft, DraftMutationError> {
+        let mut next = self.load_draft(draft_id)?.draft;
+        if next.version != expected_version {
+            return Err(DraftMutationError::VersionConflict {
+                expected: expected_version.get(),
+                current: next.version.get(),
+            });
+        }
+        apply_command(&mut next.document, command)?;
+        if !next.document.is_object() {
+            return Err(DraftMutationError::InvalidCommand(
+                "workspace document must remain a JSON object".into(),
+            ));
+        }
+        let next_version = next
+            .version
+            .get()
+            .checked_add(1)
+            .ok_or(DraftMutationError::CounterExhausted)?;
+        next.version = DraftVersion::try_new(next_version)
+            .map_err(|_| DraftMutationError::CounterExhausted)?;
+        validate_draft(&next)?;
+        Ok(next)
     }
 
     pub fn mutate_draft(
@@ -370,6 +378,69 @@ impl JsonProfileStore {
             current = transaction.previous_transaction_sha256;
         }
         Err(DraftMutationError::HistoryLimit)
+    }
+}
+
+impl DraftStore for JsonProfileStore {
+    fn get_draft(&self, draft_id: &DraftId) -> Result<DraftView, DraftStoreError> {
+        let draft = self
+            .load_draft(draft_id)
+            .map_err(map_application_store_error)?
+            .draft;
+        Ok(draft_view(draft))
+    }
+
+    fn preview_draft_mutation(
+        &self,
+        draft_id: &DraftId,
+        expected_version: DraftVersion,
+        command: &DraftCommand,
+    ) -> Result<DraftView, DraftStoreError> {
+        JsonProfileStore::preview_draft_mutation(self, draft_id, expected_version, command)
+            .map(draft_view)
+            .map_err(map_application_store_error)
+    }
+
+    fn mutate_draft(
+        &self,
+        draft_id: &DraftId,
+        key: MutationKey,
+        expected_version: DraftVersion,
+        command: &DraftCommand,
+    ) -> Result<StoredDraftMutation, DraftStoreError> {
+        let outcome =
+            JsonProfileStore::mutate_draft(self, draft_id, key, expected_version, command)
+                .map_err(map_application_store_error)?;
+        Ok(StoredDraftMutation {
+            key: outcome.receipt.key,
+            before_version: outcome.receipt.before_version,
+            after_version: outcome.receipt.after_version,
+            document_sha256: outcome.receipt.document_sha256,
+            replayed: outcome.replayed,
+        })
+    }
+}
+
+fn draft_view(draft: WorkspaceDraft) -> DraftView {
+    DraftView {
+        draft_id: draft.draft_id,
+        workspace_id: draft.workspace_id,
+        base_revision_id: draft.base_revision_id,
+        version: draft.version,
+        document: draft.document,
+    }
+}
+
+fn map_application_store_error(error: DraftMutationError) -> DraftStoreError {
+    match error {
+        DraftMutationError::Store(ProfileStoreError::NotFound) => DraftStoreError::NotFound,
+        DraftMutationError::Store(ProfileStoreError::InvalidDocument(message))
+        | DraftMutationError::InvalidCommand(message) => DraftStoreError::InvalidCommand(message),
+        DraftMutationError::VersionConflict { expected, current } => {
+            DraftStoreError::VersionConflict { expected, current }
+        }
+        DraftMutationError::IdempotencyConflict => DraftStoreError::IdempotencyConflict,
+        other => DraftStoreError::Unavailable(other.to_string()),
     }
 }
 
