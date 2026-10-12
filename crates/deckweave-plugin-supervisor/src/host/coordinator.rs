@@ -7,7 +7,7 @@ use super::{
 };
 use crate::package::{IndexedPackage, PackageIndex};
 use deckweave_application::AuthorizationStore;
-use deckweave_automation::{CompiledExecutionPlan, RuntimeRequirement};
+use deckweave_automation::{BoundExecutionGraph, CompiledExecutionPlan, RuntimeRequirement};
 use deckweave_domain::ids::{ContributionId, HostBootId, OperationId, PrincipalId, RuntimeGroupId};
 use deckweave_host::RuntimeCommitOutcome;
 use deckweave_platform::ChildProcessPolicy;
@@ -18,37 +18,23 @@ use std::{
     time::Instant,
 };
 
-pub(super) enum PreparedRuntime {
-    Empty {
-        operation_id: OperationId,
-        plan_hash: String,
-    },
-    Virtual {
-        operation_id: OperationId,
-        plan_hash: String,
-        instance: Box<RuntimeInstance>,
-    },
+mod plan;
+use plan::{bind_instances, validate_distinct_runtime_groups};
+
+pub(super) struct PreparedRuntime {
+    operation_id: OperationId,
+    plan_hash: String,
+    instances: Vec<RuntimeInstance>,
+    bound_graph: Option<BoundExecutionGraph>,
 }
 
 impl PreparedRuntime {
     pub(super) fn matches(&self, operation_id: &OperationId, plan_hash: &str) -> bool {
-        match self {
-            Self::Empty {
-                operation_id: current,
-                plan_hash: hash,
-            }
-            | Self::Virtual {
-                operation_id: current,
-                plan_hash: hash,
-                ..
-            } => current == operation_id && hash == plan_hash,
-        }
+        self.operation_id == *operation_id && self.plan_hash == plan_hash
     }
 
     pub(super) fn operation_id(&self) -> &OperationId {
-        match self {
-            Self::Empty { operation_id, .. } | Self::Virtual { operation_id, .. } => operation_id,
-        }
+        &self.operation_id
     }
 }
 
@@ -56,7 +42,8 @@ impl PreparedRuntime {
 pub(super) struct RuntimeState {
     pub(super) next_generation: u64,
     pub(super) prepared: Option<PreparedRuntime>,
-    pub(super) active: Option<ActiveWorker>,
+    pub(super) active: Vec<ActiveWorker>,
+    pub(super) active_binding: Option<BoundExecutionGraph>,
     pub(super) dispatcher_closed: bool,
 }
 
@@ -114,15 +101,12 @@ impl ProductionRuntimeCoordinator {
         let (prepared, active) = {
             let mut state = self.lock_state()?;
             state.dispatcher_closed = true;
-            (state.prepared.take(), state.active.take())
+            state.active_binding = None;
+            (state.prepared.take(), std::mem::take(&mut state.active))
         };
-        if let Some(prepared) = prepared {
-            self.stop_prepared(prepared)?;
-        }
-        if let Some(active) = active {
-            active.shutdown(self.config.shutdown_timeout)?;
-        }
-        Ok(())
+        let prepared_result = prepared.map_or(Ok(()), |prepared| self.stop_prepared(prepared));
+        let active_result = self.shutdown_workers(active);
+        prepared_result.and(active_result)
     }
 
     pub(super) fn lock_state(
@@ -142,25 +126,49 @@ impl ProductionRuntimeCoordinator {
         Ok(state.next_generation)
     }
 
-    pub(super) fn prepare_requirements(
+    pub(super) fn prepare_plan(
         &self,
         operation_id: &OperationId,
         plan_hash: &str,
-        requirements: &[RuntimeRequirement],
+        plan: &CompiledExecutionPlan,
     ) -> Result<PreparedRuntime, HostRuntimeError> {
-        if requirements.len() > 1 {
-            return Err(HostRuntimeError::Package(
-                "multiple runtime groups are not supported by this coordinator yet".into(),
-            ));
+        let requirements = plan.runtime_requirements();
+        validate_distinct_runtime_groups(requirements)?;
+        let mut instances = Vec::with_capacity(requirements.len());
+        for requirement in requirements {
+            let launched = self.launch_requirement(requirement);
+            match launched {
+                Ok(instance) => instances.push(instance),
+                Err(error) => {
+                    let _cleanup = self.stop_instances(instances);
+                    return Err(error);
+                }
+            }
         }
-        let Some(requirement) = requirements.first() else {
-            return Ok(PreparedRuntime::Empty {
-                operation_id: operation_id.clone(),
-                plan_hash: plan_hash.into(),
-            });
+        let bound_graph = match plan.executable_graph() {
+            Some(_) => match bind_instances(plan, &instances) {
+                Ok(bound) => Some(bound),
+                Err(error) => {
+                    let _cleanup = self.stop_instances(instances);
+                    return Err(error);
+                }
+            },
+            None => None,
         };
+        Ok(PreparedRuntime {
+            operation_id: operation_id.clone(),
+            plan_hash: plan_hash.into(),
+            instances,
+            bound_graph,
+        })
+    }
+
+    fn launch_requirement(
+        &self,
+        requirement: &RuntimeRequirement,
+    ) -> Result<RuntimeInstance, HostRuntimeError> {
         let (package, group, contribution) = self.resolve_requirement(requirement)?;
-        let instance = RuntimeInstance::launch(
+        RuntimeInstance::launch(
             package,
             group,
             contribution,
@@ -170,12 +178,7 @@ impl ProductionRuntimeCoordinator {
             self.principal.clone(),
             self.process_policy.as_ref(),
             elapsed_millis(self.clock),
-        )?;
-        Ok(PreparedRuntime::Virtual {
-            operation_id: operation_id.clone(),
-            plan_hash: plan_hash.into(),
-            instance: Box::new(instance),
-        })
+        )
     }
 
     fn resolve_requirement(
@@ -223,47 +226,83 @@ impl ProductionRuntimeCoordinator {
     }
 
     pub(super) fn stop_prepared(&self, prepared: PreparedRuntime) -> Result<(), HostRuntimeError> {
-        if let PreparedRuntime::Virtual { instance, .. } = prepared {
-            let now = elapsed_millis(self.clock);
-            let mut registry = self
-                .registry
-                .lock()
-                .map_err(|_| HostRuntimeError::State("registry lock is poisoned".into()))?;
-            (*instance).stop(&mut registry, self.config.stop_timeout, now)?;
-        }
-        Ok(())
+        self.stop_instances(prepared.instances)
     }
 
     pub(super) fn activate_prepared(
         &self,
         prepared: PreparedRuntime,
     ) -> Result<RuntimeCommitOutcome, HostRuntimeError> {
-        let active = self.lock_state()?.active.take();
-        if let Some(active) = active {
-            active.shutdown(self.config.shutdown_timeout)?;
+        let active = {
+            let mut state = self.lock_state()?;
+            state.active_binding = None;
+            std::mem::take(&mut state.active)
+        };
+        self.shutdown_workers(active)?;
+        let bound_graph = prepared.bound_graph;
+        let mut instances = prepared.instances;
+        let publish_result = {
+            let mut registry = self
+                .registry
+                .lock()
+                .map_err(|_| HostRuntimeError::State("registry lock is poisoned".into()))?;
+            let now = elapsed_millis(self.clock);
+            instances
+                .iter_mut()
+                .try_for_each(|instance| instance.publish(&mut registry, now))
+        };
+        if let Err(error) = publish_result {
+            let _cleanup = self.stop_instances(instances);
+            return Err(error);
         }
-        let worker = match prepared {
-            PreparedRuntime::Empty { .. } => None,
-            PreparedRuntime::Virtual { mut instance, .. } => {
-                {
-                    let mut registry = self
-                        .registry
-                        .lock()
-                        .map_err(|_| HostRuntimeError::State("registry lock is poisoned".into()))?;
-                    instance.publish(&mut registry, elapsed_millis(self.clock))?;
-                }
-                Some(ActiveWorker::spawn(
-                    *instance,
+        let workers = instances
+            .into_iter()
+            .map(|instance| {
+                ActiveWorker::spawn(
+                    instance,
                     Arc::clone(&self.registry),
                     self.config.clone(),
                     self.clock,
-                ))
-            }
-        };
+                )
+            })
+            .collect();
         let mut state = self.lock_state()?;
-        state.active = worker;
+        state.active = workers;
+        state.active_binding = bound_graph;
         state.dispatcher_closed = false;
         Ok(RuntimeCommitOutcome::Applied)
+    }
+
+    fn stop_instances(&self, instances: Vec<RuntimeInstance>) -> Result<(), HostRuntimeError> {
+        let mut first_error = None;
+        for instance in instances {
+            let result = self
+                .registry
+                .lock()
+                .map_err(|_| HostRuntimeError::State("registry lock is poisoned".into()))
+                .and_then(|mut registry| {
+                    instance.stop(
+                        &mut registry,
+                        self.config.stop_timeout,
+                        elapsed_millis(self.clock),
+                    )
+                });
+            if first_error.is_none() {
+                first_error = result.err();
+            }
+        }
+        first_error.map_or(Ok(()), Err)
+    }
+
+    fn shutdown_workers(&self, workers: Vec<ActiveWorker>) -> Result<(), HostRuntimeError> {
+        let mut first_error = None;
+        for worker in workers {
+            let result = worker.shutdown(self.config.shutdown_timeout);
+            if first_error.is_none() {
+                first_error = result.err();
+            }
+        }
+        first_error.map_or(Ok(()), Err)
     }
 
     pub(super) fn recover_plan(
@@ -271,12 +310,36 @@ impl ProductionRuntimeCoordinator {
         commit: &ApplyCommitRecord,
         plan: &CompiledExecutionPlan,
     ) -> Result<RuntimeCommitOutcome, HostRuntimeError> {
-        let prepared = self.prepare_requirements(
-            &commit.operation_id,
-            &commit.plan_hash,
-            plan.runtime_requirements(),
-        )?;
+        let prepared = self.prepare_plan(&commit.operation_id, &commit.plan_hash, plan)?;
         self.activate_prepared(prepared)
+    }
+
+    pub(super) fn revalidate_prepared(
+        &self,
+        operation_id: &OperationId,
+        plan: &CompiledExecutionPlan,
+    ) -> Result<(), HostRuntimeError> {
+        let mut state = self.lock_state()?;
+        let prepared = state
+            .prepared
+            .as_mut()
+            .filter(|prepared| prepared.operation_id() == operation_id)
+            .ok_or_else(|| {
+                HostRuntimeError::State("prepared runtime does not match operation".into())
+            })?;
+        for instance in &mut prepared.instances {
+            instance.ensure_alive()?;
+        }
+        let rebound = match plan.executable_graph() {
+            Some(_) => Some(bind_instances(plan, &prepared.instances)?),
+            None => None,
+        };
+        if rebound != prepared.bound_graph {
+            return Err(HostRuntimeError::Protocol(
+                "prepared runtime binding changed before barrier".into(),
+            ));
+        }
+        Ok(())
     }
 }
 

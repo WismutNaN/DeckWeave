@@ -8,6 +8,7 @@ use crate::{
     supervisor::{RuntimeController, RuntimeLeaseReason, SupervisorAction},
 };
 use deckweave_application::AuthorizationStore;
+use deckweave_automation::{CompiledEndpointContract, RuntimeBinding};
 use deckweave_domain::{
     capability::NodeDescriptor,
     ids::{
@@ -27,10 +28,13 @@ use std::{
     time::{Duration, Instant},
 };
 
+mod binding;
+
 pub(super) struct RuntimeInstance {
     controller: RuntimeController,
     process: ProcessRuntime,
     lease_id: RuntimeLeaseId,
+    contribution_id: ContributionId,
     descriptor_revision: DescriptorRevision,
     nodes: Vec<NodeDescriptor>,
     generation: u64,
@@ -135,6 +139,7 @@ impl RuntimeInstance {
             controller,
             process,
             lease_id: lease.lease_id,
+            contribution_id: contribution,
             descriptor_revision,
             nodes,
             generation,
@@ -157,6 +162,22 @@ impl RuntimeInstance {
             now,
         )?;
         Ok(())
+    }
+
+    pub(super) fn ensure_alive(&mut self) -> Result<(), HostRuntimeError> {
+        if self.process.try_wait()?.is_some() {
+            return Err(HostRuntimeError::Protocol(
+                "prepared runtime exited before the commit barrier".into(),
+            ));
+        }
+        Ok(())
+    }
+
+    pub(super) fn bindings(
+        &self,
+        contracts: &[CompiledEndpointContract],
+    ) -> Result<Vec<RuntimeBinding>, HostRuntimeError> {
+        binding::runtime_bindings(self, contracts)
     }
 
     pub(super) fn stop(

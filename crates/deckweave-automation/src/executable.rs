@@ -6,7 +6,7 @@ use deckweave_domain::{
     automation::OperationDescriptor,
     capability::PortDescriptor,
     endpoint::{RuntimeEndpointRef, StableEndpointRef},
-    ids::{GraphNodeId, NamespacedKind},
+    ids::{ContributionId, GraphNodeId, NamespacedKind, RuntimeGroupId},
     schema::SchemaRef,
 };
 use serde::{Deserialize, Serialize};
@@ -48,6 +48,8 @@ pub struct StateSlot {
 pub struct CompiledEndpointContract {
     pub node_id: GraphNodeId,
     pub endpoint: StableEndpointRef,
+    pub runtime_group_id: RuntimeGroupId,
+    pub contribution_id: ContributionId,
     pub port: PortDescriptor,
     pub operation: Option<OperationDescriptor>,
 }
@@ -76,6 +78,7 @@ pub struct CompileDiagnostic {
 #[derive(Debug, Clone, PartialEq)]
 pub struct RuntimeBinding {
     pub endpoint: RuntimeEndpointRef,
+    pub contribution_id: ContributionId,
     pub port: PortDescriptor,
     pub operation: Option<OperationDescriptor>,
 }

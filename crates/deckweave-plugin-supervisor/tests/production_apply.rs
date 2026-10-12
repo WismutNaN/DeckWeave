@@ -6,12 +6,20 @@ use deckweave_application::{
     ApplicationService, AuthorizationError, AuthorizationStore, CommandEnvelope, HostSnapshot,
     HostStatusSource, InMemoryApiAuthorizer, RequestContext,
 };
-use deckweave_automation::{RestrictedFixtureCompiler, VIRTUAL_FIXTURE_PACKAGE_ID};
+use deckweave_automation::{
+    CatalogEndpoint, CatalogSchema, DescriptorCatalog, EndpointAvailabilityPolicy, GraphDefinition,
+    GraphDocument, GraphFormatVersion, GraphLayout, GraphLimits, GraphNode, GraphNodeKind,
+    GraphPlanCompiler, GraphPort, GraphPortId, GraphPortKind, GraphPortRole, PlanCompiler,
+    RestrictedFixtureCompiler, RuntimeRequirement, SchemaValueKind, VIRTUAL_FIXTURE_PACKAGE_ID,
+};
 use deckweave_domain::{
     DeploymentMode, LifecycleState,
+    capability::NodeDescriptor,
+    endpoint::{EndpointTargetRef, PortPath, StableEndpointRef},
     ids::{
-        DraftId, DraftVersion, GrantId, GrantRevision, HostBootId, IdempotencyKey, PackageId,
-        PrincipalId, TraceId, WorkspaceId,
+        CapabilityId, ContributionId, DeviceIdentity, DraftId, DraftVersion, ElementId, GrantId,
+        GrantRevision, GraphNodeId, HostBootId, IdempotencyKey, NodeId, PackageId, PortId,
+        PrincipalId, ProviderId, RuntimeGroupId, TraceId, WorkspaceId,
     },
     security::{PermissionGrant, PermissionRequest},
 };
@@ -104,7 +112,23 @@ impl AuthorizationStore for MutableAuthorization {
 }
 
 fn stage_package(root: &Path) -> Result<String, Box<dyn Error>> {
-    let package = root.join("packages/virtual/0.1.0/content");
+    stage_named_package(
+        root,
+        "virtual",
+        VIRTUAL_FIXTURE_PACKAGE_ID,
+        "control",
+        "virtual-device",
+    )
+}
+
+fn stage_named_package(
+    root: &Path,
+    directory: &str,
+    package_id: &str,
+    runtime_group: &str,
+    contribution: &str,
+) -> Result<String, Box<dyn Error>> {
+    let package = root.join("packages").join(directory).join("0.1.0/content");
     fs::create_dir_all(package.join("bin"))?;
     fs::create_dir_all(package.join("schema"))?;
     let artifact_name = format!("plugin{}", std::env::consts::EXE_SUFFIX);
@@ -115,7 +139,7 @@ fn stage_package(root: &Path) -> Result<String, Box<dyn Error>> {
     fs::write(package.join("schema/settings.json"), schema)?;
     let manifest = serde_json::json!({
         "manifestVersion": 1,
-        "packageId": VIRTUAL_FIXTURE_PACKAGE_ID,
+        "packageId": package_id,
         "version": "0.1.0",
         "license": "MIT OR Apache-2.0",
         "source": {
@@ -130,14 +154,14 @@ fn stage_package(root: &Path) -> Result<String, Box<dyn Error>> {
             "sha256": artifact_sha256
         }],
         "runtimeGroups": [{
-            "id": "control",
+            "id": runtime_group,
             "runtimeClass": "isolated_control",
             "artifactId": "current-platform"
         }],
         "contributions": [{
-            "id": "virtual-device",
+            "id": contribution,
             "type": "org.deckweave.device_provider",
-            "runtimeGroupId": "control",
+            "runtimeGroupId": runtime_group,
             "descriptor": { "kind": "virtual" }
         }],
         "protocolRange": {
@@ -150,7 +174,7 @@ fn stage_package(root: &Path) -> Result<String, Box<dyn Error>> {
             "resourceSelector": { "deviceKind": "virtual" },
             "reason": "Publish the deterministic virtual device",
             "optional": false,
-            "runtimeGroupIds": ["control"]
+            "runtimeGroupIds": [runtime_group]
         }],
         "schemas": [{
             "id": "org.deckweave.fixture.settings",
@@ -192,6 +216,131 @@ fn draft(artifact_sha256: String) -> Result<WorkspaceDraft, Box<dyn Error>> {
     })
 }
 
+fn multi_runtime_fixture(
+    first_hash: String,
+    second_hash: String,
+) -> Result<(WorkspaceDraft, GraphPlanCompiler), Box<dyn Error>> {
+    let event_schema = deckweave_domain::schema::SchemaRef {
+        id: deckweave_domain::ids::NamespacedKind::try_new("org.deckweave.signal.button_edge")?,
+        version: deckweave_domain::schema::SchemaVersion { major: 1, minor: 0 },
+    };
+    let descriptor: NodeDescriptor = serde_json::from_str(include_str!(
+        "../../../protocol/fixtures/descriptors/observe-keyboard.node.json"
+    ))?;
+    let port = descriptor.devices[0].elements[0].capabilities[0].ports[0].clone();
+    let entries = [
+        (
+            "org.deckweave.fixture.first",
+            "first-group",
+            "first-device",
+            first_hash.clone(),
+        ),
+        (
+            "org.deckweave.fixture.second",
+            "second-group",
+            "second-device",
+            second_hash.clone(),
+        ),
+    ];
+    let mut catalog_endpoints = Vec::new();
+    let mut nodes = Vec::new();
+    let mut package_lock = Vec::new();
+    for (index, (package, group, contribution, hash)) in entries.into_iter().enumerate() {
+        let endpoint = observed_key_endpoint(package)?;
+        let requirement = RuntimeRequirement {
+            package_id: endpoint.package_id.clone(),
+            package_version: "0.1.0".into(),
+            artifact_sha256: hash.clone(),
+            runtime_group_id: RuntimeGroupId::try_new(group)?,
+            contribution_id: ContributionId::try_new(contribution)?,
+        };
+        catalog_endpoints.push(CatalogEndpoint {
+            endpoint: endpoint.clone(),
+            runtime_requirement: requirement,
+            port: port.clone(),
+            operation: None,
+        });
+        nodes.push(GraphNode {
+            id: GraphNodeId::try_new(format!("source-{index}"))?,
+            kind: GraphNodeKind::Source {
+                endpoint,
+                availability: EndpointAvailabilityPolicy::Deferred,
+            },
+            inputs: vec![],
+            outputs: vec![GraphPort {
+                id: GraphPortId::try_new("edge")?,
+                kind: GraphPortKind::Flow,
+                role: GraphPortRole::Trigger,
+                schema: event_schema.clone(),
+                unit: None,
+                range: None,
+            }],
+            extensions: BTreeMap::new(),
+        });
+        package_lock.push(PackageLockEntry {
+            package_id: PackageId::try_new(package)?,
+            version: "0.1.0".into(),
+            artifact_sha256: hash,
+            source: None,
+            extensions: BTreeMap::new(),
+        });
+    }
+    let graph = GraphDocument {
+        schema_version: GraphFormatVersion { major: 1, minor: 0 },
+        graph: GraphDefinition {
+            nodes,
+            edges: vec![],
+            extensions: BTreeMap::new(),
+        },
+        layout: GraphLayout::default(),
+        extensions: BTreeMap::new(),
+    };
+    let compiler = GraphPlanCompiler::new(
+        DescriptorCatalog::try_new(
+            vec![CatalogSchema {
+                schema: event_schema,
+                value_kind: SchemaValueKind::Json,
+                unit: None,
+                range: None,
+            }],
+            catalog_endpoints,
+        )?,
+        GraphLimits::default(),
+    )?;
+    Ok((
+        WorkspaceDraft {
+            schema_version: 1,
+            draft_id: DraftId::try_new("multi-runtime-draft")?,
+            workspace_id: WorkspaceId::try_new("multi-runtime-workspace")?,
+            base_revision_id: None,
+            version: DraftVersion::try_new(1)?,
+            package_lock,
+            document: serde_json::to_value(graph)?,
+            assets: vec![],
+            private_section: None,
+            extensions: BTreeMap::new(),
+            unknown_fields: BTreeMap::new(),
+        },
+        compiler,
+    ))
+}
+
+fn observed_key_endpoint(package: &str) -> Result<StableEndpointRef, Box<dyn Error>> {
+    Ok(StableEndpointRef {
+        package_id: PackageId::try_new(package)?,
+        node_id: NodeId::try_new("local-node")?,
+        target: EndpointTargetRef::Device {
+            provider_id: ProviderId::try_new("fixture-hid-provider")?,
+            device_identity: DeviceIdentity::try_new("keyboard-observe-fixture")?,
+        },
+        port: PortPath {
+            element_id: ElementId::try_new("key-a")?,
+            capability_id: CapabilityId::try_new("key-a-button")?,
+            port_id: PortId::try_new("key-a.edge")?,
+        },
+    })
+}
+
 type RuntimeParts = (
     Arc<ProductionRuntimeCoordinator>,
     Arc<ApplyCoordinator>,
@@ -203,6 +352,22 @@ fn build_runtime(
     repository: Arc<JsonProfileStore>,
     authorization: Arc<MutableAuthorization>,
     boot: &str,
+) -> Result<RuntimeParts, Box<dyn Error>> {
+    build_runtime_with_compiler(
+        root,
+        repository,
+        authorization,
+        boot,
+        Arc::new(RestrictedFixtureCompiler),
+    )
+}
+
+fn build_runtime_with_compiler(
+    root: &Path,
+    repository: Arc<JsonProfileStore>,
+    authorization: Arc<MutableAuthorization>,
+    boot: &str,
+    compiler: Arc<dyn PlanCompiler>,
 ) -> Result<RuntimeParts, Box<dyn Error>> {
     let packages = Arc::new(PackageIndex::scan(
         &root.join("packages"),
@@ -221,7 +386,7 @@ fn build_runtime(
     ));
     let planning = ApplyPlanningService::new(
         Arc::clone(&repository) as Arc<dyn DraftRepository>,
-        Arc::new(RestrictedFixtureCompiler),
+        compiler,
         Arc::clone(&runtime) as Arc<dyn deckweave_host::PlanningEvidenceSource>,
         Arc::clone(&runtime) as Arc<dyn deckweave_host::RuntimeActivation>,
         Arc::clone(&runtime) as Arc<dyn deckweave_host::PlanningClock>,
@@ -276,6 +441,99 @@ fn wait_until(mut condition: impl FnMut() -> bool) -> Result<(), Box<dyn Error>>
         }
         thread::sleep(Duration::from_millis(20));
     }
+    Ok(())
+}
+
+#[test]
+fn graph_apply_binds_and_activates_two_runtime_groups() -> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    let first_hash = stage_named_package(
+        directory.path(),
+        "first",
+        "org.deckweave.fixture.first",
+        "first-group",
+        "first-device",
+    )?;
+    let second_hash = stage_named_package(
+        directory.path(),
+        "second",
+        "org.deckweave.fixture.second",
+        "second-group",
+        "second-device",
+    )?;
+    let (draft, compiler) = multi_runtime_fixture(first_hash, second_hash)?;
+    let repository = Arc::new(JsonProfileStore::new(
+        directory.path().join("profiles"),
+        Arc::new(NativeAtomicFileStore),
+        ProfileStoreLimits::default(),
+    ));
+    repository.create_draft(&draft)?;
+    let authorization = Arc::new(MutableAuthorization::new());
+    let (runtime, apply, registry) = build_runtime_with_compiler(
+        directory.path(),
+        Arc::clone(&repository),
+        authorization,
+        "multi-boot",
+        Arc::new(compiler),
+    )?;
+    let (gateway, context) = gateway(directory.path(), Arc::clone(&repository), apply)?;
+    let window = gateway.open_mutation_window(&context)?;
+    let plan_hash = match gateway.query(
+        &context,
+        AppQuery::PlanApply {
+            draft_id: DraftId::try_new("multi-runtime-draft")?,
+            expected_draft_version: DraftVersion::try_new(1)?,
+            expected_active: None,
+            allow_disruption: false,
+        },
+    )? {
+        AppQueryResult::ApplyPlan(plan) => plan.plan_hash,
+        _ => return Err("unexpected plan response".into()),
+    };
+    let operation_id = match gateway.command(
+        &context,
+        CommandEnvelope {
+            request_id: "apply-multi-runtime".into(),
+            idempotency_key: IdempotencyKey::try_new("apply-multi-runtime")?,
+            dedup_epoch: window.dedup_epoch,
+            dry_run: false,
+            command: AppCommand::ApplyDraft {
+                draft_id: DraftId::try_new("multi-runtime-draft")?,
+                expected_draft_version: DraftVersion::try_new(1)?,
+                expected_active: None,
+                allow_disruption: false,
+                plan_hash,
+            },
+        },
+    )? {
+        AppCommandResult::OperationAccepted(receipt) => receipt.operation_id,
+        _ => return Err("unexpected apply response".into()),
+    };
+    let operation = match gateway.query(&context, AppQuery::Operation { operation_id })? {
+        AppQueryResult::Operation(operation) => operation,
+        _ => return Err("unexpected operation response".into()),
+    };
+    assert_eq!(operation.state, ApplyOperationState::Succeeded);
+    let snapshot = registry
+        .lock()
+        .map_err(|_| "registry poisoned")?
+        .snapshot()?;
+    assert_eq!(snapshot.nodes.len(), 2);
+    let packages: std::collections::BTreeSet<_> = snapshot
+        .nodes
+        .into_iter()
+        .map(|node| node.session.package_id.to_string())
+        .collect();
+    assert_eq!(
+        packages,
+        [
+            "org.deckweave.fixture.first".to_owned(),
+            "org.deckweave.fixture.second".to_owned(),
+        ]
+        .into_iter()
+        .collect()
+    );
+    runtime.shutdown()?;
     Ok(())
 }
 

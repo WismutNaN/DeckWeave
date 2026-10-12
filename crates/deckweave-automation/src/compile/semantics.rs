@@ -195,6 +195,8 @@ pub(super) fn contract(node: &GraphNode, endpoint: &CatalogEndpoint) -> Compiled
     CompiledEndpointContract {
         node_id: node.id.clone(),
         endpoint: endpoint.endpoint.clone(),
+        runtime_group_id: endpoint.runtime_requirement.runtime_group_id.clone(),
+        contribution_id: endpoint.runtime_requirement.contribution_id.clone(),
         port: endpoint.port.clone(),
         operation: endpoint.operation.clone(),
     }

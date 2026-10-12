@@ -489,6 +489,7 @@ fn deferred_availability_is_visible_and_runtime_binding_revalidates_contracts()
                 session_generation: SessionGeneration::try_new(1)?,
                 descriptor_revision: DescriptorRevision::try_new(1)?,
             },
+            contribution_id: ContributionId::try_new("virtual")?,
             port,
             operation: contract.operation.clone(),
         });
@@ -496,6 +497,18 @@ fn deferred_availability_is_visible_and_runtime_binding_revalidates_contracts()
     let bound = RuntimeBinder.bind_plan(&plan, &bindings)?;
     assert_eq!(bound.endpoints.len(), 3);
 
+    bindings[0].contribution_id = ContributionId::try_new("wrong")?;
+    assert!(matches!(
+        RuntimeBinder.bind_plan(&plan, &bindings),
+        Err(RuntimeBindError::IncompatibleDescriptor { .. })
+    ));
+    bindings[0].contribution_id = ContributionId::try_new("virtual")?;
+    bindings[0].endpoint.runtime_group_id = RuntimeGroupId::try_new("wrong")?;
+    assert!(matches!(
+        RuntimeBinder.bind_plan(&plan, &bindings),
+        Err(RuntimeBindError::IncompatibleDescriptor { .. })
+    ));
+    bindings[0].endpoint.runtime_group_id = RuntimeGroupId::try_new("control")?;
     bindings[0].endpoint.descriptor_revision = DescriptorRevision::try_new(2)?;
     assert!(matches!(
         RuntimeBinder.bind_plan(&plan, &bindings),

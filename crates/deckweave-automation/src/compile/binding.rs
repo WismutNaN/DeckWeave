@@ -61,6 +61,8 @@ impl RuntimeBinder {
                 }
             })?;
             if binding.endpoint.stable != contract.endpoint
+                || binding.endpoint.runtime_group_id != contract.runtime_group_id
+                || binding.contribution_id != contract.contribution_id
                 || binding.endpoint.descriptor_revision != binding.port.descriptor_revision
                 || binding.port.port_id != contract.port.port_id
                 || binding.port.kind != contract.port.kind

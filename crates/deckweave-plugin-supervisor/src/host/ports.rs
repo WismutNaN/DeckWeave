@@ -72,11 +72,7 @@ impl RuntimeActivation for ProductionRuntimeCoordinator {
             ));
         }
         let prepared = self
-            .prepare_requirements(
-                operation_id,
-                plan.token().plan_hash(),
-                plan.compiled().runtime_requirements(),
-            )
+            .prepare_plan(operation_id, plan.token().plan_hash(), plan.compiled())
             .map_err(runtime_prepare)?;
         self.lock_state().map_err(runtime_prepare)?.prepared = Some(prepared);
         Ok(PreparedActivation::new(
@@ -103,16 +99,9 @@ impl RuntimeCutover for ProductionRuntimeCoordinator {
                 "disruptive plan was not explicitly allowed".into(),
             ));
         }
+        self.revalidate_prepared(operation_id, plan.compiled())
+            .map_err(runtime_barrier)?;
         let mut state = self.lock_state().map_err(runtime_barrier)?;
-        if !state
-            .prepared
-            .as_ref()
-            .is_some_and(|prepared| prepared.operation_id() == operation_id)
-        {
-            return Err(RuntimeCutoverError::Barrier(
-                "prepared runtime does not match operation".into(),
-            ));
-        }
         state.dispatcher_closed = true;
         Ok(())
     }

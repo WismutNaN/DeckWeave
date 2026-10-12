@@ -327,6 +327,8 @@ fn plan() -> Result<ExecutableGraph, Box<dyn Error>> {
             CompiledEndpointContract {
                 node_id: GraphNodeId::try_new("source")?,
                 endpoint: source_endpoint.clone(),
+                runtime_group_id: deckweave_domain::ids::RuntimeGroupId::try_new("control")?,
+                contribution_id: deckweave_domain::ids::ContributionId::try_new("virtual")?,
                 port: descriptor(
                     &source_endpoint,
                     PortDirection::Output,
@@ -338,6 +340,8 @@ fn plan() -> Result<ExecutableGraph, Box<dyn Error>> {
             CompiledEndpointContract {
                 node_id: GraphNodeId::try_new("action")?,
                 endpoint: action_endpoint.clone(),
+                runtime_group_id: deckweave_domain::ids::RuntimeGroupId::try_new("control")?,
+                contribution_id: deckweave_domain::ids::ContributionId::try_new("virtual")?,
                 port: descriptor(
                     &action_endpoint,
                     PortDirection::Input,
@@ -349,6 +353,8 @@ fn plan() -> Result<ExecutableGraph, Box<dyn Error>> {
             CompiledEndpointContract {
                 node_id: GraphNodeId::try_new("feedback")?,
                 endpoint: feedback_endpoint.clone(),
+                runtime_group_id: deckweave_domain::ids::RuntimeGroupId::try_new("control")?,
+                contribution_id: deckweave_domain::ids::ContributionId::try_new("virtual")?,
                 port: descriptor(
                     &feedback_endpoint,
                     PortDirection::Input,
