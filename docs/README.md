@@ -1,6 +1,6 @@
 # Документация DeckWeave
 
-DeckWeave объединяет устройства и приложения через плагины: ввод, действия с результатами, визуальные поверхности, подсветку и будущие media streams. Реализованы protocol/plugin foundations Фаз 1–3, Profile/Workspace foundation Фазы 4 и подготовительная DDD migration R1–R4; следующий срез — durable operation tracking/apply. Реальные input hooks, interaction UI и device providers ещё не готовы. Состояние подтверждено локальными автоматическими проверками Windows; ручная приёмка и GitHub CI ещё не выполнены. Полная архитектурная спецификация описывает целевую систему, а не уже доступные возможности. [Запуск и проверки](implementation/development.md), [статус фаз](implementation/roadmap.md#фаза-4--profile-revisions-и-application-api).
+DeckWeave объединяет устройства и приложения через плагины: ввод, действия с результатами, визуальные поверхности, подсветку и будущие media streams. Реализованы protocol/plugin foundations, Profile/Workspace foundation Фазы 4 и DDD migration R1–R4. [Аудит реализации](research/pre-apply-review.md) выявил незакрытые identity/lease/ledger/I/O границы; следующая работа — [gate перед durable apply](implementation/roadmap.md#pre-apply-gate). Реальные input hooks, interaction UI и device providers ещё не готовы. Локальные проверки Windows подтверждают отдельные способности; ручная приёмка и GitHub CI ещё не выполнены. Полная спецификация описывает целевую систему. [Запуск и проверки](implementation/development.md), [статус фаз](implementation/roadmap.md#фаза-4--profile-revisions-и-application-api).
 
 ## Порядок чтения
 
@@ -19,7 +19,7 @@ DeckWeave объединяет устройства и приложения че
 | `contracts/` | Нормативное поведение на границах | Таблица ниже |
 | `implementation/` | Порядок реализации, срезы и проверки | [План](implementation/roadmap.md), [разработка](implementation/development.md) |
 | `decisions/` | Нумерованные ADR с причиной выбора | [Реестр ADR](decisions/README.md) |
-| `research/` | Первичные источники, наблюдения, сравнение и reuse-кандидаты | [Референсы](research/REFERENCES.md), [анализ реализаций](research/implementation-review.md) |
+| `research/` | Первичные источники, наблюдения, сравнение и reuse-кандидаты | [Референсы](research/REFERENCES.md), [анализ реализаций](research/implementation-review.md), [аудит перед apply](research/pre-apply-review.md) |
 | `archive/` | Исторические материалы, не текущие требования | [Исходный стек](archive/initial-stack.md), [первый аудит](archive/2026-10-12-initial-audit.md) |
 
 ## Контракты

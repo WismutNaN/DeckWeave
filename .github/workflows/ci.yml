@@ -21,8 +21,8 @@ jobs:
       - run: npm run check
       - run: npm run build:web
       - run: cargo fmt --all -- --check
-      - run: cargo test --locked
-      - run: cargo clippy --locked --all-targets -- -D warnings
+      - run: cargo test --locked --workspace --exclude deckweave-desktop
+      - run: cargo clippy --locked --workspace --exclude deckweave-desktop --all-targets -- -D warnings
 
   desktop-windows:
     runs-on: windows-latest

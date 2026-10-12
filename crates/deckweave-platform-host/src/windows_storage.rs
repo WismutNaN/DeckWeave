@@ -3,9 +3,7 @@
 
 use deckweave_platform::StorageError;
 use std::{os::windows::ffi::OsStrExt, path::Path, ptr};
-use windows_sys::Win32::Storage::FileSystem::{
-    MOVEFILE_WRITE_THROUGH, MoveFileExW, REPLACEFILE_WRITE_THROUGH, ReplaceFileW,
-};
+use windows_sys::Win32::Storage::FileSystem::{MOVEFILE_WRITE_THROUGH, MoveFileExW, ReplaceFileW};
 
 fn wide(path: &Path) -> Vec<u16> {
     path.as_os_str().encode_wide().chain(Some(0)).collect()
@@ -29,7 +27,8 @@ pub fn replace_file(
                 target_wide.as_ptr(),
                 replacement_wide.as_ptr(),
                 backup_pointer,
-                REPLACEFILE_WRITE_THROUGH,
+                // REPLACEFILE_WRITE_THROUGH is unsupported; data was synced by the caller.
+                0,
                 ptr::null_mut(),
                 ptr::null_mut(),
             )

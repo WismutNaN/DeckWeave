@@ -36,6 +36,8 @@ Keyboard event запускает automation action `zotero.search`. Action от
 
 R4 реализует bounded pages, selected/cancelled/timed-out terminal outcomes, duplicate-terminal rejection, owner isolation и presenter/provider ports с fakes. Реальные окна, Zotero provider и custom web content намеренно не подключены.
 
+Это начальный scaffold: лимит количества items ещё не ограничивает bytes/pages/sessions, строка result schema не выполняет validation, а хранение terminal sessions пока не имеет eviction. До presenter Фазы 13 нужны application service с проверкой schema и owner grants, query generation для отбрасывания устаревшего поиска, provider/activation fencing, monotonic deadline и bounded terminal retention. Wall-clock deadline в wire DTO переводится в host monotonic budget при приёме; пользовательская смена часов не продлевает session.
+
 ## Намеренно не обрабатывает
 
 - surface rendering на N4 Pro;

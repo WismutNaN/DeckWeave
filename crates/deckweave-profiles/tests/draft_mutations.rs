@@ -153,6 +153,95 @@ struct FailOnCall {
     fail_on: usize,
 }
 
+#[test]
+fn undo_and_redo_reject_changes_from_another_editor() -> Result<(), Box<dyn Error>> {
+    for redo in [false, true] {
+        let directory = tempfile::tempdir()?;
+        let store = Arc::new(native_store(directory.path()));
+        let original = draft()?;
+        store.create_draft(&original)?;
+        let mut editor = DraftEditor::open(Arc::clone(&store), original.draft_id.clone(), 8)?;
+        editor.apply(
+            mutation_key("own-edit")?,
+            original.version,
+            DraftCommand::Set {
+                pointer: "/title".into(),
+                value: "Own edit".into(),
+            },
+        )?;
+        if redo {
+            editor.undo(mutation_key("own-undo")?)?;
+        }
+        let before_external = store.load_draft(&original.draft_id)?.draft;
+        store.mutate_draft(
+            &original.draft_id,
+            mutation_key("external")?,
+            before_external.version,
+            &DraftCommand::Set {
+                pointer: "/external".into(),
+                value: true.into(),
+            },
+        )?;
+        let expected = store.load_draft(&original.draft_id)?.draft;
+        let result = if redo {
+            editor.redo(mutation_key("redo")?)
+        } else {
+            editor.undo(mutation_key("undo")?)
+        };
+        assert!(
+            matches!(result, Err(DraftMutationError::VersionConflict { .. })),
+            "session history must not overwrite another writer, redo={redo}"
+        );
+        assert_eq!(store.load_draft(&original.draft_id)?.draft, expected);
+    }
+    Ok(())
+}
+
+#[test]
+fn accepting_a_new_version_starts_a_new_undo_history() -> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    let store = Arc::new(native_store(directory.path()));
+    let original = draft()?;
+    store.create_draft(&original)?;
+    let mut editor = DraftEditor::open(Arc::clone(&store), original.draft_id.clone(), 8)?;
+    editor.apply(
+        mutation_key("own-edit")?,
+        original.version,
+        DraftCommand::Set {
+            pointer: "/title".into(),
+            value: "Own edit".into(),
+        },
+    )?;
+    store.mutate_draft(
+        &original.draft_id,
+        mutation_key("external")?,
+        DraftVersion::try_new(2)?,
+        &DraftCommand::Set {
+            pointer: "/external".into(),
+            value: true.into(),
+        },
+    )?;
+    let external = store.load_draft(&original.draft_id)?.draft;
+    editor.apply(
+        mutation_key("after-refresh")?,
+        external.version,
+        DraftCommand::Set {
+            pointer: "/title".into(),
+            value: "After refresh".into(),
+        },
+    )?;
+    editor.undo(mutation_key("undo")?)?;
+    assert_eq!(
+        store.load_draft(&original.draft_id)?.draft.document,
+        external.document
+    );
+    assert!(
+        !editor.has_undo(),
+        "history before another writer must not be reachable"
+    );
+    Ok(())
+}
+
 impl AtomicFileStore for FailOnCall {
     fn write_atomic(
         &self,

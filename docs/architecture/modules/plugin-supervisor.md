@@ -30,6 +30,7 @@
 - Runtime active только после protocol/descriptor validation.
 - Restart создаёт новую session generation.
 - Все queues, messages и timeouts bounded.
+- Deadline включает outbound write и ожидание завершения reader threads; заполненный stdin pipe и унаследованные descendants pipes не блокируют watchdog/kill path.
 - Handshake согласует required features/schema versions и effective limits; pending jobs удерживают lease лишь до terminal outcome/deadline и bounded cleanup.
 - Expanded permissions блокируют automatic activation.
 - Runtime key = package/artifact hash/group; v1 разрешает одну active version package на host.
@@ -49,3 +50,5 @@
 > Stderr — diagnostics, stdout — framed protocol; никогда не смешивать. Process tree cleanup должен тестироваться на Windows и Linux. Circuit breaker важнее бесконечного restart loop.
 
 Обязательны [resource/version/discovery contracts](../../contracts/lifecycle.md#resources-discovery-и-версии-packages) и package-lock validation при apply/update/rollback.
+
+`RuntimeController` и `ProcessRuntime` пока соединяются fixtures вручную. Production driver, неблокирующий deadline-aware I/O и cleanup session-owned resources входят в [gate A/C до apply](../../implementation/roadmap.md#pre-apply-gate), а не откладываются до SDK Фазы 12.

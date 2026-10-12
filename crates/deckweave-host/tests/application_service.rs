@@ -97,6 +97,58 @@ fn service(
 }
 
 #[test]
+fn replay_returns_the_document_committed_with_its_receipt() -> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    let setup_store = JsonProfileStore::new(
+        directory.path().join("profiles"),
+        Arc::new(NativeAtomicFileStore),
+        ProfileStoreLimits::default(),
+    );
+    let original = draft()?;
+    setup_store.create_draft(&original)?;
+    let authorizer = Arc::new(InMemoryApiAuthorizer::new());
+    let caller = context("editor", "replay")?;
+    authorizer.grant(
+        caller.principal_id.clone(),
+        [ApiAuthScope::Read, ApiAuthScope::Draft],
+    );
+    let gateway = service(directory.path().to_path_buf(), Arc::clone(&authorizer))?;
+    let first = envelope("first", "First", false)?;
+    gateway.command(&caller, first.clone())?;
+    let mut second = envelope("second", "Second", false)?;
+    let AppCommand::PatchDraft {
+        expected_version, ..
+    } = &mut second.command;
+    *expected_version = DraftVersion::try_new(2)?;
+    gateway.command(&caller, second)?;
+    drop(gateway);
+    let reopened = service(directory.path().to_path_buf(), authorizer)?;
+    let AppCommandResult::DraftMutation {
+        draft,
+        receipt: Some(receipt),
+        ..
+    } = reopened.command(&caller, first)?
+    else {
+        return Err(std::io::Error::other("missing receipt").into());
+    };
+    assert!(receipt.replayed);
+    assert_eq!(draft.version, receipt.after_version);
+    assert_eq!(draft.document["title"], "First");
+    let AppQueryResult::Draft(current) = reopened.query(
+        &caller,
+        AppQuery::Draft {
+            draft_id: original.draft_id,
+        },
+    )?
+    else {
+        return Err(std::io::Error::other("missing current draft").into());
+    };
+    assert_eq!(current.version.get(), 3);
+    assert_eq!(current.document["title"], "Second");
+    Ok(())
+}
+
+#[test]
 fn in_process_client_enforces_scopes_dry_run_conflicts_and_dedup() -> Result<(), Box<dyn Error>> {
     let directory = tempfile::tempdir()?;
     let profile_root = directory.path().join("profiles");

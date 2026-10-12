@@ -1,6 +1,6 @@
 # Контракты исполнения и восстановления
 
-Документ задаёт нормативную семантику для Host, Store, Registry, Automation и Surface. [Архитектура](../architecture/overview.md) описывает компоненты, а здесь определены их совместные границы отказа. Контракты являются требованиями к будущей реализации; runtime и fault tests пока отсутствуют.
+Документ задаёт нормативную семантику для Host, Store, Registry, Automation и Surface. [Архитектура](../architecture/overview.md) описывает компоненты, а здесь определены их совместные границы отказа. Часть storage/plugin contracts уже имеет реализацию и fault tests; это не подтверждает весь apply/recovery protocol. Точная граница готовности и недостающие проверки находятся в [roadmap](../implementation/roadmap.md#pre-apply-gate).
 
 ## Владение host и workspace
 
@@ -36,6 +36,10 @@ Revision включает точные package versions, artifact hashes, contri
 Grants, API principals, operation receipts и credential mappings хранятся отдельно от переносимой конфигурации. Rollback и import не восстанавливают отозванные grants. `CredentialRef` в импорте считается unresolved, пока пользователь не сопоставил его локальному credential; совпадение имени не даёт доступа к существующему secret.
 
 Подтверждённая draft mutation сохраняет документ и receipt до ответа client. Undo/redo history может оставаться in-memory в v1: после restart восстанавливается последний сохранённый draft, а UI сообщает об утрате undo stack. Read-only или неподдерживаемый будущий schema major открывается без перезаписи.
+
+Undo/redo принадлежит editor session и использует последнюю подтверждённую ею `DraftVersion`. Чужая mutation вызывает conflict, а не замену документа старым snapshot поверх новой версии. После явного принятия новой версии начинается новая undo history; история до чужого изменения не применяется автоматически.
+
+Storage adapter различает ошибку до публикации и неопределённый результат публикации. После неоднозначной ошибки rename/replace recovery перечитывает head/commit record и проверяет checksum, прежде чем повторять mutation или удалять оставшиеся файлы. Process-crash tests и отказ питания — разные уровни доказательств: поддерживаемые filesystem, flush и metadata assumptions указываются отдельно. `sync_all` временного файла не доказывает durability последующего изменения имени на любой платформе.
 
 ### Порядок apply
 
@@ -108,6 +112,8 @@ State/latch сам по себе не разрешает бесконечный 
 ## Resources, discovery и версии packages
 
 `RuntimeLease` удерживает процесс, `ResourceLease` разрешает доступ к конкретному ресурсу — это разные сущности. Registry является единственным host arbiter. Canonical resource key включает node и physical interface/endpoint evidence, а не только `PortId` или package ID. Несколько providers одного physical interface конфликтуют независимо от contribution names. При неясном alias output требует явного выбора пользователя.
+
+Resource lease имеет явного owner: для runtime это полная session identity, для prepare/probe — отдельный operation owner с deadline и cancellation. Package ID используется для атрибуции, но недостаточен для освобождения lease: несколько runtime groups одного package не должны освобождать ресурсы друг друга. Session invalidation/replacement, failed prepare, revoke и shutdown освобождают ровно её owners. Ошибка регистрации начального descriptor snapshot не оставляет частично опубликованную session. Во время cutover host явно передаёт ownership подготовленного ресурса новой activation; запись lease сама по себе не означает успешный open аппаратного handle.
 
 Один active runtime имеет ключ `(PackageId, artifact hash, runtime_group)`; внутри multiplexed instances. V1 разрешает одну маршрутизируемую active version package на host, конфликтующие version requirements обнаруживаются до apply. Подготовленный runtime новой версии не получает production routes/outputs до cutover. Старый artifact остаётся установленным для rollback, но не открывает exclusive hardware одновременно с новым. Updates проходят package-lock diff и применяются только после подтверждения пользователя.
 

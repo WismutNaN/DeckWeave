@@ -4,24 +4,24 @@
 
 ## Обязательные зависимости и срезы
 
-Нормативные failure/ordering contracts: [Lifecycle](../contracts/lifecycle.md). При расхождении module summary с контрактом сначала исправляется документация. Спецификация ещё не подтверждена implementation tests.
+Нормативные failure/ordering contracts: [Lifecycle](../contracts/lifecycle.md). При расхождении module summary с контрактом сначала исправляется документация. Реализованные foundations имеют tests, но общий apply/recovery protocol ещё не подтверждён; [аудит после DDD migration](../research/pre-apply-review.md) отделяет дефекты от незавершённых способностей.
 
 Расширяемость проверяется до SDK freeze на [сценариях](../product/scenarios.md): независимые keyboard/analog/RGB/surface/job/media descriptors, typed results, geometry и dynamic ports. [Исследование реализаций](../research/implementation-review.md) определяет reuse-кандидатов и ограничения evidence; существующий upstream метод не закрывает hardware acceptance.
 
 | Фаза | Последовательные срезы и gate |
 |---|---|
 | 3 | Static index → handshake/virtual provider → leases/discovery/restart; отдельно ранний C0/C1 compatibility spike на pinned open fixture |
-| 4 | Revision/assets store → draft/receipts/export → apply/recovery; fault matrix до hardware |
+| 4 | После draft/store: A identity/owners → B ledger/retention → C runtime coordinator → D candidate/apply ports → E commit/recovery; [gate](#pre-apply-gate) до hardware |
 | 5 | Compiler → scheduler/ordering → async outcomes/epochs/replay; performance baseline |
 | 6 | Canvas/select → schema-form binding → draft/apply/health; готовый preset укладывается в click budget |
 | 8 | Protocol/identity fixtures → inputs → frames/light/haptic; неподтверждённый hardware не считается реализованным |
 | 9 | Backend benchmark/ADR → display renderer/frame protocol → basic LightFrame/ownership → hit testing/preview → editor; diff loss fixture обязателен |
 | 11 | Отдельные срезы по 1–5 дней: layers/cleanup → typed sequence/parallel/results → jobs/artifact broker → collections/notification fixture → lighting envelopes → schedules/Graph UI; один срез не обещает все nodes |
 | 12 | Rust/TS SDK release → Python runtime/SDK → conformance/package-lock update → catalogue metadata |
-| 13 | Browser isolation/offscreen rendering spike → settings editor/surface widget → host-owned schema interactions → custom interaction view; неудачный spike требует пересмотра backend/сроков |
+| 13 | Executable C1 spike → interaction lifecycle/limits → browser isolation/offscreen rendering spike → settings/surface widget → schema presenter → custom view; неудачный spike требует пересмотра backend/сроков |
 | 14 | C0/C1 production host → C2 PI/settings → C3 dial/feedback → replacement migration; каждый уровень имеет отдельный report |
 | 15 | Probe/inspection → calibration/mapping → capture/conformance; production service не зависит от testkit |
-| 17 | Portable packaging → Linux virtual/CLI → Linux UI/platform smoke; core Linux CI уже работает с Фазы 2 |
+| 17 | Portable packaging → Linux virtual/CLI → Linux UI/platform smoke; core Linux CI настроен с Фазы 2, результат remote run фиксируется отдельно |
 | 18 | Recovery/security matrix → performance/soak → release/docs; новые features не добавляются |
 
 Каждый срез получает конкретную fixture, rollback/disable path и рабочую промежуточную сборку. Это не параллельные задачи с неявными зависимостями.
@@ -38,7 +38,7 @@
 |---:|---|---|:---:|:---:|
 | 1 | Скелет репозитория | Workspace компилируется, UI shell и CI запускаются | S | [~] |
 | 2 | Domain и protocol contracts | Versioned types/schemas/generated code | M | [x] |
-| 3 | Plugin supervisor и virtual package | Первый изолированный plugin end-to-end | L | [x] |
+| 3 | Plugin supervisor и virtual package | Foundations готовы; Host integration ещё не закрыта | L | [~] |
 | 4 | Profile revisions и application API | Draft/validate/apply/rollback через API | L | [~] |
 | 5 | Минимальный automation engine | Source → action → feedback deterministic path | L | [ ] |
 | 6 | Desktop workspace canvas | Устройства и bindings редактируются в UI | L | [ ] |
@@ -99,7 +99,30 @@
 
 **Rollback:** до удаления compatibility re-export каждый срез откатывается одним commit. Изменение persisted document/wire schema в R1–R4 запрещено без отдельной migration/ADR. Если gate выявляет незафиксированную семантику, перенос останавливается на текущей зелёной версии, добавляется characterization test, затем срез повторяется.
 
-**Gate продолжения Фазы 4:** [x] R1–R3 завершены; R4 также подготовлен. Operation tracking/apply реализуются через Application Gateway и Host Lifecycle ports, а не в прежнем смешанном crate root.
+**Gate структурной миграции:** [x] R1–R4 завершены. Это разрешает работу в новых границах, но не подтверждает готовность apply. Operation tracking/apply реализуются через Application Gateway и Host Lifecycle ports после условий ниже.
+
+<a id="pre-apply-gate"></a>
+## Gate перед durable apply
+
+Основание: [аудит реализации после DDD migration](../research/pre-apply-review.md). Фаза 4 уже начата. Следующие срезы закрывают недостающие контракты до irreversible cutover; каждый планируется отдельно на 1–5 дней, с дополнительным делением при превышении оценки.
+
+- [x] Добавить regression tests и исправить concurrent editor undo/redo, согласованность receipt/document при replay, snapshot revision/initial delta; включить integration packages в core CI.
+
+| Срез | Владелец и результат | Обязательное доказательство выхода |
+|---|---|---|
+| A — Identity/ownership | Registry + Plugin Runtime: полный device/service endpoint path, owner-scoped resource leases и атомарная initial registration | Два одинаковых устройства с одинаковыми локальными PortId; crash/revoke группы A освобождает только её leases; invalid initial snapshot не оставляет session и не разрушает прежнюю |
+| B — Mutation ledger | Gateway + Workspace ports + Store adapter: общий scope ключей, persisted issued epochs, atomic receipt snapshot, индекс/retention/compaction | Один key на двух draft даёт conflict; restart/expired epoch/revoke; checkpoint не теряет receipts, quota не превращается в неограниченную историю |
+| C — Runtime coordinator | Host + Plugin Runtime ports: clocks/grants/process/registry связаны одним owner; I/O не блокирует watchdog | Public application path запускает virtual package; unread stdin, parent exit с унаследованными pipes, overflow, revoke, bounded shutdown при закрытом UI |
+| D — Candidate/apply seam | Workspace проверяет lock/assets, Automation port компилирует, Host сериализует preconditions/barrier | Plan token связан с draft/package/registry/grants/active revision; unsupported graph отклоняется; topology/grant change между plan и prepare конфликтует |
+| E — Commit/recovery | Host + Store ports: intent/commit/status и reconciliation неоднозначных OS errors | Kill до/после каждого шага, disk full, lost reply, failed exclusive handoff; старый выбор до commit, новый после commit, без replay effects |
+
+- [ ] A завершён; endpoint contract согласован для descriptors, signal ingress, routes и persisted bindings.
+- [ ] B завершён; API dedup contract реализован целиком, а не только в одном draft.
+- [ ] C завершён; интеграция использует production composition и внешний watchdog для hang tests.
+- [ ] D завершён; Фаза 4 использует ограниченный fake compiler для empty/virtual fixtures. Он не принимает произвольный graph как пустой plan; Фаза 5 заменяет adapter настоящим compiler на том же acceptance.
+- [ ] E завершён; process-crash evidence отделено от power-loss/filesystem assumptions.
+
+Выход gate — demonstration `application command → prepare → commit → virtual activation → restart/recovery`. Перенос реализации в отдельные crates и зелёные unit tests сами по себе этот gate не закрывают. Реальные actions/hardware не подключаются, пока owner/cleanup/recovery не доказаны.
 
 ---
 
@@ -186,7 +209,7 @@ generation drift check, TypeScript contracts и Rust domain/protocol tests.
 **Цель:** доказать lazy, isolated, restartable plugin lifecycle.
 **Результат:** virtual test package индексируется без запуска, активируется lease, публикует device и восстанавливается после crash.
 **Трудоёмкость:** L
-**Статус:** [x] Готово
+**Статус:** [~] Foundations готовы; аудит выявил незакрытые registry/lease/I/O и Host integration paths. Они закрываются срезами A/C [pre-apply gate](#pre-apply-gate).
 
 ### Контекст для агента
 > Domain/protocol types существуют. Hardware и UI ещё не нужны; virtual package служит единственным provider и reference fixture.
@@ -199,7 +222,8 @@ generation drift check, TypeScript contracts и Rust domain/protocol tests.
 - [x] Создать permissive virtual DeviceProvider/ActionProvider example (→ [Модуль: Diagnostics & Test Lab](../architecture/modules/diagnostics-test-lab.md)).
 - [x] Добавить restart/backoff/circuit-breaker tests (→ [ADR-0005](../decisions/0005-failure-isolation.md)).
 - [x] Добавить scoped discovery lease до первого binding, canonical resource arbiter и host authorization/credential ports (→ [Runtime contracts](../contracts/lifecycle.md#resources-discovery-и-версии-packages), [Host Platform Services](../architecture/modules/host-platform-services.md)).
-- [x] Подтвердить минимальные Rust/TS SDK helpers одним wire fixture; провести ограниченный C0/C1 spike с pinned open plugin до инвестиций в custom web UI (→ [SDK](../contracts/plugins.md#sdk), [Compatibility Host](../architecture/modules/compatibility-host.md)).
+- [x] Подтвердить минимальные Rust/TS SDK helpers одним wire fixture и C0 manifest scanner на pinned open plugin (→ [SDK](../contracts/plugins.md#sdk), [Compatibility Host](../architecture/modules/compatibility-host.md)).
+- [ ] Закрыть registry/owner/I/O gaps и production Host coordination по [срезам A/C](#pre-apply-gate); ручное связывание компонентов в integration test не заменяет composition приложения.
 
 ### Тесты
 
@@ -218,6 +242,7 @@ Bounded stderr и Protobuf framing не смешиваются. Отзыв grant
 Ранний [OpenAction C0/C1 spike](../research/openaction-c0-c1-spike.md) индексирует pinned MIT Counter
 manifest без исполнения. C1 честно оставлен будущему отдельному WebSocket compatibility host: наличие
 manifest или PI не выдаётся за runtime compatibility.
+Executable C1 spike остаётся обязательным условием до custom web/PI Фазы 13; production C1 входит в Фазу 14.
 
 ### Ссылки
 
@@ -231,10 +256,10 @@ manifest или PI не выдаётся за runtime compatibility.
 **Цель:** создать безопасный путь read → draft → validate → plan → apply → rollback.
 **Результат:** CLI/test client редактирует virtual workspace, получает conflict и возвращается к snapshot.
 **Трудоёмкость:** L
-**Статус:** [~] В процессе: готовы Profile Store, Workspace Configuration и отделённый Application Gateway; DDD migration R1–R4 завершена, следующий срез — operation tracking/apply.
+**Статус:** [~] В процессе: готовы Profile Store, Workspace Configuration и отделённый Application Gateway; DDD migration R1–R4 завершена. Следующая работа — срезы A–E [pre-apply gate](#pre-apply-gate).
 
 ### Контекст для агента
-> Plugin lifecycle работает. Active automation пока пуст; фаза строит источник истины и command/query boundary.
+> Plugin lifecycle проверен отдельными fixtures, production coordinator ещё требуется. Active automation пока пуст; фаза строит источник истины и command/query boundary.
 
 Первый срез хранит revision record с checksum и unknown JSON fields, а assets — по SHA-256 с публикацией
 metadata после bytes. Пути строятся через opaque hash IDs. Второй срез добавил append-only draft
@@ -249,7 +274,7 @@ Export переносит выбранные revision contents как portable t
 срез добавил transport-independent command/query ApplicationService и in-process client. Profiles
 реализует DraftRepository port, а Application Gateway проверяет principal scopes, expected DraftVersion и stable API errors.
 Dry-run использует тот же command vocabulary, но не пишет draft и не резервирует idempotency key;
-повтор mutation после restart читает durable receipt. Следующий срез — operation tracking и apply skeleton.
+повтор mutation после restart читает durable receipt и согласованный исторический document. Global dedup windows, production runtime coordination и apply пока отсутствуют; порядок закрытия задаёт [gate A–E](#pre-apply-gate).
 
 ### Задачи
 
@@ -259,7 +284,8 @@ Dry-run использует тот же command vocabulary, но не пише�
 - [x] Реализовать transport-independent ApplicationService и expected draft revision (→ [Модуль: Local API](../architecture/modules/local-api.md)).
 - [ ] Реализовать OperationId, durable operation tracking и status queries через Application Gateway (→ [Модуль: Local API](../architecture/modules/local-api.md)).
 - [ ] Реализовать Host apply skeleton с durable commit record, barrier, disruption/degraded policy, package lock и operation receipts (→ [ADR-0012](../decisions/0012-apply-and-execution-lifecycle.md), [Модуль: Host Runtime](../architecture/modules/host-runtime.md)).
-- [x] Проверять principals/scopes внутри ApplicationService, durable dedup до revision check, dry-run без effects (→ [API](../contracts/application-api.md#идемпотентность-и-dry-run)).
+- [x] Проверять principals/scopes внутри ApplicationService, per-draft durable dedup до revision check, dry-run без effects (→ [API](../contracts/application-api.md#идемпотентность-и-dry-run)).
+- [ ] Завершить global dedup/expiry, identity/ownership, runtime coordination и storage reconciliation по [gate A–E](#pre-apply-gate) до объявления apply готовым.
 - [x] Добавить in-process test client; HTTP/WS transport отложить до Фазы 16 (→ [Application API](../contracts/application-api.md)).
 
 ### Тесты
@@ -290,6 +316,7 @@ Dry-run использует тот же command vocabulary, но не пише�
 ### Задачи
 
 - [ ] Реализовать graph compiler для source/action/state/condition/feedback (→ [Модуль: Automation Engine](../architecture/modules/automation-engine.md)).
+- [ ] Заменить ограниченный compiler adapter Фазы 4, сохранив [apply acceptance](#pre-apply-gate); проверять typed graph/schema semantics отдельно от structural JSON validation. M1 проходит через production Host и isolated virtual process.
 - [ ] Реализовать immutable ExecutionPlan и serialized workspace scheduler (→ [ADR-0010](../decisions/0010-compiled-automation-plan.md)).
 - [ ] Разделить edge queue и coalescing value lane (→ [Архитектура — Конкурентность и QoS](../architecture/overview.md#конкурентность-и-qos)).
 - [ ] Реализовать trace/correlation/causation и basic loop guard (→ [Модуль: Diagnostics & Test Lab](../architecture/modules/diagnostics-test-lab.md)).
@@ -305,6 +332,7 @@ Dry-run использует тот же command vocabulary, но не пише�
 - [ ] Performance baseline: virtual input → dispatch latency.
 - [ ] Ordering/fault: encoder +1,+1,-1 не теряется; axis-before-button не подменяется будущим axis; edge overflow освобождает held outputs; late completion после apply не запускает action.
 - [ ] Result: accepted job не считается success; два invocation получают свои outputs; malformed/oversized result отклоняется, duplicate terminal не создаёт второй effect.
+- [ ] Cross-context: два одинаковых device instances и service с одинаковыми локальными ports; topology/schema change после plan, revoke во время job и старый completion после apply.
 
 ### Ссылки
 
@@ -324,6 +352,8 @@ Dry-run использует тот же command vocabulary, но не пише�
 > ApplicationService и minimal graph работают. UI использует только этот contract и не получает plugin handles.
 
 ### Задачи
+
+- [ ] До canvas подключить Tauri adapter к Application Gateway с host-derived principal и общими DTO; проверить parity command/query/error с in-process client, receipt replay и snapshot reconnect (→ [Application API](../contracts/application-api.md)).
 
 - [ ] Реализовать virtualized infinite canvas и device cards (→ [Модуль: Desktop Shell](../architecture/modules/desktop-shell.md)).
 - [ ] Реализовать action library/search и drag-and-drop binding (→ [UI — Progressive disclosure](../product/ux.md#progressive-disclosure)).
@@ -562,6 +592,9 @@ Dry-run использует тот же command vocabulary, но не пише�
 
 ### Задачи
 
+- [ ] До custom web/PI выполнить executable C1 lifecycle spike на pinned open fixture; C0 manifest scan не закрывает этот риск (→ [отчёт spike](../research/openaction-c0-c1-spike.md)).
+- [ ] До presenter завершить Interaction application service: result schema validation, query generation/cursor scope, provider/epoch fencing, monotonic deadlines, byte/count budgets и eviction terminal sessions; R4 содержит только начальный scaffold (→ [Interaction Runtime](../architecture/modules/interaction-runtime.md)).
+
 - [ ] Выбрать/зафиксировать widget backend после Windows/Linux spike (→ [Модуль: Widget Runtime](../architecture/modules/widget-runtime.md)).
 - [ ] Реализовать isolated origins, CSP, scoped bridge и rate limits (→ [Безопасность — Web property editors и widgets](../contracts/security.md#web-property-editors-и-widgets)).
 - [ ] Подключить WidgetLayer к compositor без unbounded frames (→ [Модуль: Surface Compositor](../architecture/modules/surface-compositor.md)).
@@ -576,6 +609,7 @@ Dry-run использует тот же command vocabulary, но не пише�
 - [ ] Fault: widget crash/hang leaves host/surface alive.
 - [ ] Performance: frame budget and idle host not launched when unused.
 - [ ] Interaction: concurrent sessions, keyboard navigation, Escape, timeout, provider crash, stale result after apply.
+- [ ] Interaction contracts: старый search response после нового query не заменяет page; invalid selected value, result после deadline, clock jump и повторные session open/close не обходят validation/retention.
 
 ### Ссылки
 

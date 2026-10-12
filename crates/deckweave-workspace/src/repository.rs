@@ -39,8 +39,10 @@ pub enum DraftRepositoryError {
     Unavailable(String),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct StoredDraftMutation {
+    /// Snapshot published with this receipt, including on an idempotent replay.
+    pub draft: DraftView,
     pub key: MutationKey,
     pub before_version: DraftVersion,
     pub after_version: DraftVersion,

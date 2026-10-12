@@ -246,6 +246,8 @@ Registry разрешает leases по canonical physical resource key, нез�
 
 VID/PID не являются уникальной identity. Provider прикладывает evidence: serial, HID path fragments, Bluetooth address policy, firmware, topology и confidence. При неоднозначности пользователь подтверждает binding.
 
+Stable endpoint address сохраняет всю иерархию: namespace package/runtime group/node/provider, target device binding или service ID, element ID, capability ID, port ID. Device и service — разные варианты target. Одинаковый локальный `PortId` на двух устройствах или двух capabilities допустим; поиск первого совпадения по node/port запрещён. Session-scoped signal address и command route разрешаются в ту же полную идентичность. До сохранения bindings это правило проверяется fixture с двумя одинаковыми устройствами и отдельным service в одном runtime.
+
 ## Временная семантика
 
 `SignalEnvelope` содержит:
@@ -305,6 +307,8 @@ Workspace хранит требуемую semantic capability, а не случ�
 ### Изменения descriptor во время сессии
 
 Static template описывает потенциальную capability без активации hardware. Session descriptor содержит фактические instances. `DescriptorRevision` меняется атомарным snapshot или delta с expected base; gap требует resync. Host сериализует это изменение с ingress, повторно проверяет затронутые routes и fencing resolved endpoints по session + descriptor revision. Удалённый port завершает pending work как unavailable/unknown по фактическому outcome; stable reference остаётся в draft.
+
+Первый snapshot обязателен до delta, даже если он пуст. Повтор snapshot с той же revision и тем же содержимым — no-op без изменения registry revision; другое содержимое требует большей revision. Пустой snapshot также занимает свою revision и не считается ещё не зарегистрированным состоянием.
 
 Добавление совместимого instance не запускает его автоматически. Required schema/topology/resource change приостанавливает затронутый route до revalidation; новое permission требует grant. `requestable` port создаётся explicit application/activation operation из объявленного template с lease и deadline, не чтением descriptor. Несовместимая семантика требует нового version/ID; labels и список соседних ports не перенумеровывают существующие ID. Host не переназначает binding на «похожий» port молча.
 

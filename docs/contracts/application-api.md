@@ -98,6 +98,10 @@ Host выдаёт persisted `dedup_epoch` с `expires_at`; v1 хранит recei
 
 Store фиксирует intent до side effect, а для document mutations публикует результат и receipt через единый commit protocol. При crash между внешним side effect и подтверждением outcome становится `unknown_outcome`. API dedup не обеспечивает exactly-once на USB, process launch или чужом HTTP API; повтор там возможен только по [execution contract](lifecycle.md#executions-cancellation-и-смена-плана).
 
+Если mutation response содержит и receipt, и document, document соответствует `after_version` и checksum именно этого receipt, включая replay после последующих изменений. Repository возвращает согласованный результат одной mutation; отдельный `get_draft` после записи не обеспечивает это свойство. Текущее состояние запрашивается самостоятельным query. Fingerprint включает target draft/workspace: смена target с тем же ключом — conflict в общем scope principal/epoch, а не новая операция в другом локальном журнале.
+
+Retention receipts не равна undo history. Checkpoint/compaction draft сохраняет действующие dedup windows и pending operations; quota возвращает отдельную диагностируемую ошибку до записи. Нельзя обходить переполнение истории новым ключом или считать истёкший receipt отсутствующим разрешением повторить side effect.
+
 `dry_run`, `validate`, `plan` и default `simulate/replay` не запускают packages, network requests, process actions и hardware output. Они используют static manifests, snapshots и fake targets; отсутствие live evidence показывается как `requires_probe`. Probe, preview и live test — отдельные commands с grants/deadline. Dry-run не резервирует mutation key: apply использует новый key и утверждённый plan hash, который повторно проверяется перед commit.
 
 ## Optimistic concurrency

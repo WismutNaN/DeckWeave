@@ -6,7 +6,7 @@
 
 ## Статус
 
-Реализован каркас [Фазы 1](docs/implementation/roadmap.md#фаза-1--скелет-репозитория): Rust workspace, Tauri/Svelte-окно, трей, single-instance, блокировки каталога данных и opt-in автозапуск Windows. Устройства и автоматизации пока не реализованы. Локальные проверки Windows проходят; ручная приёмка меню трея и первый запуск GitHub CI ещё впереди.
+Реализованы desktop shell, protocol/plugin foundations, revision/draft store и Application Gateway; завершена структурная DDD migration R1–R4. Фаза 4 уже идёт. [Аудит реализации](docs/research/pre-apply-review.md) определил [условия перед durable apply](docs/implementation/roadmap.md#pre-apply-gate): identity/ownership, общий mutation ledger, runtime coordination и recovery. Реальные устройства и automation engine ещё не подключены. Локальные проверки Windows проходят; ручная приёмка меню трея и первый запуск GitHub CI ещё впереди.
 
 ## Запуск для разработки
 

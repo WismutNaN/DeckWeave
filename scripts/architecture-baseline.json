@@ -112,12 +112,12 @@
       "maxLines": 735,
       "owner": "Plugin Runtime",
       "reason": "Lifecycle state and process coordination require characterization before separation.",
-      "reviewMilestone": "Phase 12"
+      "reviewMilestone": "Phase 4 runtime coordination"
     },
     "crates/deckweave-profiles/src/draft.rs": {
-      "maxLines": 537,
+      "maxLines": 439,
       "owner": "Profile Store infrastructure",
-      "reason": "Append-only transactions, receipts, recovery and the session editor remain in the persistence adapter and will split around apply repositories.",
+      "reason": "Append-only transactions, receipts and recovery remain together until the apply repository and ledger slice; session editor has been extracted.",
       "reviewMilestone": "Phase 4 apply"
     },
     "crates/deckweave-profiles/src/export.rs": {
@@ -139,10 +139,10 @@
       "reviewMilestone": "Phase 5"
     },
     "crates/deckweave-registry/src/lib.rs": {
-      "maxLines": 391,
+      "maxLines": 355,
       "owner": "Capability Registry",
-      "reason": "The initial aggregate and service share a crate root until registry use cases expand.",
-      "reviewMilestone": "Phase 5"
+      "reason": "The initial aggregate and ownership service share a crate root; descriptor validation has been extracted.",
+      "reviewMilestone": "Phase 4 identity and ownership"
     },
     "runtimes/openaction-host/src/lib.rs": {
       "maxLines": 258,

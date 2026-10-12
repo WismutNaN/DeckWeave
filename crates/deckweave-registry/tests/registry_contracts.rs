@@ -113,6 +113,69 @@ fn restart_invalidates_old_session_generation() -> Result<(), Box<dyn Error>> {
 }
 
 #[test]
+fn snapshot_revision_cannot_be_reused_for_different_descriptors() -> Result<(), Box<dyn Error>> {
+    let mut registry = CapabilityRegistry::default();
+    let identity = session(1)?;
+    registry.start_session(identity.clone())?;
+    let revision = DescriptorRevision::try_new(1)?;
+    let node = fixture("observe-keyboard.node.json")?;
+    registry.register_snapshot(&identity, revision, vec![node.clone()])?;
+    let before = registry.snapshot()?;
+    registry.register_snapshot(&identity, revision, vec![node])?;
+    assert_eq!(
+        registry.snapshot()?,
+        before,
+        "identical retry must be a no-op"
+    );
+    assert_eq!(
+        registry.register_snapshot(
+            &identity,
+            revision,
+            vec![fixture("analog-keyboard.node.json")?]
+        ),
+        Err(RegistryError::StaleDescriptorRevision)
+    );
+    assert_eq!(registry.snapshot()?, before);
+    Ok(())
+}
+
+#[test]
+fn empty_snapshot_still_consumes_its_revision() -> Result<(), Box<dyn Error>> {
+    let mut registry = CapabilityRegistry::default();
+    let identity = session(1)?;
+    registry.start_session(identity.clone())?;
+    let revision = DescriptorRevision::try_new(1)?;
+    registry.register_snapshot(&identity, revision, vec![])?;
+    assert_eq!(
+        registry.register_snapshot(
+            &identity,
+            revision,
+            vec![fixture("observe-keyboard.node.json")?]
+        ),
+        Err(RegistryError::StaleDescriptorRevision)
+    );
+    Ok(())
+}
+
+#[test]
+fn delta_requires_an_initial_snapshot() -> Result<(), Box<dyn Error>> {
+    let mut registry = CapabilityRegistry::default();
+    let identity = session(1)?;
+    registry.start_session(identity.clone())?;
+    assert_eq!(
+        registry.apply_delta(
+            &identity,
+            DescriptorRevision::try_new(1)?,
+            DescriptorRevision::try_new(2)?,
+            vec![],
+            &[]
+        ),
+        Err(RegistryError::ResyncRequired)
+    );
+    Ok(())
+}
+
+#[test]
 fn canonical_resource_arbiter_detects_provider_alias_conflicts() -> Result<(), Box<dyn Error>> {
     let mut registry = CapabilityRegistry::default();
     let resource = CanonicalResourceKey::try_new("local/usb/5548:1008/interface-1")?;

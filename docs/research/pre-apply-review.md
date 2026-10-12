@@ -1,0 +1,104 @@
+# Проверка готовности к apply после DDD migration
+
+Дата: 2026-10-12. Проверенная исходная версия: `2bae564`. Документ фиксирует аудит реализации, а не меняет нормативные контракты. Текущие задачи ведутся в [gate Фазы 4](../implementation/roadmap.md#pre-apply-gate); повторный аудит обновляет этот файл, а не создаёт ещё один параллельный список задач.
+
+## Вывод
+
+DDD migration R1–R4 создала полезные границы: Workspace Configuration отделён от хранения, Gateway — от Host, OS adapters — от ports. Перепроектирование с нуля не требуется. Однако завершение переноса кода не означает готовность durable apply. Сейчас Фаза 4 уже идёт; её следующий безопасный результат — согласованные mutation/identity/ownership contracts и работающий Host coordinator на virtual fixture.
+
+Критический разрыв находится между компонентами. Отдельные store, registry и supervisor проверены лучше, чем их совместное поведение. На исходной версии обнаружены ошибки даже при зелёных существующих tests. До реального cutover необходимо закрыть A–E ниже; это последовательные срезы Фазы 4, а не новая общая фаза «ещё раз всё переписать».
+
+## Метод и доказательства
+
+Проверены публичные Rust ports и их потребители, draft persistence/replay, registry/session/lease transitions, process I/O, desktop composition, новые Platform Input/Interaction contracts, CI и зависимость фаз. Сценарии расширяемости сопоставлены с [исследованием референсов](implementation-review.md): отдельные runtimes, стабильная identity, ограниченные очереди и явные outcomes важнее числа traits. Нового заимствования кода из upstream в этом аудите нет.
+
+Доказательства разделены:
+
+- **Воспроизведено:** новый тест сначала падает на исходном коде и проходит после исправления.
+- **Статический дефект:** конкретная последовательность публичных вызовов нарушает contract; отдельный executable probe не запускался.
+- **Незавершённая способность:** scaffold ещё не обещает production behavior; перед подключением требуется acceptance gate.
+
+Существующие проверки дали baseline; они не использованы как доказательство отсутствия ошибок. Linux, реальное hardware, отключение питания и опубликованный GitHub CI этим локальным аудитом не проверялись.
+
+После изменений прошли шесть новых regression tests и затронутые suites Host/Workspace/Profiles/Registry/Supervisor/Platform Host, Clippy по всему core workspace, format, architecture boundaries и проверка links/anchors/JSON во всех 69 Markdown-документах. Точные команды package checks соответствуют [development](../implementation/development.md#проверки). Открытые пункты A–E ниже не выдаются за исправленные этими проверками.
+
+## Исправлено в ходе аудита
+
+| Проблема исходной версии | Изменение | Новая проверка |
+|---|---|---|
+| Undo/redo использовал текущую версию из store и заменял документ snapshot предыдущего редактора | Editor хранит собственную подтверждённую версию; внешняя запись вызывает conflict. Принятая новая версия начинает новую history | `undo_and_redo_reject_changes_from_another_editor`, `accepting_a_new_version_starts_a_new_undo_history` |
+| Gateway после mutation отдельно читал latest draft: replay receipt v2 возвращал document v3 | Repository возвращает snapshot, сохранённый с receipt; replay читает ту же transaction | `replay_returns_the_document_committed_with_its_receipt`, в том числе после открытия store заново |
+| Registry принимал другое содержимое при прежней descriptor revision и повышал registry revision при идентичном retry | Одинаковый snapshot — no-op, отличающийся требует новую revision; пустой initial snapshot учитывается явно | `snapshot_revision_cannot_be_reused_for_different_descriptors`, `empty_snapshot_still_consumes_its_revision` |
+| Delta принималась без начального snapshot | Возвращается `ResyncRequired` | `delta_requires_an_initial_snapshot` |
+| Core CI выбирал только `default-members`, пропуская integration tests profiles/registry/supervisor/OpenAction | Test и Clippy выбирают workspace с исключением desktop; desktop имеет отдельную job | Проверена конфигурация CI и соответствующие package targets |
+| Windows adapter передавал неподдерживаемый `REPLACEFILE_WRITE_THROUGH` | Убран флаг; прежний `sync_all` данных сохранён | Сверка с [Microsoft ReplaceFileW](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-replacefilew); это не доказательство power-loss durability |
+
+Первые пять именованных regression tests были воспроизведены как failing до исправлений; проверка initial delta добавлена вместе с исправлением. Файлы с превышением size ratchet не расширены: editor и descriptor validation выделены в отдельные модули. Внутренние Rust `StoredDraftMutation`/`MutationOutcome` теперь содержат соответствующий draft snapshot и больше не реализуют `Eq`; persisted JSON и wire schema не изменены. API replay возвращает исторический snapshot операции; latest draft клиент получает отдельным query.
+
+## A — Identity и ownership до сохранения bindings
+
+**P1, статический дефект.** [StablePortRef](../../crates/deckweave-registry/src/lib.rs) содержит package/group/node/port, но [контракт](../contracts/capabilities.md#идентичность-и-evidence) определяет `PortId` внутри capability. [Registry validation](../../crates/deckweave-registry/src/descriptors.rs) требует уникальный port во всём node. Два экземпляра одной клавиатуры с локальным портом `press` нельзя корректно представить; также теряются element/capability и различие device/service. Это нельзя исправлять добавлением serial в каждый локальный port ID.
+
+Нужен полный stable path с discriminated target device/service, provider и вложенными IDs. Runtime resolution добавляет sessions/generation/revision. Signal ingress и command routing должны использовать тот же scope, иначе правильный descriptor всё равно будет неоднозначно маршрутизироваться. До freeze нужны два одинаковых устройства и service с совпадающими локальными IDs, remove/reconnect одного экземпляра и проверка отсутствия rebinding второго.
+
+**P1, статический дефект.** В том же registry `ResourceLeaseRecord` хранит только `owner_package_id`, а `invalidate_session` удаляет session без очистки leases. После падения владельца exclusive resource остаётся занят в arbiter. Освобождение «всего package» также неверно: у package могут быть несколько runtime groups и prepared/active owners.
+
+Исправление требует owner identity и lifecycle: session-scoped lease либо prepare/probe operation owner с deadline; cancel/revoke/replacement освобождает только нужного owner. Тест: группа A падает, её ресурс доступен повторному acquire, ресурс живой группы B остаётся занят. До commit ownership подготовленного ресурса не означает разрешение на production output.
+
+**P1, статический дефект.** [RuntimeController::activate_descriptors](../../crates/deckweave-plugin-supervisor/src/supervisor.rs) сначала вызывает `start_session`, затем `register_snapshot`. При ошибке descriptor остаётся пустая session, но `registered` ещё false; `process_exited` её не инвалидирует. Регистрация initial session/snapshot должна быть атомарной либо иметь гарантированный rollback. Валидация новой session не должна разрушать рабочую старую topology при неуспешном prepare.
+
+## B — Общий mutation ledger и ограниченное хранение
+
+**P1, статический дефект.** [find_receipt](../../crates/deckweave-profiles/src/draft.rs) ищет ключ только в истории конкретного draft. Один `(principal, epoch, key)` можно успешно применить к двум разным drafts, хотя [API contract](../contracts/application-api.md#идемпотентность-и-dry-run) требует conflict при другом target/payload. `dedup_epoch` принимается от caller; выдача persisted windows, expiration и `idempotency_expired` пока не реализованы.
+
+До operation tracking нужен единый owner ledger в scope host/principal. Workspace repository остаётся владельцем атомарной document mutation; общий ledger согласует reservation/commit/recovery через узкий port. Нельзя добавить второй файл receipt, опубликованный отдельно от draft head, без recovery protocol. Нужны replay после restart, два draft с одним ключом, истечение window, revoke principal перед replay и сбой между intent/publication/response.
+
+**P2 до editor, часть storage gate.** Каждая новая mutation просматривает всю цепочку transaction snapshots. Суммарная работа растёт квадратично по числу правок, а `maximum_draft_transactions = 10_000` в конце блокирует новые ключи через `HistoryLimit`. Ограниченный undo stack эту цепочку не сокращает. Нужны индекс receipts, checkpoint/compaction и quota; receipt retention нельзя сокращать вместе с undo. При compaction сохраняются pending operations, действующие dedup windows, revisions/snapshots/assets; crash в середине GC не делает опубликованное состояние нечитаемым. Benchmark достаточно провести на небольшой конфигурируемой границе и серии растущих историй, без дорогого hardware soak.
+
+## C — Process I/O и единый runtime owner
+
+**P1, статический дефект.** [ProcessRuntime::send](../../crates/deckweave-plugin-supervisor/src/process.rs) синхронно пишет в `ChildStdin`. Если plugin перестал читать, заполненный pipe блокирует вызывающий поток; `receive(timeout)` не ограничивает эту запись. При едином mutable owner watchdog не получает управление для `terminate`. `try_wait` после завершения parent также без deadline делает join reader threads; grandchild с унаследованными stdout/stderr способен удерживать их открытыми.
+
+Нужен transport adapter с ограниченной outbound queue, deadline/cancellation и доступным независимо от заблокированного I/O kill path. Очереди разделяют reliable control и coalescible data по contract; overflow немедленно fences источник. Exit parent не должен ждать EOF от потомков до возврата управления coordinator. Acceptance запускает специальный child, который не читает stdin, и parent, завершающийся с живым наследником pipes; внешний watchdog ограничивает сам тест. Текущее наличие Job Object/process group не доказывает ограниченное время join.
+
+**Незавершённая способность.** [HostRuntime](../../crates/deckweave-host/src/lib.rs) сейчас владеет locks/status/autostart. Desktop создаёт Host/Gateway/Store, но не production driver, связывающий `RuntimeController`, `ProcessRuntime`, clock, registry и grant events. Integration tests вручную соединяют эти части. Следующий срез должен запустить virtual provider через public application path и пройти revoke/crash/shutdown при закрытом UI.
+
+Coordinator получает ports, а не imports чужой infrastructure. Plugin Runtime владеет process session; Host владеет порядком activation/barrier; Gateway владеет авторизацией и представлением operation. Нужен один определённый owner transitions, а не несколько независимых polling loops, меняющих одну session.
+
+## D — Candidate и apply без циклической зависимости фаз
+
+**Незавершённая способность.** Фаза 4 обещает apply, а compiler и `ExecutionPlan` появятся в Фазе 5. Без явного port возникает риск временного «успешного validate», которое затем останется в production.
+
+В Фазе 4 Host получает `PlanCompiler`/`RuntimeActivation`/commit repository ports; имена implementation могут отличаться. Fake compiler проверяет orchestration и явно принимает только empty/virtual fixture subset. Неподдерживаемый executable graph возвращает `unsupported`, а не успешный пустой plan. В Фазе 5 тот же acceptance выполняется с настоящим compiler и isolated virtual runtime. Plan token привязан к draft version, candidate/package hashes, registry/grant revisions, expected active revision и expiry; prepare/barrier повторно проверяют preconditions.
+
+[Workspace validation](../../crates/deckweave-workspace/src/validation.rs) сейчас проверяет форму документа, hashes и строки. Она не проверяет graph semantics и допускает конфликтующие entries одного PackageId. Это допустимый storage scaffold, но не разрешение activate. Workspace Configuration должен проверять уникальность lock entries и согласованность asset references; Automation отвечает за semantic graph/schema compatibility, Registry — за разрешение endpoints, security port — за grants. Gateway не должен дублировать эти инварианты.
+
+## E — Commit/recovery и границы durability
+
+**P1 перед durable apply, статический риск.** [NativeAtomicFileStore](../../crates/deckweave-platform-host/src/storage.rs) представляет все replace failures как обычную ошибку и удаляет temporary file. Но [ReplaceFileW](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-replacefilew) описывает случаи, когда имена файлов уже изменились при возвращённой ошибке. Нельзя на основании одного `Err` гарантировать «публикации не было» или безусловно очищать единственную recovery copy.
+
+Нужны классификация publication outcome, reconciliation с диском и fault fixtures. Удаление неподдерживаемого флага в этом аудите не решает весь recovery protocol. Уровень гарантии задаётся отдельно для process kill и power loss, с filesystem assumptions. Checksum обнаруживает повреждение, но не возвращает потерянные bytes.
+
+После commit новая revision остаётся выбранной даже при degraded activation; до commit выбирается прежняя. Receipt, operation status и selected revision должны согласовываться после потери ответа. Disk full, grant revoke на prepare, exclusive handoff failure и настоящий kill процесса на каждой стадии проверяются через тот же composition, который используется приложением. Fake I/O error проверяет только свой участок, а не весь путь восстановления.
+
+## Последующие фазы: недостающие условия входа
+
+| Фаза | Что проверить до следующего слоя |
+|---|---|
+| 5 | Заменить fake compiler без изменения semantics apply; source → isolated action → state/feedback идёт через Host. Dynamic schema change, два одинаковых устройства, old-epoch result и очередь release входят в M1 |
+| 6 | Tauri adapter вызывает Gateway с host-derived principal; shared DTO parity, version conflict/replay и reconnect snapshot проверяются до canvas. UI bridge пока содержит только host commands, это ещё не интеграция draft API |
+| 7 | Grants/discovery/availability проверяются при cold start. Observe не обещает interception и не создаёт физическую identity для aggregate input; возврат synthetic input не зацикливает trigger |
+| 8–9 | One-owner arbitration одинаков для runtime, preview и probe; reconnect/format change не повторяет старый output. Renderer benchmark и реальные transport budgets предшествуют editor optimization |
+| 11 | Minimal job correlation уже существует с Фазы 5; artifact broker, TTL/quota и cancel появляются до связывания transcription/browser/mail outputs. Fake Handy-like chain проверяет typed data, не реальные приватные данные |
+| 12 | SDK freeze после conformance на device/service/dynamic ports и version-skew fixtures; публичные SDK не импортируют host infrastructure |
+| 13 | Interaction scaffold не валидирует selected value по schema, не version-ирует search queries и хранит terminal sessions без eviction. Нужны query generation, epoch/provider fencing, monotonic deadlines, byte/count budgets и terminal retention до presenter/custom view |
+| 13–14 | C0 Counter manifest не доказывает C1 lifecycle. Executable C1 spike должен предшествовать инвестициям в custom web/PI; production C1–C3 остаётся Фазой 14 |
+| 16–18 | HTTP/WS adapter проходит parity с in-process Gateway; auth/recovery нельзя откладывать до этой фазы. Hardening проверяет уже реализованные гарантии, а не впервые добавляет ownership/cleanup |
+
+## Оценка DDD и организации документации
+
+Главные decisions — модульный монолит, один per-user Host, process isolation плагинов, типизированные capability families, отдельные data/control planes — сохраняются. Любое устройство не требует универсального callback в ядре: оно объявляет поддерживаемые capabilities, lifecycle и QoS; неизвестная family остаётся недоступной до явной поддержки host. Media RT, firmware programming и synchronous input interception не протаскиваются через обычный action queue.
+
+Cargo dependency allowlist и size ratchet полезны, но не доказывают DDD автоматически: они не проверяют инварианты aggregate и не запрещают всякий `std::fs` внутри domain. При ревью нового use case нужны владелец инварианта, port contract и межконтекстный failure test. Перенос файлов без изменения ответственности не закрывает такой review.
+
+Текущая структура `product → contracts → architecture/modules → implementation` уже пригодна для расширения. Повторное перемещение всех файлов не улучшит её. Внесены точечные изменения source-of-truth contracts, исправлены преувеличенные статусы, выделены проверяемые pre-apply slices. После закрытия gate этот отчёт остаётся evidence либо переносится в archive с обновлением ссылок; текущие задачи не дублируются в новых файлах.

@@ -2,14 +2,16 @@
 //! Runtime topology and canonical physical-resource ownership.
 
 use deckweave_domain::{
-    capability::{NodeDescriptor, PortDescriptor},
+    capability::NodeDescriptor,
     ids::{
         DescriptorRevision, NodeId, PackageId, PluginSessionId, PortId, RegistryRevision,
         ResourceLeaseId, RuntimeGroupId, SessionGeneration,
     },
 };
 use serde::{Deserialize, Deserializer, Serialize};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
+mod descriptors;
+use descriptors::{find_port, validate_node_set, validate_nodes};
 use thiserror::Error;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -103,6 +105,7 @@ pub struct ResourceLeaseRecord {
 struct SessionState {
     identity: SessionIdentity,
     descriptor_revision: DescriptorRevision,
+    snapshot_registered: bool,
     nodes: BTreeMap<NodeId, NodeDescriptor>,
 }
 
@@ -160,6 +163,7 @@ impl CapabilityRegistry {
                 descriptor_revision: DescriptorRevision::try_new(1)
                     .map_err(|_| RegistryError::CounterExhausted)?,
                 nodes: BTreeMap::new(),
+                snapshot_registered: false,
             },
         );
         self.bump_revision()?;
@@ -177,8 +181,16 @@ impl CapabilityRegistry {
         if descriptor_revision < state.descriptor_revision {
             return Err(RegistryError::StaleDescriptorRevision);
         }
+        if state.snapshot_registered && descriptor_revision == state.descriptor_revision {
+            return if state.nodes == validated {
+                Ok(())
+            } else {
+                Err(RegistryError::StaleDescriptorRevision)
+            };
+        }
         state.descriptor_revision = descriptor_revision;
         state.nodes = validated;
+        state.snapshot_registered = true;
         self.bump_revision()?;
         Ok(())
     }
@@ -192,7 +204,7 @@ impl CapabilityRegistry {
         removed_node_ids: &[NodeId],
     ) -> Result<(), RegistryError> {
         let state = self.current_session(session)?;
-        if state.descriptor_revision != base_revision {
+        if !state.snapshot_registered || state.descriptor_revision != base_revision {
             return Err(RegistryError::ResyncRequired);
         }
         if descriptor_revision <= base_revision {
@@ -340,52 +352,4 @@ impl CapabilityRegistry {
             .ok_or(RegistryError::CounterExhausted)?;
         Ok(())
     }
-}
-
-fn validate_nodes(
-    nodes: Vec<NodeDescriptor>,
-    revision: DescriptorRevision,
-) -> Result<BTreeMap<NodeId, NodeDescriptor>, RegistryError> {
-    let mut validated = BTreeMap::new();
-    for node in nodes {
-        if node.descriptor_revision != revision {
-            return Err(RegistryError::StaleDescriptorRevision);
-        }
-        node.validate()
-            .map_err(|error| RegistryError::InvalidDescriptor(error.to_string()))?;
-        if validated.insert(node.node_id.clone(), node).is_some() {
-            return Err(RegistryError::DuplicateNode("within snapshot".into()));
-        }
-    }
-    validate_node_set(&validated)?;
-    Ok(validated)
-}
-
-fn validate_node_set(nodes: &BTreeMap<NodeId, NodeDescriptor>) -> Result<(), RegistryError> {
-    let mut ports = BTreeSet::new();
-    for node in nodes.values() {
-        for port in node_ports(node) {
-            let key = (node.node_id.as_str(), port.port_id.as_str());
-            if !ports.insert(key) {
-                return Err(RegistryError::InvalidDescriptor(format!(
-                    "duplicate port {} in node {}",
-                    port.port_id, node.node_id
-                )));
-            }
-        }
-    }
-    Ok(())
-}
-
-fn node_ports(node: &NodeDescriptor) -> impl Iterator<Item = &PortDescriptor> {
-    node.devices
-        .iter()
-        .flat_map(|device| &device.elements)
-        .chain(node.services.iter().flat_map(|service| &service.elements))
-        .flat_map(|element| &element.capabilities)
-        .flat_map(|capability| &capability.ports)
-}
-
-fn find_port<'a>(node: &'a NodeDescriptor, port_id: &PortId) -> Option<&'a PortDescriptor> {
-    node_ports(node).find(|port| port.port_id == *port_id)
 }

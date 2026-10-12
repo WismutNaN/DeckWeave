@@ -54,4 +54,6 @@
 
 `deckweave-host` не реализует `ApplicationService`: Gateway создаётся отдельно в composition root и получает read-only lifecycle projection и bounded-context repositories.
 
+Текущая реализация содержит startup locks/status/autostart; production coordination plugins/apply ещё не подключена. В [gate C–E](../../implementation/roadmap.md#pre-apply-gate) Host получает compiler, runtime activation и commit repository ports. Фаза 4 использует явно ограниченный fake compiler, Фаза 5 заменяет его настоящим без изменения apply semantics. Путь command → virtual process → revoke/shutdown/recovery должен проверяться через composition приложения, включая работу при закрытом WebView.
+
 ArtifactBroker реализует узкий application port с injected temporary-storage adapter; engine не зависит от Host implementation. Limits и lifecycle: [automation artifacts](../../contracts/automation.md#artifact-и-доступ-к-данным). Это небольшой сервис host, не новый обязательный процесс или database.

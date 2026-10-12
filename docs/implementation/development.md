@@ -75,13 +75,14 @@ Rust Protobuf types генерируются `prost-build` в `OUT_DIR`, Rust do
 ```powershell
 npm run check
 cargo fmt --all -- --check
-cargo test --locked
-cargo clippy --locked --all-targets -- -D warnings
+cargo test --locked --workspace --exclude deckweave-desktop
+cargo clippy --locked --workspace --exclude deckweave-desktop --all-targets -- -D warnings
 cargo clippy --locked -p deckweave-desktop --all-targets --all-features -- -D warnings
 ```
 
-cargo test по умолчанию тестирует платформенно-независимые crates и host services.
-Пакеты desktop/GTK не входят в default-members, поэтому Linux core CI не требует desktop libraries.
+Обычный `cargo test --locked` выбирает только `default-members` и пропускает, в частности,
+integration tests profiles, registry, plugin-supervisor и OpenAction. Core CI явно выбирает весь
+workspace с исключением desktop; GTK/desktop libraries для этой job не требуются. Desktop проверяется отдельно.
 Cargo.lock и package-lock.json обязательны.
 
 Проверка dependency policies:
@@ -158,7 +159,7 @@ authorization/request validation и стабильное отображение 
 R2 начат отдельным `deckweave-workspace`: он владеет `WorkspaceDraft`/`WorkspaceRevision`, commands,
 validation, pure JSON-pointer mutation и `DraftRepository`. Profiles реализует port и временно
 re-export прежних имён, поэтому persisted JSON и публичные imports первого среза совместимы.
-Стандартный `cargo test --locked` включает workspace domain tests через `default-members`.
+Стандартный `cargo test --locked` включает workspace domain tests через `default-members`, но не весь набор adapters/integration tests. Для полного core gate используется команда с `--workspace --exclude deckweave-desktop`, приведённая выше.
 
 ## Локальная проверка 2026-10-12
 

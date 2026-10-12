@@ -79,6 +79,10 @@ Module specifications уточняют ports каждого контекста. 
 
 Межконтекстная атомарность не имитируется общей mutable transaction. Она выражается application use case, durable record, idempotency key и компенсацией/recovery, как в apply protocol.
 
+В apply Workspace Configuration выпускает immutable candidate и проверяет lock/assets; Automation компилирует semantic graph; Registry разрешает полные endpoints и владеет resource owners. Host координирует prepare/barrier/commit через узкие ports, а Plugin Runtime исполняет process lifecycle. Gateway авторизует command и публикует operation status. Ни Gateway, ни Tauri adapter не выбирают active revision непосредственной записью файла.
+
+Owner port задаёт семантику результата: draft mutation возвращает receipt вместе с соответствующим snapshot, а не предлагает Gateway самостоятельно склеить их двумя reads. Общий dedup ledger и document repository согласуются commit/recovery protocol; перенос ledger в Gateway не разрешает раздельную ненадёжную публикацию двух файлов. Application coordinator не получает mutable references на чужие aggregates и не держит lock во время внешнего I/O.
+
 ## Плагины как граница расширения
 
 Плагин публикует contributions через versioned protocol. Он не становится частью доменной модели host и не получает ссылку на внутренние services.
@@ -127,6 +131,8 @@ Module specifications уточняют ports каждого контекста. 
 | новые расширения | `deckweave-platform-input` и `deckweave-interaction` фиксируют контракты/fixtures без преждевременных OS/web integrations |
 
 Миграция R1–R4 выполнена strangler-подходом без изменения persisted/wire schema. Compatibility re-export OS ports сохранён в `deckweave-application` только для внешних потребителей; новый код импортирует `deckweave-platform` напрямую. Полный порядок и gate продолжения описаны в [roadmap](../implementation/roadmap.md#ddd-migration).
+
+Структурный gate завершён; поведенческий [gate перед apply](../implementation/roadmap.md#pre-apply-gate) ещё открыт. Dependency allowlist проверяет локальные package imports, а size ratchet — размер модулей: они не доказывают корректность инвариантов и отсутствие I/O внутри domain. Такие изменения проверяются domain/port/scenario tests и review. Оставшийся `DraftEditor` — временный session facade в profiles adapter; полноценные editor use cases переводятся в Workspace application layer при развитии undo/compaction, без переноса файлового I/O в domain.
 
 ## Антипаттерны
 

@@ -121,12 +121,8 @@ impl ApplicationService for ApplicationGateway {
                         &edit,
                     )
                     .map_err(|error| map_store_error(context, error))?;
-                let draft = self
-                    .drafts
-                    .get_draft(&draft_id)
-                    .map_err(|error| map_store_error(context, error))?;
                 Ok(AppCommandResult::DraftMutation {
-                    draft: Box::new(draft),
+                    draft: Box::new(stored.draft),
                     receipt: Some(DraftMutationReceipt {
                         key: stored.key,
                         before_version: stored.before_version,

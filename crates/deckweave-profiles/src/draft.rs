@@ -6,7 +6,9 @@ use deckweave_workspace::{
     preview_draft_mutation as edit_draft, validate_draft,
 };
 use serde::{Deserialize, Serialize};
-use std::{collections::VecDeque, sync::Arc};
+#[path = "editor.rs"]
+mod editor;
+pub use editor::DraftEditor;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -20,8 +22,9 @@ pub struct MutationReceipt {
     pub document_sha256: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MutationOutcome {
+    pub draft: WorkspaceDraft,
     pub receipt: MutationReceipt,
     pub replayed: bool,
 }
@@ -142,9 +145,10 @@ impl JsonProfileStore {
             self.repair_draft_head(&chain.head)?;
         }
         let fingerprint = mutation_fingerprint(draft_id, expected_version, command)?;
-        if let Some(receipt) = self.find_receipt(&chain, &key)? {
+        if let Some((receipt, draft)) = self.find_receipt(&chain, &key)? {
             if receipt.payload_fingerprint == fingerprint {
                 return Ok(MutationOutcome {
+                    draft,
                     receipt,
                     replayed: true,
                 });
@@ -184,6 +188,7 @@ impl JsonProfileStore {
             transaction_sha256,
         })?;
         Ok(MutationOutcome {
+            draft: transaction.draft,
             receipt,
             replayed: false,
         })
@@ -316,7 +321,7 @@ impl JsonProfileStore {
         &self,
         chain: &DraftChainHead,
         key: &MutationKey,
-    ) -> Result<Option<MutationReceipt>, DraftMutationError> {
+    ) -> Result<Option<(MutationReceipt, WorkspaceDraft)>, DraftMutationError> {
         let draft_id = &chain.transaction.draft.draft_id;
         let mut current = Some(chain.head.transaction_sha256.clone());
         for _ in 0..self.limits.maximum_draft_transactions {
@@ -327,7 +332,7 @@ impl JsonProfileStore {
             if let Some(receipt) = transaction.receipt
                 && receipt.key == *key
             {
-                return Ok(Some(receipt));
+                return Ok(Some((receipt, transaction.draft)));
             }
             current = transaction.previous_transaction_sha256;
         }
@@ -366,6 +371,7 @@ impl DraftRepository for JsonProfileStore {
             JsonProfileStore::mutate_draft(self, draft_id, key, expected_version, command)
                 .map_err(map_application_store_error)?;
         Ok(StoredDraftMutation {
+            draft: draft_view(outcome.draft),
             key: outcome.receipt.key,
             before_version: outcome.receipt.before_version,
             after_version: outcome.receipt.after_version,
@@ -398,110 +404,6 @@ fn map_application_store_error(error: DraftMutationError) -> DraftRepositoryErro
         DraftMutationError::IdempotencyConflict => DraftRepositoryError::IdempotencyConflict,
         other => DraftRepositoryError::Unavailable(other.to_string()),
     }
-}
-
-pub struct DraftEditor {
-    store: Arc<JsonProfileStore>,
-    draft_id: DraftId,
-    undo: VecDeque<serde_json::Value>,
-    redo: VecDeque<serde_json::Value>,
-    maximum_history: usize,
-}
-
-impl DraftEditor {
-    pub fn open(
-        store: Arc<JsonProfileStore>,
-        draft_id: DraftId,
-        maximum_history: usize,
-    ) -> Result<Self, DraftMutationError> {
-        let _loaded = store.load_draft(&draft_id)?;
-        Ok(Self {
-            store,
-            draft_id,
-            undo: VecDeque::new(),
-            redo: VecDeque::new(),
-            maximum_history,
-        })
-    }
-
-    pub fn apply(
-        &mut self,
-        key: MutationKey,
-        expected_version: DraftVersion,
-        command: DraftCommand,
-    ) -> Result<MutationOutcome, DraftMutationError> {
-        let before = self.store.load_draft(&self.draft_id)?.draft;
-        let outcome = self
-            .store
-            .mutate_draft(&self.draft_id, key, expected_version, &command)?;
-        if !outcome.replayed {
-            push_bounded(&mut self.undo, before.document, self.maximum_history);
-            self.redo.clear();
-        }
-        Ok(outcome)
-    }
-
-    pub fn undo(
-        &mut self,
-        key: MutationKey,
-    ) -> Result<Option<MutationOutcome>, DraftMutationError> {
-        let Some(previous) = self.undo.back().cloned() else {
-            return Ok(None);
-        };
-        let current = self.store.load_draft(&self.draft_id)?.draft;
-        let outcome = self.store.mutate_draft(
-            &self.draft_id,
-            key,
-            current.version,
-            &DraftCommand::ReplaceDocument { document: previous },
-        )?;
-        self.undo.pop_back();
-        push_bounded(&mut self.redo, current.document, self.maximum_history);
-        Ok(Some(outcome))
-    }
-
-    pub fn redo(
-        &mut self,
-        key: MutationKey,
-    ) -> Result<Option<MutationOutcome>, DraftMutationError> {
-        let Some(next) = self.redo.back().cloned() else {
-            return Ok(None);
-        };
-        let current = self.store.load_draft(&self.draft_id)?.draft;
-        let outcome = self.store.mutate_draft(
-            &self.draft_id,
-            key,
-            current.version,
-            &DraftCommand::ReplaceDocument { document: next },
-        )?;
-        self.redo.pop_back();
-        push_bounded(&mut self.undo, current.document, self.maximum_history);
-        Ok(Some(outcome))
-    }
-
-    #[must_use]
-    pub fn has_undo(&self) -> bool {
-        !self.undo.is_empty()
-    }
-
-    #[must_use]
-    pub fn has_redo(&self) -> bool {
-        !self.redo.is_empty()
-    }
-}
-
-fn push_bounded(
-    history: &mut VecDeque<serde_json::Value>,
-    value: serde_json::Value,
-    maximum: usize,
-) {
-    if maximum == 0 {
-        return;
-    }
-    if history.len() == maximum {
-        history.pop_front();
-    }
-    history.push_back(value);
 }
 
 fn map_edit_error(error: DraftEditError) -> DraftMutationError {
