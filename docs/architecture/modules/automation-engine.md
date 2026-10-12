@@ -21,7 +21,8 @@
 | `DataEdge`, `ResultBinding` | compiled references | Связь поля результата с входом шага конкретного run |
 | `ExecutionOutcome` | struct | Success/failure/trace |
 | `Clock` | trait | Monotonic/wall/fake time |
-| `SimulationRunner` | service | Тот же scheduler с isolated state и fixture outcomes вместо live dispatcher |
+| `SimulationRunner`, `SimulationFixture` | service/document | Тот же compiled plan и scheduler с isolated state, fake ticks и fixture outcomes вместо live dispatcher |
+| `SimulationTrace`, `SimulationLatency` | result | Bounded redacted trace и p50/p95/p99 baseline по четырём границам |
 
 ## Зависимости
 
@@ -41,6 +42,7 @@
 - Любой cycle пересекает положительный delay/новое внешнее событие и ограничен execution budget; один state/latch недостаточен.
 - Sequence/parallel/join/error semantics явны.
 - Replay с одинаковым fixture/clock даёт одинаковое state.
+- Replay state не переживает отдельный run; fixture version/order/budget и safe trace IDs проверяются до исполнения.
 - Synthetic origin loop guard включён по умолчанию.
 - Encoder delta и touch lifecycle не coalesce; value segments не пересекают edge/barrier.
 - Late continuation другой epoch не меняет active state; cancel не означает rollback эффекта.
@@ -67,8 +69,8 @@
 
 Живой scheduler не переехал в Plugin Runtime: Host-owned owner хранит `WorkspaceScheduler`, назначает `(HostBootId, ActivationEpoch, IngressOrdinal)` и выполняет возвращённые intents через injected dispatcher. `WorkspaceScheduler::reopen_after_barrier` применяется только при pre-commit abort: pending effects уже отменены и никогда не replay; semantic plan и state slots остаются прежними.
 
-Временный `RestrictedFixtureCompiler` не является урезанной реализацией произвольного graph: он принимает пустой workspace без packages/assets либо точную virtual fixture с kind `virtual_echo`/`virtual_disruptive_echo` и одним pinned `org.deckweave.example.virtual`. Любой другой document/lock возвращает `UnsupportedGraph`. Результат уже не содержит fixture enum: compiler выдаёт точный `RuntimeRequirement`, а checksum-версия `DurableExecutionPlan` входит в apply intent/commit и используется prepare/recovery. Для commit, созданного до появления этого extension, `PlanCompiler::compile_recovery` принимает immutable revision и сохранённые candidate/package hashes; это migration seam владельца graph vocabulary, а не разрешение Host/runtime разбирать graph. Присутствующий повреждённый extension всегда отклоняется. Текущий `PlanCompiler` получает revision fence; настоящий compiler также потребует immutable descriptor/schema catalog и полный executable IR. Graph vocabulary остаётся внутри Automation; Host и Plugin Runtime не интерпретируют JSON nodes.
+Временный `RestrictedFixtureCompiler` остаётся только в desktop composition до появления graph editor Фазы 6: он принимает пустой workspace либо точную virtual fixture и не маскирует произвольный graph пустым plan. Production `GraphPlanCompiler` уже получает immutable descriptor/schema catalog, compile access, package lock и revision fence и выдаёт полный executable IR. Оба compiler проходят общий `PlanCompiler` boundary; Host и Plugin Runtime не интерпретируют JSON nodes. Checksum-версия `DurableExecutionPlan` входит в apply intent/commit и используется prepare/recovery. Для старого commit без extension `PlanCompiler::compile_recovery` принимает immutable revision и сохранённые hashes; присутствующий повреждённый plan всегда отклоняется, а не перекомпилируется.
 
 Input/result/job schemas закладываются в Фазе 2; начальный invocation path — в Фазе 5, композиция и artifact/collection fixtures — в Фазе 11. [Automation contract](../../contracts/automation.md) является источником правил передачи результатов и работы слоёв; [сценарии](../../product/scenarios.md) задают сквозную приёмку.
 
-Production simulate/replay использует `SimulationRunner` этого модуля: все effects превращаются в записанные intents, outcomes берутся из fixture. Если внешнего результата нет, report помечает ветвь `inconclusive`, не вызывает live provider. Testkit лишь собирает conformance/fault harness поверх этого публичного порта; UI/API не импортируют testkit.
+Production simulate/replay использует `SimulationRunner` этого модуля: все effects попадают в bounded capability-free recorder, outcomes/timers/faults/order/random seed берутся из fixture. Если внешнего результата нет, report помечает ветвь `Inconclusive`; при переполнении ingress или recorder — `Overloaded` с cleanup evidence. Versioned trace содержит plan/schema hashes, fake ticks, correlation/causation, coalescing и machine outcomes, но не payload. Testkit лишь собирает conformance/fault harness поверх этого публичного порта; UI/API не импортируют testkit. Текущий baseline: [Фаза 5 replay/latency](../../implementation/phase-5-latency-baseline.md).

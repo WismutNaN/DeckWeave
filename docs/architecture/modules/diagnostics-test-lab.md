@@ -10,7 +10,7 @@
 | `TraceContext` | struct | Trace/correlation/causation |
 | `MetricsSnapshot` | struct | Latency/queues/drops/memory |
 | `EventRecorder` | service | Bounded opt-in capture |
-| `ReplayRunner` | test harness | Fixture runner поверх production `SimulationRunner` из Automation Engine |
+| `ReplayRunner` | test harness | Fixture/conformance harness поверх production `SimulationRunner` из Automation Engine |
 | `VirtualDeviceProvider` | test plugin | Hardware-independent source/target |
 | `ConformanceSuite` | harness | Plugin/device/API contract tests |
 | `DiagnosticBundle` | export | Redacted selected evidence |
@@ -33,6 +33,8 @@
 - Production crates не импортируют testkit; runtime пишет в узкий diagnostics sink.
 - Fixture записывает ingress order, coalescing, timer firings, completions и initial state; перестановка внешних outcomes не обязана давать тот же state.
 - Default replay использует fake targets без live effects, diagnostics export не исполняет записанные commands.
+- Default live/simulation trace payload-redacted; точный replay получает values/outcomes только из явно разрешённого versioned fixture.
+- Trace и intent recorder bounded и публикуют drops/overload вместо блокировки scheduler.
 
 ## Намеренно НЕ обрабатывает
 
@@ -45,5 +47,7 @@
 > Testkit создаётся рано, а не после features. Каждый hardware provider должен иметь protocol fixtures, virtual fallback and manual acceptance checklist.
 
 Разделение dependencies: [ADR-0013](../../decisions/0013-dependency-and-host-service-boundaries.md). Semantics replay: [контракт детерминизма](../../contracts/lifecycle.md#детерминизм-и-циклы).
+
+Фаза 5 реализовала capability-free replay, redacted bounded trace, fake-clock/load fixtures и latency percentiles внутри Automation. Test Lab UI, долговременный opt-in recorder, virtual-device catalogue и диагностические экспорты остаются Фазой 10. Измерения: [phase-5 latency baseline](../../implementation/phase-5-latency-baseline.md).
 
 Ранний conformance набор включает несколько независимых providers: observe keyboard, analog travel, irregular LEDs, screen/pointer, async result service и media template. Workflow fixtures проверяют concurrent run scope, unknown effect, artifact quota/revoke/TTL и notification gaps; lighting — fake-clock wave/cooldown/fade и конфликт output owners. Источники и gaps hardware claims фиксируются по [исследованию](../../research/implementation-review.md); success fake fixture не выдаётся за hardware или release-binary conformance.

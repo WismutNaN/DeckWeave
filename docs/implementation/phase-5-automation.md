@@ -1,6 +1,6 @@
 # Фаза 5: минимальный automation engine
 
-Статус: срезы 5.0–5.5 завершены; следующий срез — replay и diagnostics 5.6. Основание и исходные дефекты — [повторная проверка apply](../research/pre-apply-review.md#phase-5-readiness). Фаза 4 создала рабочую основу для apply и восстановления isolated fixture; общий command claim, superseded recovery и отдельный pending budget теперь закрывают найденные P1-переходы.
+Статус: фаза завершена — срезы 5.0–5.6 реализованы и проходят общий core gate. Измерения и границы последнего среза зафиксированы в [latency/replay baseline](phase-5-latency-baseline.md). Перед Фазой 6 остаётся отдельный долг B2 checkpoint/compaction Profile Store; он не относится к Automation Engine и не скрывается статусом этой фазы. Основание и исходные дефекты — [повторная проверка apply](../research/pre-apply-review.md#phase-5-readiness).
 
 ## Граница результата
 
@@ -84,12 +84,12 @@ Graph vocabulary принадлежит Automation; shared endpoint/IDs/schema r
 
 ### 5.6 — Replay, diagnostics и latency baseline
 
-- [ ] `SimulationRunner` использует тот же compiler/scheduler с отдельным состоянием и dispatcher, который записывает intents и не имеет live capabilities. Outcomes, order, timer firings, grants/availability и randomness берутся из fixture; недостающий outcome даёт inconclusive.
-- [ ] Versioned bounded trace хранит plan/schema hashes, correlation/causation, ingress/coalescing decisions и redacted outcomes. Private text/audio/credentials не включаются по умолчанию.
-- [ ] Измерить p50/p95/p99 virtual ingress → dispatch, отдельно queue wait, scheduler step и provider completion; задать load/soak fixture и growth bounds. Сначала измерить текущий путь, затем выбирать оптимизации по узкому месту.
-- [ ] Проверить slow sink, bounded memory, fault/cleanup при перегрузке и отсутствие live calls в replay. UI Test Lab и длительный recording остаются Фазой 10.
+- [x] `SimulationRunner` использует тот же compiled plan и `WorkspaceScheduler` с новым состоянием на каждый run; capability-free recording dispatcher только сохраняет intents. Outcomes, order, timer firings, grant/topology faults и random seed приходят из versioned fixture; отсутствующий terminal outcome даёт `Inconclusive`.
+- [x] Versioned bounded trace хранит plan/schema hashes, correlation/causation, fake-clock ticks, ingress/coalescing decisions и только machine outcomes. Payload, private text/audio и credentials в trace не попадают; trace context принимает лишь bounded safe identifiers.
+- [x] Отдельно измеряются p50/p95/p99 для ingress → dispatch, queue wait, scheduler step и provider completion. Load fixture из 250 пар signal/outcome выполняется дважды с одинаковыми state/intents/trace; baseline и команды записаны отдельно.
+- [x] Ingress queue и capability-free recording sink имеют независимые overload/cleanup сценарии и bounded storage; replay API вообще не принимает live dispatcher/capabilities. UI Test Lab, долговременная запись и захват private payload остаются Фазой 10.
 
-Выход: live trace воспроизводит state/intents с fake clock; повторные runs не наращивают незавершённые state/queues. Полный набор acceptance 5.0–5.6 проходит на поддерживаемой core matrix. Фаза 5 не закрывается одной успешной `source → echo` демонстрацией.
+Выход: versioned fixture, сопоставленный с порядком redacted live trace, воспроизводит state/intents с fake clock; default live trace сам по себе намеренно не является replay-файлом, потому что не содержит private payload. Повторные runs не разделяют state и не наращивают pending state/queues. Полный acceptance 5.0–5.6 проходит в локальном workspace gate; platform CI остаётся отдельным release evidence. Фаза 5 не закрыта одной успешной `source → echo` демонстрацией.
 
 ## Порядок проверки и Definition of Done
 

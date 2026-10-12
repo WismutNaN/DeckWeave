@@ -7,6 +7,7 @@ use deckweave_domain::{
         ActivationEpoch, ExecutionId, GraphNodeId, HostBootId, IngressOrdinal, InvocationId, JobId,
     },
 };
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use thiserror::Error;
@@ -20,7 +21,8 @@ pub struct IngressContext {
     pub ordinal: IngressOrdinal,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum IngressReliability {
     Reliable,
     Coalescible,
@@ -32,7 +34,13 @@ pub struct IngressItem {
     pub kind: IngressKind,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(
+    tag = "type",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase",
+    deny_unknown_fields
+)]
 pub enum IngressKind {
     Signal {
         source: StableEndpointRef,

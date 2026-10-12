@@ -7,6 +7,7 @@ mod fixture;
 mod graph;
 mod plan;
 mod scheduler;
+mod simulation;
 
 pub use compile::{
     CatalogEndpoint, CatalogError, CatalogSchema, CompileAccess, DescriptorCatalog,
@@ -35,4 +36,9 @@ pub use scheduler::{
     IngressContext, IngressItem, IngressKind, IngressOverflow, IngressQueue, IngressReliability,
     PendingInvocation, QueueAdmission, SchedulerFault, SchedulerIntent, SchedulerState,
     SchedulerStep, SchedulerTransition, SchedulerTransitionError, WorkspaceScheduler, transition,
+};
+pub use simulation::{
+    LatencyPercentiles, SIMULATION_FIXTURE_VERSION, SIMULATION_TRACE_VERSION, SimulationError,
+    SimulationEvent, SimulationFixture, SimulationLatency, SimulationReport, SimulationRunner,
+    SimulationStatus, SimulationTrace, SimulationTraceEntry, SimulationTraceKind,
 };

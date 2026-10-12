@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use super::{
-    IngressItem, IngressOverflow, IngressQueue, QueueAdmission, SchedulerFault, SchedulerIntent,
-    SchedulerState, SchedulerTransitionError, transition,
+    IngressContext, IngressItem, IngressOverflow, IngressQueue, QueueAdmission, SchedulerFault,
+    SchedulerIntent, SchedulerState, SchedulerTransitionError, transition,
 };
 use crate::{ExecutableGraph, GraphLimits, GraphValidationError};
 use deckweave_domain::ids::{ActivationEpoch, HostBootId};
@@ -19,6 +19,7 @@ pub struct WorkspaceScheduler {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SchedulerStep {
+    pub ingress: IngressContext,
     pub intents: Vec<SchedulerIntent>,
     pub faults: Vec<SchedulerFault>,
 }
@@ -58,6 +59,7 @@ impl WorkspaceScheduler {
         let Some(item) = self.ingress.pop() else {
             return Ok(None);
         };
+        let ingress = item.context.clone();
         let result = transition(
             &self.plan,
             self.state.clone(),
@@ -67,6 +69,7 @@ impl WorkspaceScheduler {
         )?;
         self.state = result.state;
         Ok(Some(SchedulerStep {
+            ingress,
             intents: result.intents,
             faults: result.faults,
         }))

@@ -126,9 +126,10 @@ content-addressed assets, durable draft transactions/receipts, snapshots и sele
 Transport-independent Application Gateway выполняет draft mutations с principal scopes, optimistic version,
 dry-run и durable dedup через injected ports. Через тот же публичный путь доступны plan/apply/status:
 Host сохраняет operation intent, повторяет fenced checks на barrier, публикует active commit и активирует
-isolated `virtual_echo`. Startup восстанавливает committed revision без replay входного события. Произвольный
-automation graph и UI bindings ещё не поддержаны: restricted compiler принимает только подтверждённый fixture
-до реализации Фазы 5. Out-of-process fault matrix завершает host после candidate/intent/prepare/barrier/commit/
+isolated runtimes. Startup восстанавливает committed revision без replay входного события. Фаза 5 добавила
+typed graph compiler, multi-group runtime binding, live scheduler/dispatcher, M1 fixture и capability-free
+deterministic replay. Desktop composition пока сохраняет restricted fixture compiler до подключения graph editor
+и schema forms в Фазе 6; это adapter limitation, а не ветвление Host/runtime vocabulary. Out-of-process fault matrix завершает host после candidate/intent/prepare/barrier/commit/
 activation; restart подтверждает границу commit. Disk-full, grant revoke и explicit disruptive-handoff failure
 также проверены. Это process-level evidence, а не обещание power-loss durability.
 

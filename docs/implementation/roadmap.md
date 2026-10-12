@@ -40,7 +40,7 @@
 | 2 | Domain и protocol contracts | Versioned types/schemas/generated code | M | [x] |
 | 3 | Plugin supervisor и virtual package | Foundations и virtual apply готовы; live dispatch/restart integration — в Фазе 5 | L | [~] |
 | 4 | Profile revisions и application API | Draft/validate/apply/rollback через API | L | [~] |
-| 5 | Минимальный automation engine | Source → action → feedback deterministic path | L | [ ] |
+| 5 | Минимальный automation engine | Source → action → feedback deterministic path | L | [x] |
 | 6 | Desktop workspace canvas | Устройства и bindings редактируются в UI | L | [ ] |
 | 7 | Windows base provider и Platform Input | Volume/media/app/active-window и обычная клавиатура работают | M | [ ] |
 | 8 | N4 Pro hardware provider | Keys/encoders/touch/light/haptic доступны | L | [ ] |
@@ -326,7 +326,7 @@ checkpoint/compaction B2 пока отсутствует. Durable apply и produ
 **Цель:** выполнить deterministic source → action → feedback path.
 **Результат:** virtual button вызывает virtual action, меняет state и feedback; replay повторяет результат.
 **Трудоёмкость:** L
-**Статус:** [~] В процессе: 5.0–5.3 завершены; следующий срез 5.4
+**Статус:** [x] Срезы 5.0–5.6 завершены; M1 и deterministic replay проходят hardware-independent acceptance. Перед Фазой 6 остаётся межфазовый долг B2 Profile Store checkpoint/compaction.
 
 ### Контекст для агента
 > Profile/API и isolated virtual apply дают основу интеграции. Три обнаруженных dedup/recovery дефекта закрываются в 5.0 до live effects; pure compiler/scheduler можно делать независимо. Реализуется узкий graph subset без schedules и complex UI.
@@ -350,23 +350,25 @@ checkpoint/compaction B2 пока отсутствует. Durable apply и produ
 - [x] Закрыть F5-R1–R3 до подключения effects (→ [срез 5.0](phase-5-automation.md#50--закрыть-обнаруженные-переходы-фазы-4)).
 - [x] Versioned typed graph, полный invocation target, required-feature ID, delivery vocabulary, limits и Rust/TS/domain fixtures реализованы; применение limits и feature fence живым dispatcher относится к 5.3–5.4 (→ [срез 5.1](phase-5-automation.md#51--graph-contract-и-адресуемый-invocation-protocol), [Capabilities](../contracts/capabilities.md)).
 - [x] Реализовать graph compiler для source/action/state/condition/feedback с immutable schema/descriptor catalog, DAG IR и structured diagnostics (→ [Модуль: Automation Engine](../architecture/modules/automation-engine.md)).
-- [~] Runtime/recovery JSON branches удалены: оба пути используют checksum-версию compiled requirements с точными package/group/contribution. Graph IR, чистый runtime binder и scheduler готовы; подключение binder/scheduler к нескольким живым runtime groups остаётся в 5.4–5.5 (→ [срезы 5.2–5.5](phase-5-automation.md)).
+- [x] Runtime/recovery JSON branches удалены: оба пути используют checksum-версию compiled requirements с точными package/group/contribution. Binder/scheduler подключены к нескольким runtime groups, а live owner владеет epoch, ordering, barrier и dispatch (→ [срезы 5.2–5.5](phase-5-automation.md)).
 - [x] Реализовать immutable ExecutionPlan и serialized workspace scheduler (→ [ADR-0010](../decisions/0010-compiled-automation-plan.md)).
 - [x] Разделить edge queue и coalescing value lane (→ [Архитектура — Конкурентность и QoS](../architecture/overview.md#конкурентность-и-qos)).
-- [ ] Реализовать trace/correlation/causation и basic loop guard (→ [Модуль: Diagnostics & Test Lab](../architecture/modules/diagnostics-test-lab.md)).
-- [ ] Подключить compile/plan/apply к Host Runtime (→ [Модуль: Host Runtime](../architecture/modules/host-runtime.md)).
-- [ ] Реализовать execution epochs, held-output cleanup, bounded cancellation и unknown-outcome retry policy (→ [Lifecycle effects](../contracts/lifecycle.md#executions-cancellation-и-смена-плана)).
-- [ ] Создать минимальный opt-in recorder/replay с outcomes и без live dispatch; UI/расширенные fixtures следуют в Фазе 10 (→ [Diagnostics & Test Lab](../architecture/modules/diagnostics-test-lab.md)).
-- [~] Typed invocation/reply, job correlation, duplicate/late completion guard и negative schema edges реализованы в чистом scheduler; проверка через живой mixed-descriptor dispatcher остаётся в 5.4–5.5 (→ [Automation](../contracts/automation.md), [Сценарии](../product/scenarios.md)).
+- [x] Реализовать bounded trace с correlation/causation и basic loop guard через обязательный DAG compile; циклы с delay появятся только с отдельной семантикой Фазы 11 (→ [Модуль: Diagnostics & Test Lab](../architecture/modules/diagnostics-test-lab.md)).
+- [x] Подключить compile/plan/apply к Host Runtime (→ [Модуль: Host Runtime](../architecture/modules/host-runtime.md)).
+- [x] Реализовать execution epochs, cleanup, bounded cancellation и unknown-outcome без автоматического retry (→ [Lifecycle effects](../contracts/lifecycle.md#executions-cancellation-и-смена-плана)). Held outputs/layers как отдельная capability появляются в Фазе 11.
+- [x] Создать versioned fixture replay с outcomes, bounded capability-free intent recorder и без live dispatch; долговременный opt-in capture и UI следуют в Фазе 10 (→ [Diagnostics & Test Lab](../architecture/modules/diagnostics-test-lab.md), [baseline](phase-5-latency-baseline.md)).
+- [x] Typed invocation/reply, job correlation, duplicate/late completion guard и negative schema edges проверены чистым scheduler и живым M1 dispatcher (→ [Automation](../contracts/automation.md), [Сценарии](../product/scenarios.md)).
 
 ### Тесты
 
 - [x] Юнит: graph validation, schema mismatch, cycle rejection.
 - [x] Deterministic: один fixture + fake clock даёт identical final state.
-- [ ] Performance baseline: virtual input → dispatch latency.
-- [~] Ordering/fault: encoder +1,+1,-1 не теряется; axis-before-button не подменяется будущим axis; out-of-band overflow cleanup и late completion после deadline проверены. Apply epoch/barrier с живым dispatcher остаётся в 5.4.
+- [x] Integration: три isolated process связывают второй из одинаковых source devices, action job и feedback через public Gateway.
+- [x] Replay/load: missing outcome, timer/grant/topology faults, coalescing, ingress/recording overload, bounded trace и 250 пар signal/outcome.
+- [x] Performance baseline: p50/p95/p99 для virtual ingress → dispatch, queue wait, scheduler step и provider completion (→ [baseline](phase-5-latency-baseline.md)).
+- [x] Ordering/fault: encoder +1,+1,-1 не теряется; axis-before-button не подменяется будущим axis; overflow cleanup, late completion, apply epoch/barrier и stale continuation проверены.
 - [x] Result: accepted job не считается success; два invocation получают свои outputs; malformed/oversized result отклоняется, duplicate terminal не создаёт второй effect.
-- [ ] Cross-context: два одинаковых device instances и service с одинаковыми локальными ports; topology/schema change после plan, revoke во время job и старый completion после apply.
+- [x] Cross-context: два одинаковых device instances и service с одинаковыми локальными ports; topology/schema change после plan, revoke во время job и старый completion после apply.
 - [x] Recovery/dedup: один key между PatchDraft/ApplyDraft в обоих порядках и после restart; superseded committed operation; startup после более 256 terminal operations.
 
 ### Ссылки
