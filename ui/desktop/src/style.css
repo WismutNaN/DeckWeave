@@ -2,15 +2,54 @@
 @import "./styles/panels.css";
 @import "./styles/canvas.css";
 :root {
+  --text: #273139;
+  --panel: #ffffff;
+  --surface: #f7f9fa;
+  --canvas: #f1f4f5;
+  --hover: #edf1f2;
+  --dots: #cdd6da;
+  --info-bg: #eef3fa;
+  --info: #475e76;
+  --error-bg: #fff1ee;
+  --error: #8a4035;
+  --error-line: #ecc8c1;
+  --on-accent: #ffffff;
+  --accent-hover: color-mix(in srgb, var(--accent), var(--text) 15%);
   font-family: "Segoe UI", system-ui, sans-serif;
-  color: #273139;
-  background: #f4f6f7;
+  color: var(--text);
+  background: var(--canvas);
   font-synthesis: none;
   font-size: 13px;
   --muted: #65717c;
   --line: #e0e5e8;
   --accent: #267567;
-  --soft: #eaf3f0;
+  --soft: color-mix(in srgb, var(--accent) 12%, var(--panel));
+}
+:root[data-theme="dark"] {
+  --text: #e3e9ed;
+  --muted: #a9b6c1;
+  --line: #424f59;
+  --panel: #20272d;
+  --surface: #242d35;
+  --canvas: #181e24;
+  --hover: #303c46;
+  --dots: #394550;
+  --info-bg: #243647;
+  --info: #c0d7ed;
+  --error-bg: #402a29;
+  --error: #ffbcb1;
+  --error-line: #92564f;
+}
+.theme-swatches {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0;
+}
+.theme-swatches button {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
 }
 * {
   box-sizing: border-box;
@@ -83,7 +122,7 @@ svg {
 .app-header {
   height: 60px;
   flex-shrink: 0;
-  background: white;
+  background: var(--panel);
   border-bottom: 1px solid var(--line);
   padding: 0 20px;
   display: flex;
@@ -144,19 +183,19 @@ svg {
 }
 .primary {
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
   border: 1px solid var(--accent);
 }
 .primary:hover:enabled {
-  background: #1e6357;
+  background: var(--accent-hover);
 }
 .secondary {
-  background: white;
-  border: 1px solid #cfd7db;
+  background: var(--panel);
+  border: 1px solid var(--line);
 }
 .secondary:hover:enabled,
 .subtle-button:hover:enabled {
-  background: #f0f4f4;
+  background: var(--hover);
 }
 .subtle-button {
   border: 1px solid var(--line);
@@ -170,8 +209,8 @@ svg {
   padding: 6px;
 }
 .icon-button:hover:enabled {
-  background: #edf1f2;
-  color: #263940;
+  background: var(--hover);
+  color: var(--text);
 }
 .text-button {
   padding: 2px 0;
@@ -201,7 +240,7 @@ svg {
 .status-bar {
   height: 32px;
   flex-shrink: 0;
-  background: #fff;
+  background: var(--panel);
   border-top: 1px solid var(--line);
   display: flex;
   align-items: center;
@@ -234,9 +273,9 @@ svg {
   align-items: center;
   justify-content: space-between;
   padding: 6px 20px;
-  background: #eef3fa;
-  border-bottom: 1px solid #d9e3ee;
-  color: #475e76;
+  background: var(--info-bg);
+  border-bottom: 1px solid var(--line);
+  color: var(--info);
   font-size: 11px;
   min-height: 29px;
 }
@@ -245,10 +284,10 @@ svg {
   gap: 9px;
   align-items: center;
   padding: 9px 20px;
-  background: #fff1ee;
-  color: #8a4035;
+  background: var(--error-bg);
+  color: var(--error);
   line-height: 1.5;
-  border-bottom: 1px solid #ecc8c1;
+  border-bottom: 1px solid var(--error-line);
 }
 .error-bar > span {
   flex: 1;
@@ -262,7 +301,7 @@ svg {
   margin: 8px 0 14px;
 }
 .invalid {
-  color: #a04d36;
+  color: var(--error);
 }
 .section-divider {
   height: 1px;
@@ -286,7 +325,7 @@ svg {
   padding: 0 5px;
   border-radius: 4px;
   color: var(--muted);
-  background: #edf1f3;
+  background: var(--hover);
 }
 .small-tag {
   border: 1px solid var(--line);
@@ -301,7 +340,7 @@ svg {
 .root-path {
   display: block;
   padding: 10px;
-  background: #f3f5f6;
+  background: var(--hover);
   border: 1px solid var(--line);
   border-radius: 5px;
   font: 11px/1.6 monospace;
@@ -314,7 +353,7 @@ svg {
   top: 54px;
   width: 320px;
   padding: 20px;
-  background: white;
+  background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 9px;
   box-shadow: 0 12px 45px #24333e24;
@@ -333,7 +372,7 @@ svg {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #f4f6f7;
+  background: var(--canvas);
   padding: 35px;
   text-align: center;
 }
@@ -357,7 +396,7 @@ svg {
 }
 .welcome-mark {
   color: var(--accent);
-  background: #e2ede9;
+  background: var(--soft);
   width: 68px;
   height: 68px;
   border-radius: 18px;

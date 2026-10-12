@@ -8,7 +8,7 @@
   bottom: 28px;
   left: 0;
   width: 330px;
-  background: white;
+  background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 18px;
@@ -54,7 +54,7 @@
   flex-direction: column;
   min-height: 0;
   border-right: 1px solid var(--line);
-  background: #fafbfc;
+  background: var(--surface);
   padding: 17px 12px 12px;
 }
 .panel-heading {
@@ -92,7 +92,7 @@
 }
 .device-list > button.active {
   background: var(--soft);
-  color: #226b5e;
+  color: var(--accent);
 }
 .library-divider {
   height: 1px;
@@ -103,8 +103,8 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  border: 1px solid #dbe1e5;
-  background: #fff;
+  border: 1px solid var(--line);
+  background: var(--panel);
   border-radius: 6px;
   padding: 8px 9px;
   margin: 0 5px 20px;
@@ -145,7 +145,7 @@
 }
 .package-mark {
   display: flex;
-  color: #526f82;
+  color: var(--muted);
 }
 .library-action {
   display: flex;
@@ -166,7 +166,7 @@
   opacity: 0.48;
 }
 .library-action:hover:enabled {
-  background: #edf1f4;
+  background: var(--hover);
 }
 .library-action > span:nth-child(2) {
   flex: 1;
@@ -184,10 +184,10 @@
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  border: 1px solid #dfe5e9;
-  background: white;
+  border: 1px solid var(--line);
+  background: var(--panel);
   border-radius: 6px;
-  color: #5b748a;
+  color: var(--muted);
 }
 .library-tip {
   display: flex;
@@ -222,7 +222,7 @@
 }
 .inspector-panel {
   border-left: 1px solid var(--line);
-  background: white;
+  background: var(--panel);
   min-width: 0;
   overflow: hidden;
   display: flex;
@@ -259,8 +259,8 @@
   border-radius: 8px;
   display: grid;
   place-items: center;
-  color: #526c76;
-  background: #f5f7f8;
+  color: var(--muted);
+  background: var(--surface);
 }
 .inspector-tabs {
   flex-shrink: 0;
@@ -295,7 +295,7 @@
 }
 .inspector-placeholder h3 {
   font-size: 13px;
-  color: #46545f;
+  color: var(--text);
 }
 .inspector-placeholder p {
   font-size: 12px;
@@ -323,10 +323,10 @@
 .form-field select {
   width: 100%;
   min-width: 0;
-  border: 1px solid #d8dfe4;
+  border: 1px solid var(--line);
   border-radius: 5px;
   padding: 8px 9px;
-  background: #fbfcfd;
+  background: var(--surface);
   font-size: 12px;
 }
 .schema-field textarea,
@@ -341,7 +341,7 @@
   padding: 3px;
   border: 1px solid var(--line);
   border-radius: 5px;
-  background: white;
+  background: var(--panel);
 }
 .range-field {
   display: block;
@@ -368,7 +368,7 @@ input[type="checkbox"] {
 .segmented {
   display: flex;
   padding: 3px;
-  background: #eff2f4;
+  background: var(--hover);
   border-radius: 6px;
   margin: 13px 0 16px;
 }
@@ -380,8 +380,8 @@ input[type="checkbox"] {
   font-size: 11px;
 }
 .segmented button.active {
-  background: white;
-  color: #344853;
+  background: var(--panel);
+  color: var(--text);
   box-shadow: 0 1px 3px #25333d15;
 }
 .color-fields {
@@ -398,7 +398,7 @@ input[type="checkbox"] {
   border: 1px solid var(--line);
   border-radius: 5px;
   padding: 5px;
-  background: #fbfcfd;
+  background: var(--surface);
 }
 .color-field input {
   border: 0;
@@ -423,8 +423,8 @@ input[type="checkbox"] {
   height: 28px;
   flex: 1;
   border-radius: 5px;
-  border: 2px solid white;
-  box-shadow: 0 0 0 1px #dce2e5;
+  border: 2px solid var(--panel);
+  box-shadow: 0 0 0 1px var(--line);
 }
 .inheritance-row {
   display: flex;
@@ -442,7 +442,7 @@ input[type="checkbox"] {
   display: flex;
   gap: 8px;
   padding: 12px;
-  background: #f4f7f8;
+  background: var(--surface);
   border-radius: 6px;
   color: var(--muted);
   margin-top: 24px;
@@ -462,9 +462,9 @@ input[type="checkbox"] {
 .capability-list span {
   font-size: 10px;
   padding: 4px 6px;
-  background: #edf2f3;
+  background: var(--hover);
   border-radius: 4px;
-  color: #526773;
+  color: var(--muted);
 }
 .binding-empty {
   text-align: center;
@@ -475,7 +475,7 @@ input[type="checkbox"] {
   height: 46px;
   display: grid;
   place-items: center;
-  background: #edf4f2;
+  background: var(--soft);
   color: var(--accent);
   border-radius: 12px;
   margin: 0 auto 16px;
@@ -502,12 +502,12 @@ input[type="checkbox"] {
   border: 1px solid var(--line);
   border-radius: 6px;
   font-size: 12px;
-  background: #fbfcfd;
+  background: var(--surface);
 }
 .action-chain button.active {
   background: var(--soft);
-  border-color: #9ebfb4;
-  color: #245f52;
+  border-color: var(--accent);
+  color: var(--accent);
 }
 .action-chain button > span:nth-child(2) {
   flex: 1;
@@ -517,13 +517,13 @@ input[type="checkbox"] {
   height: 21px;
   display: grid;
   place-items: center;
-  background: #fff9;
+  background: var(--panel);
   border-radius: 4px;
   font-size: 10px;
 }
 .argument-field {
   padding: 13px 0 4px;
-  border-top: 1px solid #edf0f2;
+  border-top: 1px solid var(--hover);
 }
 .argument-source {
   display: flex;
@@ -570,10 +570,10 @@ input[type="checkbox"] {
 }
 dialog {
   padding: 0;
-  border: 1px solid #dbe2e5;
+  border: 1px solid var(--line);
   border-radius: 12px;
   box-shadow: 0 24px 100px #172f3b30;
-  background: white;
+  background: var(--panel);
   color: inherit;
   width: min(570px, calc(100vw - 60px));
   max-height: 85vh;
@@ -614,7 +614,7 @@ dialog::backdrop {
   border-radius: 8px;
 }
 .picker-device:hover {
-  background: #f1f6f4;
+  background: var(--soft);
 }
 .picker-device > span:nth-child(2) {
   flex: 1;
@@ -634,7 +634,7 @@ dialog::backdrop {
   place-items: center;
   width: 49px;
   height: 49px;
-  background: #eaf1ef;
+  background: var(--soft);
   border-radius: 9px;
   color: var(--accent);
 }
@@ -645,7 +645,7 @@ dialog::backdrop {
 }
 .picker-empty h3 {
   font-size: 14px;
-  color: #3a4a55;
+  color: var(--text);
   margin: 15px 0 10px;
 }
 .picker-empty p {
@@ -659,7 +659,7 @@ dialog::backdrop {
   align-items: center;
   justify-content: space-between;
   padding: 20px 25px;
-  background: #f7f9fa;
+  background: var(--surface);
   border-top: 1px solid var(--line);
 }
 .example-option strong {

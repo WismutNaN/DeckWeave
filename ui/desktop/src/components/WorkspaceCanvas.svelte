@@ -1,8 +1,15 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script lang="ts">
+  import { tick } from "svelte";
+  import {
+    assignmentIndex,
+    canPan,
+    deviceSize,
+    visibleControls,
+  } from "../editor/viewport";
   import Icon from "./Icon.svelte";
   import { controlBackground, geometry, neighbor } from "../editor/appearance";
-  import { equal, steps } from "../editor/bindings";
+  import { equal, owner } from "../editor/bindings";
   import { hasActionDrag, readActionDrag } from "../editor/drag";
   import type { EditorSession } from "../editor/session.svelte";
   import type { EditorDevice } from "../editor/types";
@@ -23,6 +30,7 @@
     y: number;
   } | null>(null);
   const t = (ru: string, en: string) => session.t(ru, en);
+  let assignments = $derived(assignmentIndex(session.document));
   const position = (device: EditorDevice) =>
     drag?.id === device.id ? { x: drag.x, y: drag.y } : device;
   const visible = (device: EditorDevice) => {
@@ -37,7 +45,19 @@
     );
   };
   function start(e: PointerEvent, id = "") {
-    if (e.button !== 1 && (e.button !== 0 || (!space && !id))) return;
+    const target = e.target as HTMLElement;
+    if (
+      !id &&
+      !canPan(
+        e.button,
+        space,
+        Boolean(target.closest("button, input, select, textarea, a")),
+        Boolean(target.closest(".device-object")),
+      )
+    )
+      return;
+    if (id && e.button !== 0) return;
+    e.stopPropagation();
     e.preventDefault();
     const device = session.devices.find((d) => d.id === id);
     drag = {
@@ -120,15 +140,31 @@
       pan = { x: pan.x - e.deltaX, y: pan.y - e.deltaY };
     }
   }
-  function navigate(e: KeyboardEvent, device: EditorDevice, index: number) {
+  async function navigate(
+    e: KeyboardEvent,
+    device: EditorDevice,
+    index: number,
+  ) {
     if (["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp"].includes(e.key)) {
       e.preventDefault();
       const next = neighbor(device.descriptor, index, e.key);
-      const buttons = (e.currentTarget as HTMLElement)
-        .closest(".device-keys")
-        ?.querySelectorAll<HTMLButtonElement>(".device-key");
-      buttons?.[next]?.focus();
-      session.select(device.id, device.descriptor.elements[next].elementId);
+      const element = device.descriptor.elements[next];
+      session.select(device.id, element.elementId);
+      const geo = geometry(device.descriptor),
+        scale = deviceSize(device, geo).scale,
+        b = geo.controls[element.elementId];
+      const x = (device.x + 18 + (b.x + b.width / 2) * scale) * zoom + pan.x;
+      const y = (device.y + 70 + (b.y + b.height / 2) * scale) * zoom + pan.y;
+      pan = {
+        x: pan.x + (x < 40 ? 40 - x : x > width - 40 ? width - 40 - x : 0),
+        y: pan.y + (y < 85 ? 85 - y : y > height - 65 ? height - 65 - y : 0),
+      };
+      await tick();
+      area
+        ?.querySelector<HTMLButtonElement>(
+          `[data-control-id="${CSS.escape(element.elementId)}"][data-device-id="${CSS.escape(device.id)}"]`,
+        )
+        ?.focus();
     }
   }
   const dropKey = (deviceId: string, elementId: string) =>
@@ -269,19 +305,19 @@
               class="device-keys"
               style:aspect-ratio={`${geo.width} / ${geo.height}`}
             >
-              {#each device.descriptor.elements as element, index (element.elementId)}{@const bounds =
+              {#each visibleControls({ ...device, ...p }, { width, height, zoom, pan }, session.selectedDevice === device.id ? session.selectedControl : "", geo) as { element, index } (element.elementId)}{@const bounds =
                   geo.controls[element.elementId]}{@const assigned =
-                  session.document
-                    ? steps(session.document, device.id, element.elementId)
-                    : []}
+                  assignments.get(owner(device.id, element.elementId))}
                 {@const custom = device.controls[element.elementId]}
                 <button
                   class="device-key"
+                  data-control-id={element.elementId}
+                  data-device-id={device.id}
                   class:drop-target={dropTarget ===
                     dropKey(device.id, element.elementId)}
                   class:selected={session.selectedDevice === device.id &&
                     session.selectedControl === element.elementId}
-                  class:assigned={assigned.length > 0}
+                  class:assigned={(assigned?.count ?? 0) > 0}
                   aria-pressed={session.selectedDevice === device.id &&
                     session.selectedControl === element.elementId}
                   aria-label={`${device.descriptor.label}: ${custom?.label || element.label || element.elementId}`}
@@ -301,27 +337,28 @@
                     style:background={controlBackground(
                       device,
                       element.elementId,
+                      geo,
                     )}
                     style:color={custom?.foreground ?? "#ffffff"}
                     style:filter={`brightness(${Math.max(10, Math.min(100, custom?.background?.brightness ?? device.appearance.brightness))}%)`}
                     ><span class="key-number">{index + 1}</span
-                    >{#if assigned.length}<Icon
+                    >{#if assigned?.count ?? 0}<Icon
                         name="bolt"
                         size={21}
                       />{:else}<span class="key-add">+</span>{/if}<span
                       class="key-label"
                       >{custom?.label ||
-                        (assigned[0]
+                        (assigned?.first
                           ? (session.actions.find((a) =>
-                              equal(a.endpoint, assigned[0].kind.endpoint),
+                              equal(a.endpoint, assigned?.first.kind.endpoint),
                             )?.title ?? element.label)
                           : "")}</span
                     >{#if custom?.background}<span
                         class="override-mark"
                         title={t("Собственный фон", "Custom background")}
                         >◆</span
-                      >{/if}{#if assigned.length > 1}<span class="step-count"
-                        >{assigned.length}</span
+                      >{/if}{#if (assigned?.count ?? 0) > 1}<span
+                        class="step-count">{assigned?.count ?? 0}</span
                       >{/if}</span
                   >
                 </button>{/each}
@@ -347,7 +384,10 @@
     </div>{/if}
   <div class="canvas-bottom">
     <span class="canvas-hint"
-      >{t("Пробел + перетаскивание — перемещение", "Space + drag to pan")}</span
+      >{t(
+        "Перетаскивайте пустое поле для перемещения",
+        "Drag the empty canvas to pan",
+      )}</span
     >
     <div class="zoom-controls">
       <button

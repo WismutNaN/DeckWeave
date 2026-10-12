@@ -4,8 +4,9 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: radial-gradient(#cdd6da 0.7px, transparent 0.7px) 0 0 / 20px 20px;
-  background-color: #f1f4f5;
+  background: radial-gradient(var(--dots) 0.7px, transparent 0.7px) 0 0 / 20px
+    20px;
+  background-color: var(--canvas);
   touch-action: none;
   user-select: none;
 }
@@ -18,7 +19,7 @@
   justify-content: space-between;
   padding: 19px 23px;
   pointer-events: none;
-  background: linear-gradient(#f1f4f5 30%, #f1f4f500);
+  background: linear-gradient(var(--canvas) 30%, transparent);
 }
 .canvas-topline > * {
   pointer-events: auto;
@@ -32,10 +33,10 @@
 }
 .breadcrumb strong {
   font-weight: 500;
-  color: #334e59;
+  color: var(--text);
 }
 .canvas-topline .subtle-button {
-  background: #fafcfc;
+  background: var(--surface);
 }
 .canvas-world {
   position: absolute;
@@ -73,21 +74,21 @@
   margin-top: 4px;
 }
 .device-symbol {
-  background: white;
+  background: var(--panel);
   width: 35px;
   height: 35px;
   display: grid;
   place-items: center;
-  border: 1px solid #d8e0e3;
+  border: 1px solid var(--line);
   border-radius: 9px;
-  color: #496372;
+  color: var(--muted);
 }
 .device-state {
   font-size: 10px;
   color: var(--muted);
   margin-left: auto;
-  border: 1px solid #d9e1e4;
-  background: #f7f9fa;
+  border: 1px solid var(--line);
+  background: var(--surface);
   border-radius: 4px;
   padding: 4px 7px;
 }
@@ -102,7 +103,7 @@
     inset 0 1px #ffffff25;
 }
 .device-selected .device-body {
-  outline: 1px solid #bacdca;
+  outline: 1px solid var(--accent);
   outline-offset: 5px;
 }
 .device-keys {
@@ -140,10 +141,10 @@
   outline-offset: 1px;
 }
 .device-key.drop-target .key-face {
-  outline: 3px solid #71d3b9;
+  outline: 3px solid var(--accent);
   outline-offset: 3px;
   box-shadow:
-    0 0 0 7px #71d3b92b,
+    0 0 0 7px var(--soft),
     0 2px 4px #0005,
     inset 0 1px #ffffff20;
 }
@@ -156,7 +157,7 @@
   position: absolute;
   inset: 0;
   border-radius: 12px;
-  outline: 1px solid #6dc2ab;
+  outline: 1px solid var(--accent);
   pointer-events: none;
 }
 .key-number {
@@ -208,7 +209,7 @@
   align-items: center;
   justify-content: center;
   position: relative;
-  color: #c2ccd0;
+  color: var(--line);
   font: 7px system-ui;
   letter-spacing: 3px;
 }
@@ -218,8 +219,8 @@
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: #75aa98;
-  box-shadow: 0 0 5px #75aa9840;
+  background: var(--accent);
+  box-shadow: 0 0 5px var(--soft);
 }
 .device-caption {
   display: flex;
@@ -254,8 +255,8 @@
   display: flex;
   align-items: center;
   gap: 1px;
-  background: #ffffffed;
-  border: 1px solid #dce3e7;
+  background: var(--panel);
+  border: 1px solid var(--line);
   border-radius: 7px;
   padding: 3px;
   box-shadow: 0 2px 5px #24333d06;
@@ -296,14 +297,14 @@
   margin: 16px 0 24px;
 }
 .empty-device {
-  border: 1px solid #cbdcd5;
+  border: 1px solid var(--line);
   border-radius: 14px;
   display: grid;
   place-items: center;
   width: 76px;
   height: 70px;
-  background: #e6efeb;
-  color: #43786a;
+  background: var(--soft);
+  color: var(--accent);
   margin-bottom: 26px;
 }
 @media (max-width: 1060px) {

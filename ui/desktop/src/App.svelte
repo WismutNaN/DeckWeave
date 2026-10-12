@@ -17,6 +17,7 @@
   import WorkspaceCanvas from "./components/WorkspaceCanvas.svelte";
   import Inspector from "./components/Inspector.svelte";
   import DevicePicker from "./components/DevicePicker.svelte";
+  import ThemeSettings from "./components/ThemeSettings.svelte";
   import Icon from "./components/Icon.svelte";
   import RuntimeStatus from "./components/RuntimeStatus.svelte";
   let session = $state(new EditorSession(desktopClient));
@@ -279,6 +280,8 @@
           onclick={() => (settings = false)}><Icon name="close" /></button
         >
       </div>
+      <ThemeSettings lang={session.lang} />
+      <div class="section-divider"></div>
       <label class="check-row"
         ><input
           type="checkbox"
