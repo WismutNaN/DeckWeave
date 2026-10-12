@@ -766,6 +766,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "deckweave-automation"
+version = "0.1.0"
+dependencies = [
+ "deckweave-domain",
+ "deckweave-workspace",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "deckweave-desktop"
 version = "0.1.0"
 dependencies = [
@@ -794,12 +806,17 @@ name = "deckweave-host"
 version = "0.1.0"
 dependencies = [
  "deckweave-application",
+ "deckweave-automation",
  "deckweave-domain",
  "deckweave-platform",
  "deckweave-platform-host",
  "deckweave-profiles",
+ "deckweave-workspace",
+ "serde",
  "serde_json",
+ "sha2",
  "tempfile",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

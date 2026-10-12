@@ -119,7 +119,7 @@
 - [ ] A завершён; endpoint contract согласован для descriptors, signal ingress, routes и persisted bindings.
 - [ ] B завершён; API dedup contract реализован целиком, а не только в одном draft.
 - [ ] C завершён; интеграция использует production composition и внешний watchdog для hang tests.
-- [ ] D завершён; Фаза 4 использует ограниченный fake compiler для empty/virtual fixtures. Он не принимает произвольный graph как пустой plan; Фаза 5 заменяет adapter настоящим compiler на том же acceptance.
+- [x] D завершён; Фаза 4 использует ограниченный fake compiler для empty/virtual fixtures. Он не принимает произвольный graph как пустой plan; Фаза 5 заменяет adapter настоящим compiler на том же acceptance.
 - [ ] E завершён; process-crash evidence отделено от power-loss/filesystem assumptions.
 
 Порядок малых обратимых срезов:
@@ -130,7 +130,7 @@
 - [x] C1 — bounded/nonblocking process transport и независимый kill path.
 - [x] B1 — global mutation ledger, issued epochs, recovery и bounded quota/index.
 - [x] D1 — immutable WorkspaceCandidate, unique package/assets и проверка referenced asset bytes/metadata.
-- [ ] D2 — compiler/activation ports и fenced plan token с повторной проверкой preconditions.
+- [x] D2 — compiler/activation ports и fenced plan token с повторной проверкой preconditions.
 - [ ] C2 — production runtime coordinator через public application path.
 - [ ] E0 — publication outcomes и disk reconciliation для неоднозначного replace.
 - [ ] E1 — durable apply/operation tracking и recovery acceptance.

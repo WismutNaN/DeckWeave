@@ -6,6 +6,9 @@ use deckweave_domain::LifecycleState;
 use deckweave_platform::{HostLease, HostPlatform, PlatformError};
 use std::sync::{Arc, Mutex};
 
+mod planning;
+pub use planning::*;
+
 pub struct HostRuntime {
     platform: Arc<dyn HostPlatform>,
     _lease: Box<dyn HostLease>,

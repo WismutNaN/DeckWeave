@@ -11,6 +11,8 @@
 | `HostCommand` | enum | Start/apply/shutdown и runtime operations |
 | `HostSnapshot` | immutable struct | Согласованный query snapshot |
 | `ApplyPlan`, `ApplyReport` | struct | Resource diff и результат cutover |
+| `ApplyPlanningService`, `PlanToken` | service/value | Candidate compile, prepare и повторная проверка fenced preconditions перед barrier |
+| `PlanningEvidenceSource`, `RuntimeActivation` | ports | Снимок boot/topology/grants/active selection и prepare без effects |
 | `LifecycleState` | enum | Starting/Running/Degraded/Stopping |
 | `ActivationEpoch`, `ApplyCommitRecord` | value/document | Runtime generation и durable точка выбора revision |
 | `ArtifactBroker` | application service | Scoped bounded runtime artifacts, read leases, TTL/quota и cleanup |
@@ -35,6 +37,8 @@
 - Candidate/assets/package lock сохраняются до commit; после durable commit новая revision остаётся выбранной даже при degraded recovery.
 - Effects/timers/frames/completions ограждены HostBootId/ActivationEpoch; старый outcome не запускает новую continuation.
 - Частичный failure не выдаётся за successful apply.
+- Plan hash связывает candidate/package/assets, compiler output, HostBootId, registry/grant revisions, expected active selection и monotonic expiry.
+- Prepare и barrier заново читают candidate/evidence; stale или expired plan не вызывает activation/commit.
 - WebView lifecycle не управляет host lifecycle.
 - Shutdown имеет bounded stages и safe-output attempt.
 - Runtime artifacts отделены от immutable profile assets; broker проверяет consumer grants и startup GC, journal не сохраняет private payload.
@@ -54,6 +58,6 @@
 
 `deckweave-host` не реализует `ApplicationService`: Gateway создаётся отдельно в composition root и получает read-only lifecycle projection и bounded-context repositories.
 
-Текущая реализация содержит startup locks/status/autostart; production coordination plugins/apply ещё не подключена. В [gate C–E](../../implementation/roadmap.md#pre-apply-gate) Host получает compiler, runtime activation и commit repository ports. Фаза 4 использует явно ограниченный fake compiler, Фаза 5 заменяет его настоящим без изменения apply semantics. Путь command → virtual process → revoke/shutdown/recovery должен проверяться через composition приложения, включая работу при закрытом WebView.
+Текущая реализация содержит startup locks/status/autostart и D-срез planning seam. Production coordinator и durable apply ещё не подключены. `ApplyPlanningService` использует явно ограниченный fixture compiler; Фаза 5 заменяет его настоящим без изменения fencing/acceptance. В [gate C/E](../../implementation/roadmap.md#pre-apply-gate) Host ещё получает production runtime driver, commit repository и operation recovery. Путь command → virtual process → revoke/shutdown/recovery проверяется через composition приложения, включая работу при закрытом WebView.
 
 ArtifactBroker реализует узкий application port с injected temporary-storage adapter; engine не зависит от Host implementation. Limits и lifecycle: [automation artifacts](../../contracts/automation.md#artifact-и-доступ-к-данным). Это небольшой сервис host, не новый обязательный процесс или database.

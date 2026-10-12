@@ -7,9 +7,15 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+deckweave-automation.workspace = true
 deckweave-domain.workspace = true
 deckweave-application.workspace = true
 deckweave-platform.workspace = true
+deckweave-workspace.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2 = "0.10"
+thiserror.workspace = true
 
 [dev-dependencies]
 deckweave-platform-host.workspace = true

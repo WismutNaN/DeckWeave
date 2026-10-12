@@ -13,6 +13,10 @@
       "context": "Shared Kernel",
       "allowedDependencies": ["deckweave-protocol"]
     },
+    "deckweave-automation": {
+      "context": "Automation Execution",
+      "allowedDependencies": ["deckweave-domain", "deckweave-workspace"]
+    },
     "deckweave-application": {
       "context": "Application Gateway contracts",
       "allowedDependencies": [
@@ -25,8 +29,10 @@
       "context": "Host Lifecycle",
       "allowedDependencies": [
         "deckweave-application",
+        "deckweave-automation",
         "deckweave-domain",
-        "deckweave-platform"
+        "deckweave-platform",
+        "deckweave-workspace"
       ]
     },
     "deckweave-platform-host": {

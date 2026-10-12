@@ -11,6 +11,7 @@ license = "GPL-3.0-or-later"
 publish = false
 
 [workspace.dependencies]
+deckweave-automation = { version = "0.1.0", path = "crates/deckweave-automation" }
 deckweave-domain = { version = "0.1.0", path = "crates/deckweave-domain" }
 deckweave-protocol = { version = "0.1.0", path = "crates/deckweave-protocol" }
 deckweave-registry = { version = "0.1.0", path = "crates/deckweave-registry" }
