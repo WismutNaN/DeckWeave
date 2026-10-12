@@ -111,14 +111,30 @@ message DescriptorDelta {
   repeated string removed_ids = 4;
 }
 
+// Package and runtime session are supplied by the authenticated transport.
+// The remaining path is fully scoped and does not require globally unique
+// element, capability or port IDs.
+message EndpointPath {
+  string node_id = 1;
+  string provider_id = 2;
+  oneof target {
+    string device_identity = 3;
+    string service_id = 4;
+  }
+  string element_id = 5;
+  string capability_id = 6;
+  string port_id = 7;
+}
+
 message Signal {
-  string source_port_id = 1;
+  string source_port_id = 1 [deprecated = true];
   uint64 device_session_generation = 2;
   uint64 sequence = 3;
   uint64 captured_ticks = 4;
   string clock_domain_id = 5;
   optional string wall_clock_rfc3339 = 6;
   OpaquePayload payload = 7;
+  EndpointPath source = 8;
 }
 
 message InvocationRequest {

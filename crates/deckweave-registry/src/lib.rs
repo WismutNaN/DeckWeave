@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Runtime topology and canonical physical-resource ownership.
 
+pub use deckweave_domain::endpoint::{EndpointTargetRef, PortPath, StableEndpointRef};
 use deckweave_domain::{
     capability::NodeDescriptor,
     ids::{
-        DescriptorRevision, NodeId, PackageId, PluginSessionId, PortId, RegistryRevision,
-        ResourceLeaseId, RuntimeGroupId, SessionGeneration,
+        DescriptorRevision, NodeId, PackageId, PluginSessionId, RegistryRevision, ResourceLeaseId,
+        RuntimeGroupId, SessionGeneration,
     },
 };
 use serde::{Deserialize, Deserializer, Serialize};
@@ -14,6 +15,10 @@ mod descriptors;
 use descriptors::{find_port, validate_node_set, validate_nodes};
 use thiserror::Error;
 
+/// Compatibility alias for early registry consumers. New persisted contracts
+/// should use the domain-owned `StableEndpointRef` name.
+pub type StablePortRef = StableEndpointRef;
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionIdentity {
@@ -21,15 +26,6 @@ pub struct SessionIdentity {
     pub runtime_group_id: RuntimeGroupId,
     pub plugin_session_id: PluginSessionId,
     pub generation: SessionGeneration,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct StablePortRef {
-    pub package_id: PackageId,
-    pub runtime_group_id: RuntimeGroupId,
-    pub node_id: NodeId,
-    pub port_id: PortId,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -133,6 +129,8 @@ pub enum RegistryError {
     InvalidDescriptor(String),
     #[error("порт не найден или удалён")]
     PortUnavailable,
+    #[error("stable endpoint опубликован несколькими runtime groups")]
+    AmbiguousEndpoint,
     #[error("canonical resource key пуст, слишком длинен или содержит control characters")]
     InvalidResourceKey,
     #[error("resource уже принадлежит конфликтующему owner")]
@@ -241,19 +239,18 @@ impl CapabilityRegistry {
     }
 
     pub fn resolve(&self, reference: &StablePortRef) -> Result<ResolvedEndpoint, RegistryError> {
-        let state = self
+        let mut matches = self
             .sessions
-            .get(&(
-                reference.package_id.clone(),
-                reference.runtime_group_id.clone(),
-            ))
-            .ok_or(RegistryError::UnknownSession)?;
-        let node = state
-            .nodes
-            .get(&reference.node_id)
-            .ok_or(RegistryError::PortUnavailable)?;
-        if find_port(node, &reference.port_id).is_none() {
-            return Err(RegistryError::PortUnavailable);
+            .values()
+            .filter(|state| state.identity.package_id == reference.package_id)
+            .filter(|state| {
+                state.nodes.get(&reference.node_id).is_some_and(|node| {
+                    find_port(node, &reference.target, &reference.port).is_some()
+                })
+            });
+        let state = matches.next().ok_or(RegistryError::PortUnavailable)?;
+        if matches.next().is_some() {
+            return Err(RegistryError::AmbiguousEndpoint);
         }
         Ok(ResolvedEndpoint {
             reference: reference.clone(),

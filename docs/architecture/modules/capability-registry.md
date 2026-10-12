@@ -10,7 +10,7 @@
 | `CapabilityRegistry` | struct/owner | Mutable registry behind command queue |
 | `RegistryCommand` | enum | Register/update/unregister/session change |
 | `RegistrySnapshot` | immutable struct | Query-safe topology |
-| `PortRef`, `ResolvedEndpoint` | value types | Stable reference отдельно от session-scoped resolution |
+| `StableEndpointRef`, `ResolvedEndpoint` | value types | Persisted identity отдельно от session-scoped resolution |
 | `Availability` | enum | Available/Degraded/Unavailable + reason |
 | `ResourceLease` | RAII/value | Shared/exclusive resource ownership |
 | `DescriptorRevision`, `PortTemplate` | versioned descriptors | Atomic dynamic topology и requestable instances |
@@ -30,6 +30,8 @@
 - Descriptor change проходит compatibility validation.
 - Delta требует expected base; gap вызывает snapshot resync, incompatible change приостанавливает затронутые routes.
 - Resolved endpoint включает descriptor revision; removed port не переназначает stable binding на соседний индекс.
+- Stable endpoint содержит package/node/provider, discriminated device/service target и element/capability/port path; локальные IDs не считаются глобальными.
+- Runtime group/session/generation/revision не сохраняются в binding и появляются только в resolved handle.
 - Lease conflict виден compiler/apply до side effect, где возможно.
 - Canonical resource key описывает physical interface/endpoint независимо от provider aliases; probe использует тот же arbiter.
 - Discovery candidates не открывают exclusive handles и не дают output permission.

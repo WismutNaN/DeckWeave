@@ -4,10 +4,12 @@ import fs from "node:fs";
 import { test } from "node:test";
 import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
 import {
+  EndpointPathSchema,
   ErrorCategory,
   HeartbeatSchema,
   ProtocolEnvelopeSchema,
   ProtocolVersionSchema,
+  SignalSchema,
   StructuredErrorSchema,
 } from "../src/generated/deckweave/v1/control_pb.js";
 
@@ -67,6 +69,34 @@ test("optional scalar presence is distinct from an absent value", async () => {
       .baseFrameId,
     0n,
   );
+});
+
+test("signal source preserves the fully scoped endpoint path", () => {
+  const signal = create(SignalSchema, {
+    deviceSessionGeneration: 3n,
+    sequence: 12n,
+    capturedTicks: 44n,
+    clockDomainId: "host-monotonic",
+    source: create(EndpointPathSchema, {
+      nodeId: "local",
+      providerId: "hid",
+      target: { case: "deviceIdentity", value: "keyboard-1" },
+      elementId: "key-a",
+      capabilityId: "button",
+      portId: "pressed",
+    }),
+  });
+
+  const decoded = fromBinary(SignalSchema, toBinary(SignalSchema, signal));
+  assert.equal(decoded.source?.nodeId, "local");
+  assert.equal(decoded.source?.providerId, "hid");
+  assert.deepEqual(decoded.source?.target, {
+    case: "deviceIdentity",
+    value: "keyboard-1",
+  });
+  assert.equal(decoded.source?.elementId, "key-a");
+  assert.equal(decoded.source?.capabilityId, "button");
+  assert.equal(decoded.source?.portId, "pressed");
 });
 
 test("Protobuf-ES retains unknown fields and enum numbers", () => {

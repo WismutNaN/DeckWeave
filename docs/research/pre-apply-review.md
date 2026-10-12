@@ -37,9 +37,9 @@ DDD migration R1–R4 создала полезные границы: Workspace 
 
 ## A — Identity и ownership до сохранения bindings
 
-**P1, статический дефект.** [StablePortRef](../../crates/deckweave-registry/src/lib.rs) содержит package/group/node/port, но [контракт](../contracts/capabilities.md#идентичность-и-evidence) определяет `PortId` внутри capability. [Registry validation](../../crates/deckweave-registry/src/descriptors.rs) требует уникальный port во всём node. Два экземпляра одной клавиатуры с локальным портом `press` нельзя корректно представить; также теряются element/capability и различие device/service. Это нельзя исправлять добавлением serial в каждый локальный port ID.
+**A1 реализован.** Общий domain `StableEndpointRef` теперь содержит package/node/provider, discriminated device/service target и element/capability/port path, но не runtime group. Registry разрешает именно полный путь, допускает повтор локальных IDs в разных scopes и не перепривязывает соседний экземпляр. Raw protocol `Signal` получил полный `EndpointPath`; одиночный `source_port_id` помечен deprecated. Fixtures покрывают два одинаковых устройства, service с теми же локальными IDs и перенос descriptor между runtime groups.
 
-Нужен полный stable path с discriminated target device/service, provider и вложенными IDs. Runtime resolution добавляет sessions/generation/revision. Signal ingress и command routing должны использовать тот же scope, иначе правильный descriptor всё равно будет неоднозначно маршрутизироваться. До freeze нужны два одинаковых устройства и service с совпадающими локальными IDs, remove/reconnect одного экземпляра и проверка отсутствия rebinding второго.
+Весь срез A этим не закрыт: нормализованный signal ingress, command routes и persisted bindings должны использовать тот же shared type, а затем пройти migration/compatibility fixture. Runtime resolution продолжает добавлять session/generation/revision; эти transient поля запрещено сохранять как identity.
 
 **P1, статический дефект.** В том же registry `ResourceLeaseRecord` хранит только `owner_package_id`, а `invalidate_session` удаляет session без очистки leases. После падения владельца exclusive resource остаётся занят в arbiter. Освобождение «всего package» также неверно: у package могут быть несколько runtime groups и prepared/active owners.
 

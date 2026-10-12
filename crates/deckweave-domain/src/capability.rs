@@ -391,13 +391,13 @@ fn validate_elements(elements: &[ElementDescriptor]) -> Result<(), DescriptorErr
             return Err(DescriptorError::DuplicateId(element.element_id.to_string()));
         }
         let mut capability_ids = BTreeSet::new();
-        let mut port_ids = BTreeSet::new();
         for capability in &element.capabilities {
             if !capability_ids.insert(capability.capability_id.as_str()) {
                 return Err(DescriptorError::DuplicateId(
                     capability.capability_id.to_string(),
                 ));
             }
+            let mut port_ids = BTreeSet::new();
             for port in &capability.ports {
                 if !port_ids.insert(port.port_id.as_str()) {
                     return Err(DescriptorError::DuplicateId(port.port_id.to_string()));

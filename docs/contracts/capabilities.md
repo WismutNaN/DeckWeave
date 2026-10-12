@@ -246,7 +246,9 @@ Registry разрешает leases по canonical physical resource key, нез�
 
 VID/PID не являются уникальной identity. Provider прикладывает evidence: serial, HID path fragments, Bluetooth address policy, firmware, topology и confidence. При неоднозначности пользователь подтверждает binding.
 
-Stable endpoint address сохраняет всю иерархию: namespace package/runtime group/node/provider, target device binding или service ID, element ID, capability ID, port ID. Device и service — разные варианты target. Одинаковый локальный `PortId` на двух устройствах или двух capabilities допустим; поиск первого совпадения по node/port запрещён. Session-scoped signal address и command route разрешаются в ту же полную идентичность. До сохранения bindings это правило проверяется fixture с двумя одинаковыми устройствами и отдельным service в одном runtime.
+Сохраняемый `StableEndpointRef` содержит всю стабильную иерархию: package, node, provider, discriminated target — device binding либо service ID — затем element, capability и port. `RuntimeGroupId`, plugin session, generation и descriptor revision в эту ссылку не входят: они добавляются только при runtime resolution. Поэтому binding переживает перенос provider между runtime groups, но stale resolved handle всё равно отсекается fencing-полями.
+
+Device и service — разные варианты target. Одинаковый локальный `PortId` на двух устройствах или двух capabilities допустим; поиск первого совпадения по node/port запрещён. Raw `Signal` передаёт полный `EndpointPath`, а package и runtime session задаются аутентифицированным transport; устаревшее одиночное `source_port_id` оставлено только для wire-совместимости. Нормализованный signal ingress, command route и persisted binding разрешаются в ту же полную идентичность. Это правило проверяется fixtures с двумя одинаковыми устройствами, отдельным service и переносом между runtime groups.
 
 ## Временная семантика
 

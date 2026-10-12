@@ -3,6 +3,7 @@
 
 pub mod automation;
 pub mod capability;
+pub mod endpoint;
 pub mod ids;
 pub mod lighting;
 pub mod media;

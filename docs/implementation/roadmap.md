@@ -111,8 +111,8 @@
 | Срез | Владелец и результат | Обязательное доказательство выхода |
 |---|---|---|
 | A — Identity/ownership | Registry + Plugin Runtime: полный device/service endpoint path, owner-scoped resource leases и атомарная initial registration | Два одинаковых устройства с одинаковыми локальными PortId; crash/revoke группы A освобождает только её leases; invalid initial snapshot не оставляет session и не разрушает прежнюю |
-| B — Mutation ledger | Gateway + Workspace ports + Store adapter: общий scope ключей, persisted issued epochs, atomic receipt snapshot, индекс/retention/compaction | Один key на двух draft даёт conflict; restart/expired epoch/revoke; checkpoint не теряет receipts, quota не превращается в неограниченную историю |
-| C — Runtime coordinator | Host + Plugin Runtime ports: clocks/grants/process/registry связаны одним owner; I/O не блокирует watchdog | Public application path запускает virtual package; unread stdin, parent exit с унаследованными pipes, overflow, revoke, bounded shutdown при закрытом UI |
+| B — Mutation ledger | Gateway + Workspace ports + Store adapter: общий scope ключей, persisted issued epochs и atomic receipt snapshot; bounded index/quota входят в apply gate, полная compaction — до editor Фазы 6 | Один key на двух draft даёт conflict; restart/expired epoch/revoke; quota не превращается в неограниченную историю; будущий checkpoint не теряет receipts |
+| C — Runtime coordinator | Plugin Runtime сначала получает bounded/nonblocking transport, затем Host связывает clocks/grants/process/registry одним owner | Unread stdin и parent exit с унаследованными pipes ограничены watchdog; public application path запускает virtual package и проходит overflow/revoke/shutdown при закрытом UI |
 | D — Candidate/apply seam | Workspace проверяет lock/assets, Automation port компилирует, Host сериализует preconditions/barrier | Plan token связан с draft/package/registry/grants/active revision; unsupported graph отклоняется; topology/grant change между plan и prepare конфликтует |
 | E — Commit/recovery | Host + Store ports: intent/commit/status и reconciliation неоднозначных OS errors | Kill до/после каждого шага, disk full, lost reply, failed exclusive handoff; старый выбор до commit, новый после commit, без replay effects |
 
@@ -121,6 +121,19 @@
 - [ ] C завершён; интеграция использует production composition и внешний watchdog для hang tests.
 - [ ] D завершён; Фаза 4 использует ограниченный fake compiler для empty/virtual fixtures. Он не принимает произвольный graph как пустой plan; Фаза 5 заменяет adapter настоящим compiler на том же acceptance.
 - [ ] E завершён; process-crash evidence отделено от power-loss/filesystem assumptions.
+
+Порядок малых обратимых срезов:
+
+- [x] A1 — stable endpoint identity и raw signal path: полный device/service path, повторяемые локальные IDs, независимость persisted binding от runtime group.
+- [ ] A2 — owner-scoped leases и точечный cleanup session/prepare/probe owner.
+- [ ] A3 — атомарная initial registration без пустой session и без разрушения прежней topology.
+- [ ] C1 — bounded/nonblocking process transport и независимый kill path.
+- [ ] B1 — global mutation ledger, issued epochs, recovery и bounded quota/index.
+- [ ] D — candidate/compiler/activation ports и fenced plan token.
+- [ ] C2 — production runtime coordinator через public application path.
+- [ ] E0 — publication outcomes и disk reconciliation для неоднозначного replace.
+- [ ] E1 — durable apply/operation tracking и recovery acceptance.
+- [ ] B2 — checkpoint/compaction до начала editor-heavy Фазы 6; не блокирует первый bounded virtual apply после B1.
 
 Выход gate — demonstration `application command → prepare → commit → virtual activation → restart/recovery`. Перенос реализации в отдельные crates и зелёные unit tests сами по себе этот gate не закрывают. Реальные actions/hardware не подключаются, пока owner/cleanup/recovery не доказаны.
 

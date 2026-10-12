@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+use deckweave_domain::ids::{
+    CapabilityId, DeviceIdentity, ElementId, NodeId, PackageId, PortId, ProviderId,
+};
 use deckweave_domain::{
     automation::{ExecutionKind, OperationDescriptor},
     capability::{NodeDescriptor, SignalEnvelope},
+    endpoint::{EndpointTargetRef, PortPath, StableEndpointRef},
     lighting::LightTopology,
     media::StreamTemplate,
     remote::RemoteNodeBoundary,
@@ -49,6 +53,42 @@ fn port_ids(node: &NodeDescriptor) -> Vec<&str> {
 }
 
 #[test]
+fn stable_endpoint_json_excludes_runtime_placement() -> Result<(), Box<dyn Error>> {
+    let endpoint = StableEndpointRef {
+        package_id: PackageId::try_new("org.deckweave.keyboard")?,
+        node_id: NodeId::try_new("local")?,
+        target: EndpointTargetRef::Device {
+            provider_id: ProviderId::try_new("hid")?,
+            device_identity: DeviceIdentity::try_new("keyboard-1")?,
+        },
+        port: PortPath {
+            element_id: ElementId::try_new("key-a")?,
+            capability_id: CapabilityId::try_new("button")?,
+            port_id: PortId::try_new("pressed")?,
+        },
+    };
+
+    assert_eq!(
+        serde_json::to_value(endpoint)?,
+        json!({
+            "packageId": "org.deckweave.keyboard",
+            "nodeId": "local",
+            "target": {
+                "kind": "device",
+                "providerId": "hid",
+                "deviceIdentity": "keyboard-1"
+            },
+            "port": {
+                "elementId": "key-a",
+                "capabilityId": "button",
+                "portId": "pressed"
+            }
+        })
+    );
+    Ok(())
+}
+
+#[test]
 fn observe_keyboard_does_not_invent_analog_travel() -> Result<(), Box<dyn Error>> {
     let node: NodeDescriptor = fixture("observe-keyboard.node.json")?;
     node.validate()?;
@@ -58,6 +98,19 @@ fn observe_keyboard_does_not_invent_analog_travel() -> Result<(), Box<dyn Error>
         true
     );
     stable_round_trip::<NodeDescriptor>("observe-keyboard.node.json")?;
+    Ok(())
+}
+
+#[test]
+fn port_ids_are_scoped_by_capability_path() -> Result<(), Box<dyn Error>> {
+    let mut node: NodeDescriptor = fixture("observe-keyboard.node.json")?;
+    let mut second_capability = node.devices[0].elements[0].capabilities[0].clone();
+    second_capability.capability_id = CapabilityId::try_new("key-a-secondary")?;
+    node.devices[0].elements[0]
+        .capabilities
+        .push(second_capability);
+    node.validate()?;
+    assert_eq!(port_ids(&node), ["key-a.edge", "key-a.edge"]);
     Ok(())
 }
 
