@@ -126,7 +126,7 @@
 
 - [x] A1 — stable endpoint identity и raw signal path: полный device/service path, повторяемые локальные IDs, независимость persisted binding от runtime group.
 - [x] A2 — owner-scoped leases и точечный cleanup session/prepare/probe owner.
-- [ ] A3 — атомарная initial registration без пустой session и без разрушения прежней topology.
+- [x] A3 — атомарная initial registration без пустой session и без разрушения прежней topology.
 - [ ] C1 — bounded/nonblocking process transport и независимый kill path.
 - [ ] B1 — global mutation ledger, issued epochs, recovery и bounded quota/index.
 - [ ] D — candidate/compiler/activation ports и fenced plan token.

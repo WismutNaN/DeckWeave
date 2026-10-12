@@ -28,6 +28,7 @@
 - Session generation монотонно меняется при reconnect/restart.
 - Unregister session инвалидирует session-scoped handles.
 - Descriptor change проходит compatibility validation.
+- Session становится видимой только вместе с валидным initial descriptor snapshot; неуспешный candidate не заменяет прежнюю topology.
 - Delta требует expected base; gap вызывает snapshot resync, incompatible change приостанавливает затронутые routes.
 - Resolved endpoint включает descriptor revision; removed port не переназначает stable binding на соседний индекс.
 - Stable endpoint содержит package/node/provider, discriminated device/service target и element/capability/port path; локальные IDs не считаются глобальными.

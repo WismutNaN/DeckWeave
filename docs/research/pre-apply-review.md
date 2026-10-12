@@ -43,7 +43,7 @@ DDD migration R1–R4 создала полезные границы: Workspace 
 
 **A2 реализован.** Resource arbiter выделен из registry aggregate. `ResourceLeaseRecord` хранит discriminated owner: полную runtime `SessionIdentity` либо prepare/probe operation с `OperationId` и monotonic deadline. Session replacement/invalidation, operation cancellation и expiry освобождают только точного owner; stale cleanup не может снять lease новой generation. Fixtures подтверждают, что падение группы A освобождает её ресурс, но не ресурс живой группы B. До commit ownership подготовленного ресурса по-прежнему не означает разрешение на production output.
 
-**P1, статический дефект.** [RuntimeController::activate_descriptors](../../crates/deckweave-plugin-supervisor/src/supervisor.rs) сначала вызывает `start_session`, затем `register_snapshot`. При ошибке descriptor остаётся пустая session, но `registered` ещё false; `process_exited` её не инвалидирует. Регистрация initial session/snapshot должна быть атомарной либо иметь гарантированный rollback. Валидация новой session не должна разрушать рабочую старую topology при неуспешном prepare.
+**A3 реализован.** Registry больше не публикует session отдельно от первого descriptor snapshot: `register_initial_snapshot` сначала полностью валидирует candidate и резервирует следующую registry revision, затем одним изменением заменяет session/topology и освобождает leases прежней generation. `RuntimeController::activate_descriptors` использует только этот путь. Duplicate/invalid initial snapshot не оставляет пустую session, а неуспешная замена сохраняет прежние topology и leases; оба случая закреплены regression tests.
 
 ## B — Общий mutation ledger и ограниченное хранение
 

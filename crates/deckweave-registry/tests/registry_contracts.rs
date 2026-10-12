@@ -80,9 +80,8 @@ fn same_local_port_reference(target: EndpointTargetRef) -> Result<StablePortRef,
 fn delta_is_atomic_and_removed_ports_never_rebind_by_position() -> Result<(), Box<dyn Error>> {
     let mut registry = CapabilityRegistry::default();
     let session = session(1)?;
-    registry.start_session(session.clone())?;
-    registry.register_snapshot(
-        &session,
+    registry.register_initial_snapshot(
+        session.clone(),
         DescriptorRevision::try_new(1)?,
         vec![fixture("observe-keyboard.node.json")?],
     )?;
@@ -136,13 +135,12 @@ fn restart_invalidates_old_session_generation() -> Result<(), Box<dyn Error>> {
     let mut registry = CapabilityRegistry::default();
     let first = session(1)?;
     let second = session(2)?;
-    registry.start_session(first.clone())?;
-    registry.register_snapshot(
-        &first,
+    registry.register_initial_snapshot(
+        first.clone(),
         DescriptorRevision::try_new(1)?,
         vec![fixture("observe-keyboard.node.json")?],
     )?;
-    registry.start_session(second.clone())?;
+    registry.register_initial_snapshot(second.clone(), DescriptorRevision::try_new(1)?, vec![])?;
     assert_eq!(
         registry.invalidate_session(&first),
         Err(RegistryError::StaleSession)
@@ -152,15 +150,61 @@ fn restart_invalidates_old_session_generation() -> Result<(), Box<dyn Error>> {
 }
 
 #[test]
+fn invalid_initial_snapshot_preserves_working_session_and_resources() -> Result<(), Box<dyn Error>>
+{
+    let mut registry = CapabilityRegistry::default();
+    let current = session(1)?;
+    let replacement = session(2)?;
+    let node = fixture("observe-keyboard.node.json")?;
+    let resource = CanonicalResourceKey::try_new("local/usb/active/interface-1")?;
+    registry.register_initial_snapshot(
+        current.clone(),
+        DescriptorRevision::try_new(1)?,
+        vec![node.clone()],
+    )?;
+    registry.acquire_resource(
+        ResourceLeaseOwner::RuntimeSession {
+            session: current.clone(),
+        },
+        resource.clone(),
+        ResourceLeaseMode::Exclusive,
+        "active-runtime",
+    )?;
+    let before = registry.snapshot()?;
+
+    assert_eq!(
+        registry.register_initial_snapshot(
+            replacement.clone(),
+            DescriptorRevision::try_new(1)?,
+            vec![node.clone(), node],
+        ),
+        Err(RegistryError::DuplicateNode("within snapshot".into()))
+    );
+    assert_eq!(registry.snapshot()?, before);
+    assert_eq!(registry.resolve(&key_a_reference()?)?.session, current);
+    assert_eq!(
+        registry.acquire_resource(
+            ResourceLeaseOwner::RuntimeSession {
+                session: replacement,
+            },
+            resource,
+            ResourceLeaseMode::Shared,
+            "invalid-replacement",
+        ),
+        Err(RegistryError::StaleSession)
+    );
+    Ok(())
+}
+
+#[test]
 fn snapshot_revision_cannot_be_reused_for_different_descriptors() -> Result<(), Box<dyn Error>> {
     let mut registry = CapabilityRegistry::default();
     let identity = session(1)?;
-    registry.start_session(identity.clone())?;
     let revision = DescriptorRevision::try_new(1)?;
     let node = fixture("observe-keyboard.node.json")?;
-    registry.register_snapshot(&identity, revision, vec![node.clone()])?;
+    registry.register_initial_snapshot(identity.clone(), revision, vec![node.clone()])?;
     let before = registry.snapshot()?;
-    registry.register_snapshot(&identity, revision, vec![node])?;
+    registry.register_initial_snapshot(identity.clone(), revision, vec![node.clone()])?;
     assert_eq!(
         registry.snapshot()?,
         before,
@@ -182,9 +226,8 @@ fn snapshot_revision_cannot_be_reused_for_different_descriptors() -> Result<(), 
 fn empty_snapshot_still_consumes_its_revision() -> Result<(), Box<dyn Error>> {
     let mut registry = CapabilityRegistry::default();
     let identity = session(1)?;
-    registry.start_session(identity.clone())?;
     let revision = DescriptorRevision::try_new(1)?;
-    registry.register_snapshot(&identity, revision, vec![])?;
+    registry.register_initial_snapshot(identity.clone(), revision, vec![])?;
     assert_eq!(
         registry.register_snapshot(
             &identity,
@@ -197,10 +240,9 @@ fn empty_snapshot_still_consumes_its_revision() -> Result<(), Box<dyn Error>> {
 }
 
 #[test]
-fn delta_requires_an_initial_snapshot() -> Result<(), Box<dyn Error>> {
+fn delta_rejects_a_session_without_an_initial_snapshot() -> Result<(), Box<dyn Error>> {
     let mut registry = CapabilityRegistry::default();
     let identity = session(1)?;
-    registry.start_session(identity.clone())?;
     assert_eq!(
         registry.apply_delta(
             &identity,
@@ -209,7 +251,7 @@ fn delta_requires_an_initial_snapshot() -> Result<(), Box<dyn Error>> {
             vec![],
             &[]
         ),
-        Err(RegistryError::ResyncRequired)
+        Err(RegistryError::StaleSession)
     );
     Ok(())
 }
@@ -264,8 +306,8 @@ fn session_invalidation_releases_only_its_resource_leases() -> Result<(), Box<dy
     let mut registry = CapabilityRegistry::default();
     let group_a = grouped_session("group-a", 1)?;
     let group_b = grouped_session("group-b", 1)?;
-    registry.start_session(group_a.clone())?;
-    registry.start_session(group_b.clone())?;
+    registry.register_initial_snapshot(group_a.clone(), DescriptorRevision::try_new(1)?, vec![])?;
+    registry.register_initial_snapshot(group_b.clone(), DescriptorRevision::try_new(1)?, vec![])?;
 
     let resource_a = CanonicalResourceKey::try_new("local/usb/a/interface-1")?;
     let resource_b = CanonicalResourceKey::try_new("local/usb/b/interface-1")?;
@@ -335,7 +377,7 @@ fn stale_session_cleanup_cannot_release_replacement_resources() -> Result<(), Bo
     let old = session(1)?;
     let current = session(2)?;
     let resource = CanonicalResourceKey::try_new("local/usb/replaced/interface-1")?;
-    registry.start_session(old.clone())?;
+    registry.register_initial_snapshot(old.clone(), DescriptorRevision::try_new(1)?, vec![])?;
     registry.acquire_resource(
         ResourceLeaseOwner::RuntimeSession {
             session: old.clone(),
@@ -345,7 +387,7 @@ fn stale_session_cleanup_cannot_release_replacement_resources() -> Result<(), Bo
         "old-runtime",
     )?;
 
-    registry.start_session(current.clone())?;
+    registry.register_initial_snapshot(current.clone(), DescriptorRevision::try_new(1)?, vec![])?;
     registry.acquire_resource(
         ResourceLeaseOwner::RuntimeSession {
             session: current.clone(),
@@ -439,9 +481,8 @@ fn identical_devices_and_service_resolve_by_full_stable_path() -> Result<(), Box
 
     let identity = session(1)?;
     let mut registry = CapabilityRegistry::default();
-    registry.start_session(identity.clone())?;
-    registry.register_snapshot(
-        &identity,
+    registry.register_initial_snapshot(
+        identity.clone(),
         DescriptorRevision::try_new(1)?,
         vec![node.clone()],
     )?;
@@ -484,9 +525,8 @@ fn stable_reference_survives_runtime_group_migration() -> Result<(), Box<dyn Err
     let mut registry = CapabilityRegistry::default();
     let first = session(1)?;
     let reference = key_a_reference()?;
-    registry.start_session(first.clone())?;
-    registry.register_snapshot(
-        &first,
+    registry.register_initial_snapshot(
+        first.clone(),
         DescriptorRevision::try_new(1)?,
         vec![fixture("observe-keyboard.node.json")?],
     )?;
@@ -498,9 +538,8 @@ fn stable_reference_survives_runtime_group_migration() -> Result<(), Box<dyn Err
         plugin_session_id: PluginSessionId::try_new("session-migrated")?,
         generation: SessionGeneration::try_new(1)?,
     };
-    registry.start_session(migrated.clone())?;
-    registry.register_snapshot(
-        &migrated,
+    registry.register_initial_snapshot(
+        migrated.clone(),
         DescriptorRevision::try_new(1)?,
         vec![fixture("observe-keyboard.node.json")?],
     )?;

@@ -61,7 +61,6 @@ pub struct RegistrySnapshot {
 struct SessionState {
     identity: SessionIdentity,
     descriptor_revision: DescriptorRevision,
-    snapshot_registered: bool,
     nodes: BTreeMap<NodeId, NodeDescriptor>,
 }
 
@@ -101,26 +100,39 @@ pub enum RegistryError {
 }
 
 impl CapabilityRegistry {
-    pub fn start_session(&mut self, identity: SessionIdentity) -> Result<(), RegistryError> {
+    pub fn register_initial_snapshot(
+        &mut self,
+        identity: SessionIdentity,
+        descriptor_revision: DescriptorRevision,
+        nodes: Vec<NodeDescriptor>,
+    ) -> Result<(), RegistryError> {
+        let validated = validate_nodes(nodes, descriptor_revision)?;
         let key = (
             identity.package_id.clone(),
             identity.runtime_group_id.clone(),
         );
-        if self
-            .sessions
-            .get(&key)
-            .is_some_and(|current| current.identity.generation >= identity.generation)
-        {
-            return Err(RegistryError::StaleSession);
+        if let Some(current) = self.sessions.get(&key) {
+            if current.identity == identity
+                && current.descriptor_revision == descriptor_revision
+                && current.nodes == validated
+            {
+                return Ok(());
+            }
+            if current.identity.generation >= identity.generation {
+                return Err(RegistryError::StaleSession);
+            }
         }
+
+        let next_registry_revision = self
+            .revision
+            .checked_add(1)
+            .ok_or(RegistryError::CounterExhausted)?;
         let replaced = self.sessions.insert(
             key,
             SessionState {
                 identity,
-                descriptor_revision: DescriptorRevision::try_new(1)
-                    .map_err(|_| RegistryError::CounterExhausted)?,
-                nodes: BTreeMap::new(),
-                snapshot_registered: false,
+                descriptor_revision,
+                nodes: validated,
             },
         );
         if let Some(replaced) = replaced {
@@ -129,7 +141,7 @@ impl CapabilityRegistry {
                     session: replaced.identity,
                 });
         }
-        self.bump_revision()?;
+        self.revision = next_registry_revision;
         Ok(())
     }
 
@@ -144,7 +156,7 @@ impl CapabilityRegistry {
         if descriptor_revision < state.descriptor_revision {
             return Err(RegistryError::StaleDescriptorRevision);
         }
-        if state.snapshot_registered && descriptor_revision == state.descriptor_revision {
+        if descriptor_revision == state.descriptor_revision {
             return if state.nodes == validated {
                 Ok(())
             } else {
@@ -153,7 +165,6 @@ impl CapabilityRegistry {
         }
         state.descriptor_revision = descriptor_revision;
         state.nodes = validated;
-        state.snapshot_registered = true;
         self.bump_revision()?;
         Ok(())
     }
@@ -167,7 +178,7 @@ impl CapabilityRegistry {
         removed_node_ids: &[NodeId],
     ) -> Result<(), RegistryError> {
         let state = self.current_session(session)?;
-        if !state.snapshot_registered || state.descriptor_revision != base_revision {
+        if state.descriptor_revision != base_revision {
             return Err(RegistryError::ResyncRequired);
         }
         if descriptor_revision <= base_revision {

@@ -25,7 +25,7 @@ use deckweave_protocol::{
         ProtocolVersionRange,
     },
 };
-use deckweave_registry::CapabilityRegistry;
+use deckweave_registry::{CapabilityRegistry, RegistryError};
 use semver::Version;
 use std::{collections::BTreeMap, error::Error, fs, path::PathBuf, sync::Arc};
 
@@ -215,6 +215,45 @@ fn lease_drives_permission_handshake_activation_and_idle_stop() -> Result<(), Bo
     );
     controller.process_exited(&mut registry, 2_201, true)?;
     assert_eq!(controller.status(), RuntimeStatus::Indexed);
+    assert!(registry.snapshot()?.nodes.is_empty());
+    Ok(())
+}
+
+#[test]
+fn invalid_initial_descriptors_never_publish_an_empty_session() -> Result<(), Box<dyn Error>> {
+    let mut controller = RuntimeController::new(
+        indexed_package()?,
+        RuntimeGroupId::try_new("control")?,
+        RestartPolicy::default(),
+    )?;
+    let mut registry = CapabilityRegistry::default();
+    controller.acquire_lease(RuntimeLeaseReason::Binding, None)?;
+    controller.check_permissions(
+        &PrincipalId::try_new("local-user")?,
+        &AuthorizationFixture { denied_scope: None },
+    )?;
+    let token = vec![4; 32];
+    controller.process_started(
+        PluginSessionId::try_new("invalid-descriptors")?,
+        token.clone(),
+        1,
+    )?;
+    controller.accept_hello(&hello(token), &support())?;
+    let node = observe_node()?;
+
+    assert!(matches!(
+        controller.activate_descriptors(
+            &mut registry,
+            DescriptorRevision::try_new(1)?,
+            vec![node.clone(), node],
+            1,
+        ),
+        Err(SupervisorError::Registry(RegistryError::DuplicateNode(_)))
+    ));
+    assert_eq!(controller.status(), RuntimeStatus::Negotiating);
+    assert!(registry.snapshot()?.nodes.is_empty());
+
+    controller.process_exited(&mut registry, 2, false)?;
     assert!(registry.snapshot()?.nodes.is_empty());
     Ok(())
 }

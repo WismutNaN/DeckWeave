@@ -438,8 +438,7 @@ impl RuntimeController {
             .session
             .as_mut()
             .ok_or(SupervisorError::MissingSession)?;
-        registry.start_session(session.identity.clone())?;
-        registry.register_snapshot(&session.identity, descriptor_revision, nodes)?;
+        registry.register_initial_snapshot(session.identity.clone(), descriptor_revision, nodes)?;
         session.last_heartbeat_host_ticks = now_host_ticks;
         self.registered = true;
         self.status = RuntimeStatus::Active;
