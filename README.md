@@ -6,7 +6,7 @@
 
 ## Статус
 
-Реализованы desktop shell, protocol/plugin foundations, revision/draft store, Application Gateway, durable apply и M1 automation/replay на isolated virtual providers. Срезы [Фазы 5](docs/implementation/phase-5-automation.md) завершены; F5-R1–R3 исправлены. Повторный аудит добавил configured instances/settings, structured bindings/results, live clock/cleanup, persistent locale и static plugin catalog query. [Gate перед Фазой 6](docs/implementation/pre-phase-6.md) закрыт по executable evidence; следующий срез — [application adapter до canvas](docs/implementation/phase-6-desktop.md). Реальные device/service integrations и production views ещё требуют своей приёмки; virtual evidence не заменяет platform/API/hardware tests.
+Реализованы desktop shell, protocol/plugin foundations, revision/draft store, Application Gateway, durable apply и M1 automation/replay на isolated virtual providers. Срезы [Фазы 5](docs/implementation/phase-5-automation.md) завершены; F5-R1–R3 исправлены. Повторный аудит добавил configured instances/settings, structured bindings/results, live clock/cleanup, persistent locale и static plugin catalog query. [Gate перед Фазой 6](docs/implementation/pre-phase-6.md) закрыт по executable evidence; реализован [первый срез desktop editor Фазы 6](docs/implementation/phase-6-desktop.md): canvas устройств, библиотека действий, формы параметров, цепочки результатов, общий фон с переопределениями кнопок и восстановление черновика. Полный gate Фазы 6 остаётся открытым. Реальные device/service integrations и production views ещё требуют своей приёмки; virtual evidence не заменяет platform/API/hardware tests.
 
 ## Запуск для разработки
 

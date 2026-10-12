@@ -169,6 +169,18 @@ re-export прежних имён, поэтому persisted JSON и публич
 
 ## Локальная проверка 2026-10-12
 
+### Проверка первого desktop editor
+
+`npm run dev:web` открывает интерфейс без native host. Кнопка «Попробовать на примере» загружает изолированную панель: выбрать control → выбрать действие в библиотеке → сохранить пример. Вторая операция может взять типизированный результат первой. Переключение на «Оформление» показывает наследование фона и overrides. Учебный пример не запускает внешние приложения и не сохраняется после закрытия.
+
+`npm run dev` подключает тот же editor к настоящему host. «Добавить устройство» показывает live descriptors и offline templates установленных пакетов. Новый пустой data-root действительно пуст; fake devices не подмешиваются в production registry. Индекс packages загружается при старте. Package installation, реальные device providers и grants проходят свои последующие срезы.
+
+`npm run test:ui` проверяет TS builder, inheritance, identity, typed bindings, CAS merge и durable retry; этот шаг входит в `npm run check`. `cargo test -p deckweave-automation --test desktop_graph` компилирует JSON, созданный тем же TS builder, и выполняет цепочку scheduler. Fixture зафиксирован в `ui/desktop/tests/fixtures/assignment.json`, frontend test обнаруживает его расхождение с builder.
+
+Native acceptance: `npm run build:web`, `cargo build -p deckweave-desktop --features smoke-test`, затем `./scripts/smoke-desktop.ps1` из PowerShell 7. Smoke использует уникальный test-results root, настоящий IPC и production coordinator; code включён только feature `smoke-test`. Проверка пустого workspace через native IPC и работа полной цепочки в Rust — разные evidence. Они не заменяют остающийся native virtual-device E2E из [плана Фазы 6](phase-6-desktop.md).
+
+UI использует локальный recovery journal в WebView storage своего data-root; он хранит document/base и pending envelope до отправки. Profile Store остаётся владельцем сохранённого черновика. Нельзя очищать recovery journal как способ повторить неизвестную операцию новым ключом.
+
 - Windows: debug и release executable собраны через Tauri CLI; Svelte/TypeScript — 0 ошибок и предупреждений. Installer bundling отключён конфигурацией и не проверялся.
 - Проверен также dev-запуск с Vite и portable arguments; native smoke проходит и в этом режиме, dev server завершается вместе с запуском.
 - Rust: platform-host, protocol, registry, supervisor, virtual example и OpenAction scanner компилируются и проходят unit/integration tests.

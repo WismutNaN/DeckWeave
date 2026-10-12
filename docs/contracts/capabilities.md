@@ -315,6 +315,14 @@ Static template описывает потенциальную capability без 
 
 Добавление совместимого instance не запускает его автоматически. Required schema/topology/resource change приостанавливает затронутый route до revalidation; новое permission требует grant. `requestable` port создаётся explicit application/activation operation из объявленного template с lease и deadline, не чтением descriptor. Несовместимая семантика требует нового version/ID; labels и список соседних ports не перенумеровывают существующие ID. Host не переназначает binding на «похожий» port молча.
 
+## Advisory layout для Desktop editor v1
+
+Плагин может передать extension `org.deckweave.controlLayout` непосредственно в `DeviceDescriptor`: `{version: 1, width, height, elements: {ElementId: {x, y, width, height}}}`. Координаты задают двумерную плоскость preview; размеры положительны, значения конечны, каждый bounds находится внутри плоскости. Desktop v1 принимает стороны до 10000 условных единиц. Версия или geometry вне поддержанного диапазона дают явно обозначенный список controls. Нельзя называть такую fallback-сетку physical geometry.
+
+Этот extension не заменяет `LightTopology`, calibration, units/coordinate spaces, display pixels или hit regions. Для lighting/audio/media output остаются обязательными соответствующие нормативные descriptors. UI не выводит LED coordinates из порядка массива elements.
+
+Офлайн-шаблоны device nodes могут находиться в manifest extension `org.deckweave.deviceTemplates` (массив `NodeDescriptor`). Read projection проверяет manifest hash, ограничивает список 16 шаблонами на artifact и валидирует descriptors; чтение не запускает executable. Шаблон не доказывает live availability. `StableEndpointRef` каждого input/action по-прежнему должен присутствовать в проверенном static automation catalog выбранной version/hash.
+
 ## Инварианты
 
 - Каждый port имеет schema, direction и semantics.

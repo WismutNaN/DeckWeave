@@ -64,24 +64,38 @@ Provisioning и future media/remote operations выделяются отдель
 
 Data/result bindings, light scenes и notification view models редактируются тем же draft API, что и обычный graph. Система IDs различает application `OperationId`, root execution/`RunId`, step `InvocationId` и provider `JobId`. Receipt apply/launch не означает завершение workflow. Queries результатов снова проверяют актуальные grants; secret values не сохраняются в durable dedup receipt. [Automation contract](automation.md) определяет job/result/artifact semantics; API не создаёт второй scheduler.
 
+## Реализованный Desktop adapter
+
+`app_query`, `app_command`, `mutation_window`, `open_workspace`, `locale_get`, `locale_change`, `locale_reconcile` — Tauri entry points. Principal и trace создаются host из доверенного окна `main`; JavaScript не выбирает principal/scopes. Работа с Profile Store/compiler/runtime выполняется вне UI thread. Открытие `desktop-main` — авторизованный use case Draft: существующий ID возвращает текущий document/version, отсутствие создаёт seed с постоянным ID. Read queries не создают draft.
+
+`EditorSnapshot` содержит bounded installed package version/hash + templates, registry revision и node generations/descriptors, runtime health и active selection. Это последовательные snapshots разных владельцев, не атомарный снимок всего runtime. `PluginCatalog` проверяет точные version/artifact hash. Failed metadata query не подменяется успешным пустым списком. Live refresh не меняет локальный draft или selection.
+
+`DraftView` содержит package lock. `ReplaceConfiguration { document, package_lock }` меняет оба поля одним CAS/receipt; применение графа с новой action dependency не должно требовать промежуточной несовместимой записи. Обычный `ReplaceDocument` сохраняет lock. Editor preview metadata находится в `GraphDocument.extensions["org.deckweave.editor"]` версии 1, а принадлежность node простому binding — в `node.extensions["org.deckweave.editorBinding"]`. Эти extensions не являются runtime resource handles.
+
+Frontend хранит ещё не подтверждённый envelope до отправки в локальном recovery journal, изолированном WebView data-root. После transport failure/restart повторяет тот же envelope; проверка operation/active state не генерирует новую mutation. Даже definitive denied при replay не доказывает, что первый вызов не исполнился до потери ответа. CAS conflict сохраняет local/base/remote и не разрешает слепую замену чужой версии. Profile Store остаётся источником сохранённого draft; recovery journal не является вторым workspace store и не переносится в export.
+
 ## Mutation envelope
 
 ```json
 {
-  "request_id": "uuid",
-  "idempotency_key": "client-generated-uuid",
-  "dedup_epoch": "server-issued-window-id",
-  "preconditions": {
-    "draft_id": "uuid",
-    "expected_draft_version": 12
-  },
-  "dry_run": false,
+  "requestId": "request-uuid",
+  "idempotencyKey": "client-generated-uuid",
+  "dedupEpoch": "server-issued-window-id",
+  "dryRun": false,
   "command": {
-    "type": "draft.bind_action",
-    "payload": {}
+    "type": "patch_draft",
+    "draft_id": "desktop-main",
+    "expected_version": 12,
+    "edit": {
+      "type": "set",
+      "pointer": "/extensions/org.example.label",
+      "value": "Основное"
+    }
   }
 }
 ```
+
+Это текущий сериализованный DTO Rust/Tauri: поля envelope и read-model structs — camelCase, поля вариантов `AppQuery`/`AppCommand`/`DraftCommand` — snake_case. Preconditions принадлежат выбранной command, отдельного универсального поля `preconditions` в v1 нет.
 
 Ответ содержит:
 

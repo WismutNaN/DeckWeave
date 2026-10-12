@@ -385,7 +385,7 @@ B2 добавил checkpoint/compaction, автоматический maintenanc
 **Цель:** дать пользователю визуально настроить virtual device без редактирования JSON.
 **Результат:** device виден на infinite canvas, control выбирается, action перетаскивается, draft валидируется и применяется.
 **Трудоёмкость:** L
-**Статус:** [ ] Не начата
+**Статус:** [~] В работе: adapter, canvas, action inspector и восстановление реализованы; полный virtual-device E2E и оставшиеся UX-срезы ещё не закрыты.
 
 ### Контекст для агента
 > ApplicationService и minimal graph работают. UI использует только этот contract и не получает plugin handles. Каждый экран проходит [стандарт качества интерфейса](../product/ui-quality-standard.md): данные вытесняют empty-state декор, а заголовки, пустоты и контейнеры остаются только при доказанной функции.
@@ -394,23 +394,23 @@ B2 добавил checkpoint/compaction, автоматический maintenanc
 
 - [x] Закрыть B2 checkpoint/compaction и bounded quota accounting перед editor-heavy нагрузкой; сохранить receipts/pending operations при GC/restart (→ [gate B2](#pre-apply-gate), [Profile Store](../architecture/modules/profile-store.md)).
 - [x] Закрыть срезы 6G.1–6G.5 и сквозные fake/real-process plugin scenarios до фиксации inspector/binding model (→ [pre-6 evidence](pre-phase-6.md), [каталог](../plugins/README.md)).
-- [ ] До canvas подключить Tauri adapter к Application Gateway с host-derived principal и общими DTO; проверить parity command/query/error с in-process client, receipt replay и snapshot reconnect (→ [Application API](../contracts/application-api.md)).
+- [x] До canvas подключить Tauri adapter к Application Gateway с host-derived principal и общими DTO; проверить parity command/query/error с in-process client, receipt replay и snapshot reconnect (→ [Application API](../contracts/application-api.md)).
 
-Подробный порядок: [6.0 adapter → 6.1 selection → 6.2 inspector → 6.3 apply → 6.4 E2E](phase-6-desktop.md). Static `PluginCatalog` query и locale application service уже реализованы; registry/installed-package read projections и transport adapter входят в 6.0, до canvas.
+Подробный порядок: [6.0 adapter → 6.1 selection → 6.2 inspector → 6.3 apply → 6.4 E2E](phase-6-desktop.md). Static `PluginCatalog`, locale, registry/installed-package projections и Tauri adapter реализованы. Текущие evidence и оставшиеся задачи находятся в плане Фазы 6.
 
-- [ ] Реализовать virtualized infinite canvas и device cards (→ [Модуль: Desktop Shell](../architecture/modules/desktop-shell.md)).
-- [ ] Реализовать action library/search и drag-and-drop binding (→ [UI — Progressive disclosure](../product/ux.md#progressive-disclosure)).
-- [ ] Реализовать schema-form inspector, draft status, inline validation, undo/redo/apply (→ [Модуль: Profile Store](../architecture/modules/profile-store.md), [Settings UI](../contracts/plugins.md#settings-и-ui-contributions)).
-- [ ] Реализовать Runtime health summary и no-device/first-run states (→ [UI — Состояния интерфейса](../product/ux.md#состояния-интерфейса)).
-- [ ] Добавить ru/en localization skeleton и keyboard navigation (→ [UX](../product/ux.md)).
-- [ ] Проверить canvas, library и inspector по removal/data-first/alignment/resize/keyboard gates без декоративных пустот и повторяющих подписей (→ [Стандарт качества интерфейса](../product/ui-quality-standard.md)).
+- [~] Реализовать virtualized infinite canvas и device cards (→ [Модуль: Desktop Shell](../architecture/modules/desktop-shell.md)).
+- [x] Реализовать action library/search и drag-and-drop binding (→ [UI — Progressive disclosure](../product/ux.md#progressive-disclosure)).
+- [~] Реализовать schema-form inspector, draft status, inline validation, undo/redo/apply (→ [Модуль: Profile Store](../architecture/modules/profile-store.md), [Settings UI](../contracts/plugins.md#settings-и-ui-contributions)).
+- [x] Реализовать Runtime health summary и no-device/first-run states (→ [UI — Состояния интерфейса](../product/ux.md#состояния-интерфейса)).
+- [x] Добавить ru/en localization skeleton и keyboard navigation (→ [UX](../product/ux.md)).
+- [x] Проверить canvas, library и inspector по removal/data-first/alignment/resize/keyboard gates без декоративных пустот и повторяющих подписей (→ [Стандарт качества интерфейса](../product/ui-quality-standard.md)).
 
 ### Тесты
 
-- [ ] Component: selection, drag/drop, inspector mutation.
-- [ ] End-to-end: assignment за ≤ 3 действия.
-- [ ] Manual: close/reopen WebView сохраняет active runtime/draft.
-- [ ] Visual acceptance: empty-state графика исчезает при появлении устройств; реальные RU/EN данные не уступают место hero-блокам, лишним заголовкам или нефункциональному whitespace.
+- [~] Component: selection, drag/drop, inspector mutation. Logic tests и browser-проверка пройдены; повторяемая component drag/drop automation остаётся.
+- [~] End-to-end: assignment за ≤ 3 действия. Browser example пройден; native virtual process → feedback остаётся.
+- [x] Native smoke: close/reopen WebView сохраняет active runtime/draft; запись и apply проверяются через настоящий IPC.
+- [x] Visual acceptance: empty-state графика исчезает при появлении устройств; реальные RU/EN данные не уступают место hero-блокам, лишним заголовкам или нефункциональному whitespace.
 
 ### Ссылки
 
