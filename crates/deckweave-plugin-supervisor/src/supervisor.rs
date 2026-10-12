@@ -14,7 +14,10 @@ use deckweave_protocol::{
     v1::{Hello, HelloAck, ProtocolEnvelope, ProtocolLimits},
 };
 use deckweave_registry::{CapabilityRegistry, RegistryError, SessionIdentity};
-use std::{collections::VecDeque, sync::Arc};
+use std::{
+    collections::{BTreeMap, VecDeque},
+    sync::Arc,
+};
 use thiserror::Error;
 
 mod factory;
@@ -98,6 +101,7 @@ pub enum SupervisorAction {
 pub struct PluginSession {
     pub identity: SessionIdentity,
     pub negotiated_limits: ProtocolLimits,
+    pub negotiated_features: BTreeMap<String, u32>,
     pub last_heartbeat_host_ticks: u64,
 }
 
@@ -368,6 +372,7 @@ impl RuntimeController {
         self.session = Some(PluginSession {
             identity,
             negotiated_limits: ProtocolLimits::default(),
+            negotiated_features: BTreeMap::new(),
             last_heartbeat_host_ticks: now_host_ticks,
         });
         self.one_time_token = Some(one_time_token);
@@ -406,6 +411,11 @@ impl RuntimeController {
             session.identity.plugin_session_id.to_string(),
         )?;
         session.negotiated_limits = ack.limits.unwrap_or_default();
+        session.negotiated_features = ack
+            .features
+            .iter()
+            .map(|feature| (feature.id.clone(), feature.version))
+            .collect();
         self.one_time_token = None;
         Ok(ack)
     }

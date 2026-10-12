@@ -1,6 +1,6 @@
 # Фаза 5: минимальный automation engine
 
-Статус: срезы 5.0–5.3 завершены; следующий срез — production orchestration 5.4. Основание и исходные дефекты — [повторная проверка apply](../research/pre-apply-review.md#phase-5-readiness). Фаза 4 создала рабочую основу для apply и восстановления isolated fixture; общий command claim, superseded recovery и отдельный pending budget теперь закрывают найденные P1-переходы.
+Статус: срезы 5.0–5.4 завершены; следующий срез — вертикальная fixture 5.5. Основание и исходные дефекты — [повторная проверка apply](../research/pre-apply-review.md#phase-5-readiness). Фаза 4 создала рабочую основу для apply и восстановления isolated fixture; общий command claim, superseded recovery и отдельный pending budget теперь закрывают найденные P1-переходы.
 
 ## Граница результата
 
@@ -66,10 +66,10 @@ Graph vocabulary принадлежит Automation; shared endpoint/IDs/schema r
 ### 5.4 — Runtime plan activation и безопасный dispatch
 
 - [x] Prepare и recovery используют один сохранённый compiled runtime manifest; Plugin Runtime больше не разбирает `fixture.kind` и не выбирает первый group/contribution. Для pre-manifest commit действует ограниченный migration path через Automation compiler; новый или повреждённый manifest не перекомпилируется. Coordinator запускает и bounded-очищает несколько distinct package/runtime groups; graph acceptance покрывает два изолированных процесса. Несколько contributions одного runtime group намеренно не создают дублирующие процессы и пока отклоняются до grouped-activation protocol.
-- [ ] Связать реальный ingress/command/outcome adapters с scheduler. Текущий monitor только обновляет heartbeat и отбрасывает body; его нельзя считать работающим event dispatcher. Descriptor changes, process exit, revoke и restart/backoff становятся owner events.
-- [ ] Сделать barrier частью живого dispatcher: закрыть новые effects, bounded drain/cancel, release held outputs, повторно проверить grants/topology, commit, назначить новую epoch, открыть новый plan. Булевый флаг без проверяющего его dispatch path не закрывает acceptance.
-- [~] Runtime binder уже проверяет точные package/group/contribution, endpoint generation/revision и descriptor contract после prepare и повторно на barrier. Перед каждой живой командой ещё требуется проверять актуальные grants, epoch и owner lease. Cleanup хранит владельца прежнего output, не вычисляет release через новый mapping. Stop/recovery bounded-очищают все runtime groups.
-- [ ] Разделить historical operation result и текущее runtime health. Fault monitor публикует degraded/unavailable; старый `Succeeded/Applied` receipt не становится единственным источником состояния работающей системы.
+- [x] Host-owned `LiveExecutionOwner` связывает нормализованные `Signal`/job outcomes/topology/grant events с единым `WorkspaceScheduler`; runtime monitor больше не отбрасывает body. Descriptor changes и process exit публикуют topology fault, revoke — grant fault. Restart остаётся новой generation/activation, старый event отсекается epoch.
+- [x] Barrier закрывает scheduler, выпускает cancel/cleanup intents через ещё открытый bounded dispatcher, затем закрывает новые команды. Abort явно открывает прежний plan без replay отменённой pending работы; committed activation получает монотонную epoch и только после worker registration открывает новый dispatcher.
+- [x] Runtime binder проверяет package/group/contribution, generation/revision и descriptor contract на prepare/barrier. Каждая живая команда дополнительно fenced по epoch, полному runtime endpoint, negotiated feature и актуальной grant revision; bounded worker queue даёт rejected-before-send, а ошибка после enqueue становится unknown outcome без автоматического retry. Cleanup адресуется прежним владельцем invocation.
+- [x] Historical apply receipt отделён от `RuntimeHealthSnapshot`: worker публикует active/degraded/unavailable/stopped, при revoke/crash прежняя операция остаётся `Succeeded/Committed`. Shutdown и recovery bounded-очищают все runtime groups.
 
 Выход: через Gateway применяются два разных graph, первый с двумя package/groups, затем изменённый. Revoke/crash/apply во время pending invocation не запускает continuation новой epoch. Сохранённая revision восстанавливается после restart без replay входного события. Production acceptance не зависит от Tauri window; desktop adapter следует в Фазе 6.
 

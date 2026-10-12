@@ -2,8 +2,8 @@
 use deckweave_protocol::{
     framing::{read_envelope, write_envelope},
     v1::{
-        ActivationReply, Heartbeat, Hello, OpaquePayload, ProtocolEnvelope, ProtocolLimits,
-        ProtocolVersion, ProtocolVersionRange, SchemaReference, protocol_envelope,
+        ActivationReply, FeatureRequirement, Heartbeat, Hello, OpaquePayload, ProtocolEnvelope,
+        ProtocolLimits, ProtocolVersion, ProtocolVersionRange, SchemaReference, protocol_envelope,
     },
 };
 use std::{error::Error, io, process::Command, time::Duration};
@@ -62,7 +62,20 @@ fn main() -> Result<(), Box<dyn Error>> {
             package_id,
             runtime_group,
             one_time_token: token,
-            features: vec![],
+            features: vec![
+                FeatureRequirement {
+                    id: deckweave_protocol::FEATURE_INVOCATION_ENDPOINT_PATH.into(),
+                    minimum_version: 1,
+                    maximum_version: 1,
+                    required: true,
+                },
+                FeatureRequirement {
+                    id: deckweave_protocol::FEATURE_VALUE_WRITE_ENDPOINT_PATH.into(),
+                    minimum_version: 1,
+                    maximum_version: 1,
+                    required: true,
+                },
+            ],
             schemas: vec![],
             limits: Some(ProtocolLimits {
                 maximum_message_bytes: u64::try_from(maximum)?,

@@ -206,7 +206,16 @@ fn host_support() -> HostProtocolSupport {
             minimum: Some(ProtocolVersion { major: 1, minor: 0 }),
             maximum: Some(ProtocolVersion { major: 1, minor: 1 }),
         },
-        features: BTreeMap::new(),
+        features: BTreeMap::from([
+            (
+                deckweave_protocol::FEATURE_INVOCATION_ENDPOINT_PATH.into(),
+                1,
+            ),
+            (
+                deckweave_protocol::FEATURE_VALUE_WRITE_ENDPOINT_PATH.into(),
+                1,
+            ),
+        ]),
         schemas: BTreeMap::new(),
         limits: ProtocolLimits {
             maximum_message_bytes: 1024,

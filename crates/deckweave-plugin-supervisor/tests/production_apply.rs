@@ -26,7 +26,7 @@ use deckweave_domain::{
 use deckweave_host::{ApplyCoordinator, ApplyPlanningService};
 use deckweave_platform_host::{NativeAtomicFileStore, NativeChildProcessPolicy};
 use deckweave_plugin_supervisor::{
-    host::{HostRuntimeConfig, ProductionRuntimeCoordinator},
+    host::{HostRuntimeConfig, ProductionRuntimeCoordinator, RuntimeHealthStatus},
     package::{PackageIndex, StagingLimits},
 };
 use deckweave_profiles::{JsonProfileStore, ProfileStoreLimits};
@@ -519,6 +519,15 @@ fn graph_apply_binds_and_activates_two_runtime_groups() -> Result<(), Box<dyn Er
         .map_err(|_| "registry poisoned")?
         .snapshot()?;
     assert_eq!(snapshot.nodes.len(), 2);
+    assert_eq!(
+        runtime
+            .runtime_health()
+            .runtimes
+            .iter()
+            .filter(|entry| entry.status == RuntimeHealthStatus::Active)
+            .count(),
+        2
+    );
     let packages: std::collections::BTreeSet<_> = snapshot
         .nodes
         .into_iter()
@@ -651,6 +660,16 @@ fn public_apply_replays_recovers_and_revokes_without_ui() -> Result<(), Box<dyn 
             .and_then(|registry| registry.snapshot().ok())
             .is_some_and(|snapshot| snapshot.nodes.is_empty())
     })?;
+    wait_until(|| {
+        restarted
+            .runtime_health()
+            .runtimes
+            .iter()
+            .all(|entry| entry.status == RuntimeHealthStatus::Unavailable)
+    })?;
+    let historical = repository.operation(&operation_id)?;
+    assert_eq!(historical.state, ApplyOperationState::Succeeded);
+    assert_eq!(historical.commit_status, ApplyCommitStatus::Committed);
     restarted.shutdown()?;
     Ok(())
 }

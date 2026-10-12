@@ -207,6 +207,18 @@ message CancelRequest {
   string reason = 3;
 }
 
+// Typed value delivery to an addressable input/feedback port. The runtime
+// session is authenticated by the transport; the complete endpoint path
+// prevents collisions between otherwise identical devices and services.
+message ValueWrite {
+  string run_id = 1;
+  string graph_node_id = 2;
+  uint64 activation_epoch = 3;
+  uint64 descriptor_revision = 4;
+  EndpointPath target = 5;
+  OpaquePayload value = 6;
+}
+
 message Heartbeat {
   uint64 host_ticks = 1;
   uint32 active_jobs = 2;
@@ -260,5 +272,6 @@ message ProtocolEnvelope {
     BackpressureNotice backpressure = 24;
     FramePacket frame = 25;
     FrameReceipt frame_receipt = 26;
+    ValueWrite value_write = 27;
   }
 }

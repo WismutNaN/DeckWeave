@@ -11,6 +11,8 @@ pub use deckweave_workspace::ActiveSelection;
 pub use planning::*;
 mod apply;
 pub use apply::*;
+mod execution;
+pub use execution::*;
 
 pub struct HostRuntime {
     platform: Arc<dyn HostPlatform>,

@@ -11,6 +11,7 @@ pub mod v1 {
 }
 
 pub const FEATURE_INVOCATION_ENDPOINT_PATH: &str = "org.deckweave.invocation.endpoint_path";
+pub const FEATURE_VALUE_WRITE_ENDPOINT_PATH: &str = "org.deckweave.value_write.endpoint_path";
 /// Rust document types generated from the same JSON Schemas as the TypeScript
 /// declarations. Extensible objects use schema-valued `additionalProperties`
 /// so unknown optional fields survive a typed JSON round-trip.
@@ -295,7 +296,6 @@ mod tests {
             })),
         };
         let mut bytes = message.encode_to_vec();
-        // Unknown field 127, varint value 1.
         bytes.extend_from_slice(&[0xf8, 0x07, 0x01]);
         let opaque = OpaqueProtocolFrame::new(bytes.clone());
         let decoded = decode_envelope(&bytes, 1024)?;

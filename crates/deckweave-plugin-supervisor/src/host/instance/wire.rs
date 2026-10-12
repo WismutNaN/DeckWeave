@@ -1,0 +1,258 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+//! Translation between Host dispatch vocabulary and the permissive wire protocol.
+
+use crate::{host::HostRuntimeError, routing::normalize_signal_source};
+use deckweave_automation::IngressReliability;
+use deckweave_domain::{
+    automation::{CommandOutcome, DeckWeaveError, ErrorCategory, InvocationReply},
+    endpoint::{EndpointTargetRef, RuntimeEndpointRef},
+    ids::{
+        ActivationEpoch, DescriptorRevision, InvocationId, JobId, NamespacedKind, RuntimeArtifactId,
+    },
+    schema::{SchemaRef, SchemaVersion},
+};
+use deckweave_host::{RuntimeCommand, RuntimeEvent, RuntimeEventKind};
+use deckweave_protocol::v1::{
+    self, CancelRequest, EndpointPath, InvocationRequest, OpaquePayload, SchemaReference,
+    StructuredError, TerminalOutcome, ValueWrite, endpoint_path, invocation_reply,
+    protocol_envelope, terminal_outcome,
+};
+use deckweave_registry::SessionIdentity;
+use serde_json::Value;
+use std::collections::BTreeMap;
+
+pub(super) fn command_body(
+    command: &RuntimeCommand,
+) -> Result<Option<protocol_envelope::Body>, HostRuntimeError> {
+    Ok(match command {
+        RuntimeCommand::Invoke { request, operation } => {
+            Some(protocol_envelope::Body::Invoke(InvocationRequest {
+                invocation_id: request.invocation_id.to_string(),
+                run_id: request.execution_id.to_string(),
+                operation_id: operation.operation_id.to_string(),
+                activation_epoch: request.activation_epoch.get(),
+                descriptor_revision: request.target.descriptor_revision.get(),
+                deadline_host_ticks: request.deadline_host_ticks,
+                idempotency_key: request.idempotency_key.clone(),
+                input: Some(payload(&operation.input_schema, &request.input)?),
+                target: Some(endpoint_path(&request.target)),
+            }))
+        }
+        RuntimeCommand::Feedback {
+            run_id,
+            graph_node_id,
+            activation_epoch,
+            target,
+            schema,
+            value,
+        } => Some(protocol_envelope::Body::ValueWrite(ValueWrite {
+            run_id: run_id.to_string(),
+            graph_node_id: graph_node_id.to_string(),
+            activation_epoch: activation_epoch.get(),
+            descriptor_revision: target.descriptor_revision.get(),
+            target: Some(endpoint_path(target)),
+            value: Some(payload(schema, value)?),
+        })),
+        RuntimeCommand::Cancel {
+            invocation_id,
+            job_id,
+            reason,
+            ..
+        } => Some(protocol_envelope::Body::Cancel(CancelRequest {
+            invocation_id: invocation_id.to_string(),
+            job_id: job_id.as_ref().map(ToString::to_string),
+            reason: reason.clone(),
+        })),
+        RuntimeCommand::CleanupRun { .. } | RuntimeCommand::CleanupAll { .. } => None,
+    })
+}
+
+pub(super) fn event(
+    session: &SessionIdentity,
+    descriptor_revision: DescriptorRevision,
+    activation_epoch: ActivationEpoch,
+    body: &protocol_envelope::Body,
+) -> Result<Option<RuntimeEvent>, HostRuntimeError> {
+    let kind = match body {
+        protocol_envelope::Body::Signal(signal) => {
+            let source = normalize_signal_source(session, descriptor_revision, signal)
+                .map_err(|error| HostRuntimeError::Protocol(error.to_string()))?;
+            let payload = decode_payload(signal.payload.as_ref())?;
+            RuntimeEventKind::Signal {
+                source,
+                payload,
+                source_ticks: signal.captured_ticks,
+                reliability: IngressReliability::Reliable,
+            }
+        }
+        protocol_envelope::Body::InvocationReply(reply) => {
+            RuntimeEventKind::Invocation(invocation_reply(reply)?)
+        }
+        protocol_envelope::Body::JobOutcome(outcome) => {
+            RuntimeEventKind::Invocation(terminal_reply(outcome)?)
+        }
+        _ => return Ok(None),
+    };
+    Ok(Some(RuntimeEvent {
+        activation_epoch,
+        kind,
+    }))
+}
+
+fn invocation_reply(reply: &v1::InvocationReply) -> Result<InvocationReply, HostRuntimeError> {
+    let invocation_id = InvocationId::try_new(reply.invocation_id.clone())
+        .map_err(|error| HostRuntimeError::Protocol(error.to_string()))?;
+    match reply
+        .reply
+        .as_ref()
+        .ok_or_else(|| HostRuntimeError::Protocol("invocation reply has no body".into()))?
+    {
+        invocation_reply::Reply::Terminal(outcome) => terminal_reply(outcome),
+        invocation_reply::Reply::AcceptedJobId(job_id) => Ok(InvocationReply::AcceptedJob {
+            invocation_id,
+            job_id: JobId::try_new(job_id.clone())
+                .map_err(|error| HostRuntimeError::Protocol(error.to_string()))?,
+        }),
+        invocation_reply::Reply::Rejected(error) => Ok(InvocationReply::Rejected {
+            invocation_id,
+            error: domain_error(error)?,
+        }),
+    }
+}
+
+fn terminal_reply(outcome: &TerminalOutcome) -> Result<InvocationReply, HostRuntimeError> {
+    let invocation_id = InvocationId::try_new(outcome.invocation_id.clone())
+        .map_err(|error| HostRuntimeError::Protocol(error.to_string()))?;
+    let result = outcome
+        .result
+        .as_ref()
+        .ok_or_else(|| HostRuntimeError::Protocol("terminal outcome has no result".into()))?;
+    let outcome = match result {
+        terminal_outcome::Result::Succeeded(payload) => CommandOutcome::Succeeded {
+            result: decode_payload(Some(payload))?,
+        },
+        terminal_outcome::Result::Failed(error) => CommandOutcome::Failed {
+            error: domain_error(error)?,
+        },
+        terminal_outcome::Result::Cancelled(error) => CommandOutcome::Cancelled {
+            error: domain_error(error)?,
+            partial_effects: vec![],
+        },
+        terminal_outcome::Result::UnknownOutcome(error) => CommandOutcome::UnknownOutcome {
+            error: domain_error(error)?,
+            known_effects: vec![],
+        },
+    };
+    Ok(InvocationReply::Terminal {
+        invocation_id,
+        outcome,
+    })
+}
+
+pub(super) fn unknown_outcome(command: &RuntimeCommand, code: &str) -> Option<RuntimeEventKind> {
+    let RuntimeCommand::Invoke { request, .. } = command else {
+        return None;
+    };
+    Some(RuntimeEventKind::Invocation(InvocationReply::Terminal {
+        invocation_id: request.invocation_id.clone(),
+        outcome: CommandOutcome::UnknownOutcome {
+            error: DeckWeaveError {
+                category: ErrorCategory::UnknownOutcome,
+                code: code.into(),
+                message_key: format!("runtime.{code}"),
+                details: BTreeMap::new(),
+                diagnostic_attachment_id: None,
+            },
+            known_effects: vec![],
+        },
+    }))
+}
+
+fn payload(schema: &SchemaRef, value: &Value) -> Result<OpaquePayload, HostRuntimeError> {
+    Ok(OpaquePayload {
+        schema: Some(SchemaReference {
+            id: schema.id.to_string(),
+            major: schema.version.major,
+            minor: schema.version.minor,
+        }),
+        value: serde_json::to_vec(value)
+            .map_err(|error| HostRuntimeError::Protocol(error.to_string()))?,
+    })
+}
+
+fn decode_payload(payload: Option<&OpaquePayload>) -> Result<Value, HostRuntimeError> {
+    let payload =
+        payload.ok_or_else(|| HostRuntimeError::Protocol("wire payload is missing".into()))?;
+    serde_json::from_slice(&payload.value)
+        .map_err(|error| HostRuntimeError::Protocol(error.to_string()))
+}
+
+fn endpoint_path(endpoint: &RuntimeEndpointRef) -> EndpointPath {
+    let target = match &endpoint.stable.target {
+        EndpointTargetRef::Device {
+            device_identity, ..
+        } => endpoint_path::Target::DeviceIdentity(device_identity.to_string()),
+        EndpointTargetRef::Service { service_id, .. } => {
+            endpoint_path::Target::ServiceId(service_id.to_string())
+        }
+    };
+    let provider_id = match &endpoint.stable.target {
+        EndpointTargetRef::Device { provider_id, .. }
+        | EndpointTargetRef::Service { provider_id, .. } => provider_id.to_string(),
+    };
+    EndpointPath {
+        node_id: endpoint.stable.node_id.to_string(),
+        provider_id,
+        target: Some(target),
+        element_id: endpoint.stable.port.element_id.to_string(),
+        capability_id: endpoint.stable.port.capability_id.to_string(),
+        port_id: endpoint.stable.port.port_id.to_string(),
+    }
+}
+
+fn domain_error(error: &StructuredError) -> Result<DeckWeaveError, HostRuntimeError> {
+    let category = match v1::ErrorCategory::try_from(error.category)
+        .unwrap_or(v1::ErrorCategory::Unspecified)
+    {
+        v1::ErrorCategory::InvalidInput => ErrorCategory::InvalidInput,
+        v1::ErrorCategory::Unsupported => ErrorCategory::Unsupported,
+        v1::ErrorCategory::Unavailable => ErrorCategory::Unavailable,
+        v1::ErrorCategory::PermissionDenied => ErrorCategory::PermissionDenied,
+        v1::ErrorCategory::ResourceBusy => ErrorCategory::ResourceBusy,
+        v1::ErrorCategory::DeadlineExceeded => ErrorCategory::DeadlineExceeded,
+        v1::ErrorCategory::Cancelled => ErrorCategory::Cancelled,
+        v1::ErrorCategory::TransientExternal => ErrorCategory::TransientExternal,
+        v1::ErrorCategory::PermanentExternal => ErrorCategory::PermanentExternal,
+        v1::ErrorCategory::UnknownOutcome => ErrorCategory::UnknownOutcome,
+        v1::ErrorCategory::Internal | v1::ErrorCategory::Unspecified => ErrorCategory::Internal,
+    };
+    let diagnostic_attachment_id = error
+        .diagnostic_attachment_id
+        .as_ref()
+        .map(|value| RuntimeArtifactId::try_new(value.clone()))
+        .transpose()
+        .map_err(|parse| HostRuntimeError::Protocol(parse.to_string()))?;
+    Ok(DeckWeaveError {
+        category,
+        code: error.code.clone(),
+        message_key: error.message_key.clone(),
+        details: error
+            .details
+            .iter()
+            .map(|(key, value)| (key.clone(), Value::String(value.clone())))
+            .collect(),
+        diagnostic_attachment_id,
+    })
+}
+
+#[allow(dead_code)]
+fn schema_reference(schema: &SchemaReference) -> Result<SchemaRef, HostRuntimeError> {
+    Ok(SchemaRef {
+        id: NamespacedKind::try_new(schema.id.clone())
+            .map_err(|error| HostRuntimeError::Protocol(error.to_string()))?,
+        version: SchemaVersion {
+            major: schema.major,
+            minor: schema.minor,
+        },
+    })
+}

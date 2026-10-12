@@ -3,13 +3,17 @@
 
 use super::{
     config::{HostRuntimeConfig, HostRuntimeError},
+    dispatch::RuntimeDispatchHub,
+    health::RuntimeHealthStore,
     instance::{ActiveWorker, RuntimeInstance, elapsed_millis},
 };
 use crate::package::{IndexedPackage, PackageIndex};
 use deckweave_application::AuthorizationStore;
-use deckweave_automation::{BoundExecutionGraph, CompiledExecutionPlan, RuntimeRequirement};
+use deckweave_automation::{
+    BoundExecutionGraph, CompiledExecutionPlan, ExecutableGraph, GraphLimits, RuntimeRequirement,
+};
 use deckweave_domain::ids::{ContributionId, HostBootId, OperationId, PrincipalId, RuntimeGroupId};
-use deckweave_host::RuntimeCommitOutcome;
+use deckweave_host::{LiveExecutionOwner, RuntimeCommitOutcome, RuntimeIntentDispatcher};
 use deckweave_platform::ChildProcessPolicy;
 use deckweave_registry::{CapabilityRegistry, RegistrySnapshot};
 use deckweave_workspace::{ApplyCommitRecord, ApplyOperationRepository};
@@ -19,6 +23,7 @@ use std::{
 };
 
 mod plan;
+mod query;
 use plan::{bind_instances, validate_distinct_runtime_groups};
 
 pub(super) struct PreparedRuntime {
@@ -26,6 +31,7 @@ pub(super) struct PreparedRuntime {
     plan_hash: String,
     instances: Vec<RuntimeInstance>,
     bound_graph: Option<BoundExecutionGraph>,
+    executable_graph: Option<ExecutableGraph>,
 }
 
 impl PreparedRuntime {
@@ -58,6 +64,9 @@ pub struct ProductionRuntimeCoordinator {
     pub(super) config: HostRuntimeConfig,
     pub(super) clock: Instant,
     pub(super) state: Mutex<RuntimeState>,
+    pub(super) dispatcher: Arc<RuntimeDispatchHub>,
+    pub(super) execution: Arc<LiveExecutionOwner>,
+    pub(super) health: RuntimeHealthStore,
 }
 
 impl ProductionRuntimeCoordinator {
@@ -72,6 +81,12 @@ impl ProductionRuntimeCoordinator {
         host_boot_id: HostBootId,
         config: HostRuntimeConfig,
     ) -> Self {
+        let dispatcher = Arc::new(RuntimeDispatchHub::new(Arc::clone(&authorization)));
+        let execution_dispatcher: Arc<dyn RuntimeIntentDispatcher> = dispatcher.clone();
+        let execution = Arc::new(LiveExecutionOwner::new(
+            host_boot_id.clone(),
+            execution_dispatcher,
+        ));
         Self {
             packages,
             operations,
@@ -86,6 +101,9 @@ impl ProductionRuntimeCoordinator {
                 dispatcher_closed: true,
                 ..RuntimeState::default()
             }),
+            dispatcher,
+            execution,
+            health: RuntimeHealthStore::default(),
         }
     }
 
@@ -98,6 +116,10 @@ impl ProductionRuntimeCoordinator {
     }
 
     pub fn shutdown(&self) -> Result<(), HostRuntimeError> {
+        self.dispatcher.close();
+        self.execution
+            .deactivate()
+            .map_err(|error| HostRuntimeError::State(error.to_string()))?;
         let (prepared, active) = {
             let mut state = self.lock_state()?;
             state.dispatcher_closed = true;
@@ -106,6 +128,8 @@ impl ProductionRuntimeCoordinator {
         };
         let prepared_result = prepared.map_or(Ok(()), |prepared| self.stop_prepared(prepared));
         let active_result = self.shutdown_workers(active);
+        self.dispatcher.clear();
+        self.health.mark_all_stopped();
         prepared_result.and(active_result)
     }
 
@@ -160,6 +184,7 @@ impl ProductionRuntimeCoordinator {
             plan_hash: plan_hash.into(),
             instances,
             bound_graph,
+            executable_graph: plan.executable_graph().cloned(),
         })
     }
 
@@ -240,6 +265,7 @@ impl ProductionRuntimeCoordinator {
         };
         self.shutdown_workers(active)?;
         let bound_graph = prepared.bound_graph;
+        let executable_graph = prepared.executable_graph;
         let mut instances = prepared.instances;
         let publish_result = {
             let mut registry = self
@@ -255,6 +281,15 @@ impl ProductionRuntimeCoordinator {
             let _cleanup = self.stop_instances(instances);
             return Err(error);
         }
+        let epoch = self
+            .execution
+            .activate(
+                executable_graph.as_ref(),
+                bound_graph.as_ref(),
+                GraphLimits::default(),
+            )
+            .map_err(|error| HostRuntimeError::State(error.to_string()))?;
+        let event_sink: Arc<dyn deckweave_host::RuntimeEventSink> = self.execution.clone();
         let workers = instances
             .into_iter()
             .map(|instance| {
@@ -263,9 +298,15 @@ impl ProductionRuntimeCoordinator {
                     Arc::clone(&self.registry),
                     self.config.clone(),
                     self.clock,
+                    epoch,
+                    Arc::clone(&event_sink),
+                    self.health.clone(),
                 )
             })
-            .collect();
+            .collect::<Result<Vec<_>, _>>()?;
+        self.dispatcher
+            .activate(Some(epoch), &workers)
+            .map_err(|failure| HostRuntimeError::State(failure.error.code))?;
         let mut state = self.lock_state()?;
         state.active = workers;
         state.active_binding = bound_graph;

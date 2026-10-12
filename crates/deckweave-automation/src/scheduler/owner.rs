@@ -81,4 +81,10 @@ impl WorkspaceScheduler {
     pub fn queued_items(&self) -> usize {
         self.ingress.len()
     }
+
+    /// Reopens the same plan after a pre-commit apply abort. Pending effects
+    /// have already been cancelled by the barrier and are never replayed.
+    pub fn reopen_after_barrier(&mut self) {
+        self.state.closed = false;
+    }
 }

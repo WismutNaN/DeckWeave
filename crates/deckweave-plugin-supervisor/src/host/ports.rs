@@ -101,6 +101,10 @@ impl RuntimeCutover for ProductionRuntimeCoordinator {
         }
         self.revalidate_prepared(operation_id, plan.compiled())
             .map_err(runtime_barrier)?;
+        self.execution
+            .close_barrier(elapsed_millis(self.clock))
+            .map_err(|error| RuntimeCutoverError::Barrier(error.to_string()))?;
+        self.dispatcher.close();
         let mut state = self.lock_state().map_err(runtime_barrier)?;
         state.dispatcher_closed = true;
         Ok(())
@@ -121,6 +125,10 @@ impl RuntimeCutover for ProductionRuntimeCoordinator {
             }
             self.stop_prepared(prepared).map_err(runtime_abort)?;
         }
+        self.execution
+            .resume_after_aborted_barrier()
+            .map_err(|error| RuntimeCutoverError::Abort(error.to_string()))?;
+        self.dispatcher.reopen();
         Ok(())
     }
 

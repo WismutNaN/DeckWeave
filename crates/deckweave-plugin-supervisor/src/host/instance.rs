@@ -2,9 +2,10 @@
 //! One isolated runtime instance from launch through bounded shutdown.
 
 use super::config::{HostRuntimeConfig, HostRuntimeError};
+use super::health::{RuntimeHealthEntry, RuntimeHealthStatus};
 use crate::{
     package::IndexedPackage,
-    process::{ProcessError, ProcessRuntime},
+    process::ProcessRuntime,
     supervisor::{RuntimeController, RuntimeLeaseReason, SupervisorAction},
 };
 use deckweave_application::AuthorizationStore;
@@ -23,12 +24,14 @@ use deckweave_protocol::v1::{
 use deckweave_registry::CapabilityRegistry;
 use std::{
     collections::BTreeMap,
-    sync::{Arc, Mutex, mpsc},
-    thread,
+    sync::Arc,
     time::{Duration, Instant},
 };
 
 mod binding;
+mod wire;
+mod worker;
+pub(super) use worker::{ActiveWorker, WorkerCommand, WorkerKey};
 
 pub(super) struct RuntimeInstance {
     controller: RuntimeController,
@@ -224,110 +227,139 @@ impl RuntimeInstance {
         self.grant_revision = revision;
         Ok(action)
     }
-}
 
-pub(super) struct ActiveWorker {
-    shutdown: mpsc::SyncSender<mpsc::SyncSender<()>>,
-    join: Option<thread::JoinHandle<()>>,
-}
+    fn worker_identity(&self) -> Result<(WorkerKey, BTreeMap<String, u32>), HostRuntimeError> {
+        let session = self
+            .controller
+            .session()
+            .ok_or_else(|| HostRuntimeError::Protocol("runtime session is missing".into()))?;
+        Ok((
+            WorkerKey {
+                package_id: session.identity.package_id.clone(),
+                runtime_group_id: session.identity.runtime_group_id.clone(),
+                plugin_session_id: session.identity.plugin_session_id.clone(),
+                generation: session.identity.generation,
+            },
+            session.negotiated_features.clone(),
+        ))
+    }
 
-impl ActiveWorker {
-    pub(super) fn spawn(
-        instance: RuntimeInstance,
-        registry: Arc<Mutex<CapabilityRegistry>>,
-        config: HostRuntimeConfig,
-        clock: Instant,
-    ) -> Self {
-        let (shutdown, receiver) = mpsc::sync_channel(1);
-        let join = thread::spawn(move || {
-            monitor(instance, registry, config, clock, receiver);
-        });
-        Self {
-            shutdown,
-            join: Some(join),
+    fn health_entry(
+        &self,
+        status: RuntimeHealthStatus,
+        detail: Option<String>,
+    ) -> RuntimeHealthEntry {
+        let health = self.controller.health();
+        RuntimeHealthEntry {
+            package_id: health.key.package_id,
+            runtime_group_id: health.key.runtime_group_id,
+            contribution_id: self.contribution_id.clone(),
+            generation: self.generation,
+            status,
+            detail,
         }
     }
 
-    pub(super) fn shutdown(mut self, timeout: Duration) -> Result<(), HostRuntimeError> {
-        let (done, receiver) = mpsc::sync_channel(1);
-        match self.shutdown.try_send(done) {
-            Ok(()) => receiver
-                .recv_timeout(timeout)
-                .map_err(|error| HostRuntimeError::Shutdown(error.to_string()))?,
-            Err(mpsc::TrySendError::Disconnected(_)) => {}
-            Err(error) => return Err(HostRuntimeError::Shutdown(error.to_string())),
-        }
-        if let Some(join) = self.join.take() {
-            join.join()
-                .map_err(|_| HostRuntimeError::Shutdown("runtime monitor panicked".into()))?;
-        }
-        Ok(())
-    }
-}
-
-impl Drop for ActiveWorker {
-    fn drop(&mut self) {
-        let (done, _receiver) = mpsc::sync_channel(1);
-        let _ignored = self.shutdown.try_send(done);
-    }
-}
-
-fn monitor(
-    mut instance: RuntimeInstance,
-    registry: Arc<Mutex<CapabilityRegistry>>,
-    config: HostRuntimeConfig,
-    clock: Instant,
-    shutdown: mpsc::Receiver<mpsc::SyncSender<()>>,
-) {
-    loop {
-        if let Ok(done) = shutdown.try_recv() {
-            let now = elapsed_millis(clock);
-            let result = registry.lock().ok().and_then(|mut registry| {
-                instance.stop(&mut registry, config.stop_timeout, now).ok()
-            });
-            let _ignored = done.try_send(());
-            let _ = result;
-            return;
-        }
-        match instance.process.receive(config.monitor_interval) {
-            Ok(envelope) => {
-                let now = elapsed_millis(clock);
-                let _ignored = instance.controller.accept_envelope(&envelope, now);
-            }
-            Err(ProcessError::Timeout) => {}
-            Err(_) => {
-                let now = elapsed_millis(clock);
-                if let Ok(mut registry) = registry.lock() {
-                    let _ignored = instance
-                        .controller
-                        .process_exited(&mut registry, now, false);
-                }
-                return;
-            }
-        }
-        let now = elapsed_millis(clock);
-        if instance.grants_changed().unwrap_or(true) {
-            let action = registry
-                .lock()
-                .ok()
-                .and_then(|mut registry| instance.revalidate_permissions(&mut registry, now).ok());
-            if !matches!(action, Some(SupervisorAction::None)) {
-                if let Ok(mut registry) = registry.lock() {
-                    let _ignored = instance.stop(&mut registry, config.stop_timeout, now);
-                }
-                return;
-            }
-        }
-        match instance.controller.tick(now) {
-            Ok(SupervisorAction::ForceTerminate | SupervisorAction::RequestGracefulStop) => {
-                if let Ok(mut registry) = registry.lock() {
-                    let _ignored = instance.stop(&mut registry, config.stop_timeout, now);
-                }
-                return;
-            }
-            Ok(_) => {}
-            Err(_) => return,
-        }
+    fn stable_endpoints(&self) -> Vec<deckweave_domain::endpoint::StableEndpointRef> {
+        self.nodes
+            .iter()
+            .flat_map(|node| {
+                let package_id = self.controller.health().key.package_id;
+                let node_id = node.node_id.clone();
+                node.devices
+                    .iter()
+                    .flat_map({
+                        let package_id = package_id.clone();
+                        let node_id = node_id.clone();
+                        move |device| {
+                            let target = deckweave_domain::endpoint::EndpointTargetRef::Device {
+                                provider_id: device.provider_id.clone(),
+                                device_identity: device.identity.clone(),
+                            };
+                            device.elements.iter().flat_map({
+                                let package_id = package_id.clone();
+                                let node_id = node_id.clone();
+                                move |element| {
+                                    element.capabilities.iter().flat_map({
+                                        let package_id = package_id.clone();
+                                        let node_id = node_id.clone();
+                                        let target = target.clone();
+                                        move |capability| {
+                                            capability.ports.iter().map({
+                                                let package_id = package_id.clone();
+                                                let node_id = node_id.clone();
+                                                let target = target.clone();
+                                                let element_id = element.element_id.clone();
+                                                let capability_id =
+                                                    capability.capability_id.clone();
+                                                move |port| {
+                                                    deckweave_domain::endpoint::StableEndpointRef {
+                                                        package_id: package_id.clone(),
+                                                        node_id: node_id.clone(),
+                                                        target: target.clone(),
+                                                        port:
+                                                            deckweave_domain::endpoint::PortPath {
+                                                                element_id: element_id.clone(),
+                                                                capability_id: capability_id
+                                                                    .clone(),
+                                                                port_id: port.port_id.clone(),
+                                                            },
+                                                    }
+                                                }
+                                            })
+                                        }
+                                    })
+                                }
+                            })
+                        }
+                    })
+                    .chain(node.services.iter().flat_map({
+                        let package_id = package_id.clone();
+                        let node_id = node_id.clone();
+                        move |service| {
+                            let target = deckweave_domain::endpoint::EndpointTargetRef::Service {
+                                provider_id: service.provider_id.clone(),
+                                service_id: service.service_id.clone(),
+                            };
+                            service.elements.iter().flat_map({
+                                let package_id = package_id.clone();
+                                let node_id = node_id.clone();
+                                move |element| {
+                                    element.capabilities.iter().flat_map({
+                                        let package_id = package_id.clone();
+                                        let node_id = node_id.clone();
+                                        let target = target.clone();
+                                        move |capability| {
+                                            capability.ports.iter().map({
+                                                let package_id = package_id.clone();
+                                                let node_id = node_id.clone();
+                                                let target = target.clone();
+                                                let element_id = element.element_id.clone();
+                                                let capability_id =
+                                                    capability.capability_id.clone();
+                                                move |port| {
+                                                    deckweave_domain::endpoint::StableEndpointRef {
+                                                        package_id: package_id.clone(),
+                                                        node_id: node_id.clone(),
+                                                        target: target.clone(),
+                                                        port:
+                                                            deckweave_domain::endpoint::PortPath {
+                                                                element_id: element_id.clone(),
+                                                                capability_id: capability_id
+                                                                    .clone(),
+                                                                port_id: port.port_id.clone(),
+                                                            },
+                                                    }
+                                                }
+                                            })
+                                        }
+                                    })
+                                }
+                            })
+                        }
+                    }))
+            })
+            .collect()
     }
 }
 
