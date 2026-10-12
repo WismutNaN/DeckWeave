@@ -217,11 +217,12 @@
   border-left: 1px solid var(--line);
   background: white;
   min-width: 0;
-  overflow: auto;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
 .inspector-heading {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 11px;
@@ -255,6 +256,7 @@
   background: #f5f7f8;
 }
 .inspector-tabs {
+  flex-shrink: 0;
   display: flex;
   padding: 0 18px;
   gap: 21px;
@@ -271,6 +273,9 @@
   border-bottom-color: var(--accent);
 }
 .inspector-content {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
   padding: 20px;
 }
 .inspector-placeholder {
