@@ -63,7 +63,7 @@ export function actionShape(action: Action): Shape | null {
   const shape =
     action.operation &&
     schemaFor(action.catalog, action.operation.inputSchema)?.shape;
-  return typeof shape === "object" && shape
+  return typeof shape === "object" && shape?.structured.type === "record"
     ? shape.structured
     : shape === "unit"
       ? { type: "null" }

@@ -20,6 +20,22 @@ import {
 } from "../src/editor/recovery";
 import type { MutationEnvelope } from "../src/editor/types";
 import { EditorSession } from "./session-loader";
+test("action metadata follows the pinned version and never guesses between installed versions", async () => {
+  const session = new EditorSession(previewClient());
+  await session.load();
+  const first = copy(session.catalogs[0]),
+    second = copy(first);
+  second.package.version = "2.0.0";
+  second.package.artifactSha256 = "c".repeat(64);
+  session.catalogs = [second, first];
+  assert.equal(session.actions.length, 0);
+  assert.equal(session.ambiguousPackages.length, 1);
+  session.draft!.packageLock = [{ ...first.package, source: null }];
+  assert.equal(session.actions.length, 3);
+  assert.ok(
+    session.actions.every((a) => a.catalog.package.version === "1.0.0"),
+  );
+});
 test("revoking access after a lost response cannot erase the unknown mutation", async () => {
   const underlying = previewClient();
   let attempts = 0;

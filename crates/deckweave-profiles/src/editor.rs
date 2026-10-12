@@ -7,8 +7,8 @@ pub struct DraftEditor {
     store: Arc<JsonProfileStore>,
     draft_id: DraftId,
     head_version: DraftVersion,
-    undo: VecDeque<serde_json::Value>,
-    redo: VecDeque<serde_json::Value>,
+    undo: VecDeque<DraftCommand>,
+    redo: VecDeque<DraftCommand>,
     maximum_history: usize,
 }
 
@@ -45,7 +45,7 @@ impl DraftEditor {
             }
             // Read and mutation are separate: retain history only for the verified base.
             if before.version == expected_version {
-                push_bounded(&mut self.undo, before.document, self.maximum_history);
+                push_bounded(&mut self.undo, configuration(before), self.maximum_history);
             }
             self.redo.clear();
             self.head_version = outcome.receipt.after_version;
@@ -61,15 +61,12 @@ impl DraftEditor {
             return Ok(None);
         };
         let current = self.store.load_draft(&self.draft_id)?.draft;
-        let outcome = self.store.mutate_draft(
-            &self.draft_id,
-            key,
-            self.head_version,
-            &DraftCommand::ReplaceDocument { document: previous },
-        )?;
+        let outcome = self
+            .store
+            .mutate_draft(&self.draft_id, key, self.head_version, &previous)?;
         if !outcome.replayed {
             self.undo.pop_back();
-            push_bounded(&mut self.redo, current.document, self.maximum_history);
+            push_bounded(&mut self.redo, configuration(current), self.maximum_history);
             self.head_version = outcome.receipt.after_version;
         }
         Ok(Some(outcome))
@@ -83,15 +80,12 @@ impl DraftEditor {
             return Ok(None);
         };
         let current = self.store.load_draft(&self.draft_id)?.draft;
-        let outcome = self.store.mutate_draft(
-            &self.draft_id,
-            key,
-            self.head_version,
-            &DraftCommand::ReplaceDocument { document: next },
-        )?;
+        let outcome = self
+            .store
+            .mutate_draft(&self.draft_id, key, self.head_version, &next)?;
         if !outcome.replayed {
             self.redo.pop_back();
-            push_bounded(&mut self.undo, current.document, self.maximum_history);
+            push_bounded(&mut self.undo, configuration(current), self.maximum_history);
             self.head_version = outcome.receipt.after_version;
         }
         Ok(Some(outcome))
@@ -108,11 +102,7 @@ impl DraftEditor {
     }
 }
 
-fn push_bounded(
-    history: &mut VecDeque<serde_json::Value>,
-    value: serde_json::Value,
-    maximum: usize,
-) {
+fn push_bounded(history: &mut VecDeque<DraftCommand>, value: DraftCommand, maximum: usize) {
     if maximum == 0 {
         return;
     }
@@ -120,4 +110,11 @@ fn push_bounded(
         history.pop_front();
     }
     history.push_back(value);
+}
+
+fn configuration(draft: crate::WorkspaceDraft) -> DraftCommand {
+    DraftCommand::ReplaceConfiguration {
+        document: draft.document,
+        package_lock: draft.package_lock,
+    }
 }

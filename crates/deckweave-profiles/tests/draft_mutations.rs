@@ -66,6 +66,42 @@ fn native_store(root: &Path) -> JsonProfileStore {
 }
 
 #[test]
+fn configuration_undo_and_redo_restore_the_matching_package_lock() -> Result<(), Box<dyn Error>> {
+    let root = tempfile::tempdir()?;
+    let store = Arc::new(native_store(root.path()));
+    let initial = draft()?;
+    store.create_draft(&initial)?;
+    let mut editor = DraftEditor::open(store.clone(), initial.draft_id.clone(), 8)?;
+    let lock = deckweave_workspace::PackageLockEntry {
+        package_id: deckweave_domain::ids::PackageId::try_new("org.example.editor")?,
+        version: "1.0.0".into(),
+        artifact_sha256: "a".repeat(64),
+        source: None,
+        extensions: Default::default(),
+    };
+    let document = serde_json::json!({"bound":true});
+    editor.apply(
+        mutation_key(&store, "config")?,
+        initial.version,
+        DraftCommand::ReplaceConfiguration {
+            document: document.clone(),
+            package_lock: vec![lock.clone()],
+        },
+    )?;
+    let undo = editor
+        .undo(mutation_key(&store, "config-undo")?)?
+        .ok_or("undo")?;
+    assert_eq!(undo.draft.document, initial.document);
+    assert!(undo.draft.package_lock.is_empty());
+    let redo = editor
+        .redo(mutation_key(&store, "config-redo")?)?
+        .ok_or("redo")?;
+    assert_eq!(redo.draft.document, document);
+    assert_eq!(redo.draft.package_lock, vec![lock]);
+    Ok(())
+}
+
+#[test]
 fn editor_reopens_current_draft_and_replays_configuration_with_its_lock()
 -> Result<(), Box<dyn Error>> {
     let directory = tempfile::tempdir()?;

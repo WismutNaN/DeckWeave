@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { copy, message, type EditorClient } from "./api";
+import { saveDraft, applyDraft, finishApply } from "./operations";
 import { defaultBackground, layout, putLayout } from "./appearance";
 import { appendAction, equal, sourceFor } from "./bindings";
 import { mergeDocuments, type RecoveryJournal } from "./recovery";
@@ -106,7 +107,7 @@ export class EditorSession {
     );
   }
   get actions(): Action[] {
-    return this.catalogs.flatMap((c) =>
+    return this.availableCatalogs.flatMap((c) =>
       c.endpoints
         .filter((e) => e.operation)
         .map((e) => ({
@@ -115,6 +116,36 @@ export class EditorSession {
           title: this.label(c, e.operation!.operationId),
         })),
     );
+  }
+  get availableCatalogs(): Catalog[] {
+    return this.catalogs.filter((c) => {
+      const pin = this.draft?.packageLock.find(
+        (p) => p.packageId === c.package.packageId,
+      );
+      return pin
+        ? pin.version === c.package.version &&
+            pin.artifactSha256 === c.package.artifactSha256
+        : this.catalogs.filter(
+            (p) => p.package.packageId === c.package.packageId,
+          ).length === 1;
+    });
+  }
+  get ambiguousPackages(): string[] {
+    return [
+      ...new Set(
+        this.catalogs
+          .filter(
+            (c) =>
+              !this.draft?.packageLock.some(
+                (p) => p.packageId === c.package.packageId,
+              ) &&
+              this.catalogs.filter(
+                (p) => p.package.packageId === c.package.packageId,
+              ).length > 1,
+          )
+          .map((c) => c.package.packageId),
+      ),
+    ];
   }
   label(catalog: Catalog, key: string): string {
     const locales = [
@@ -277,7 +308,7 @@ export class EditorSession {
     this.edit((document) => {
       this.selectedStep = appendAction(
         document,
-        this.catalogs,
+        this.availableCatalogs,
         device,
         this.selectedControl,
         action,
@@ -301,90 +332,10 @@ export class EditorSession {
     };
   }
   async save() {
-    if (this.pending && this.pending.command.type !== "patch_draft")
-      throw new Error(
-        this.t(
-          "Сначала завершите запрос применения.",
-          "Resolve the pending apply request first.",
-        ),
-      );
-    if (!this.draft || !this.document || (!this.dirty && !this.pending)) return;
-    if (this.conflict && !this.pending)
-      throw new Error(
-        this.t(
-          "Сначала объедините изменения с новой версией.",
-          "Merge the current draft revision before saving.",
-        ),
-      );
-    const locks = [...this.draft.packageLock];
-    const required = new Set(
-      this.document.graph.nodes.flatMap((n) =>
-        n.kind.endpoint ? [n.kind.endpoint.packageId] : [],
-      ),
-    );
-    for (const packageId of required) {
-      if (locks.some((p) => p.packageId === packageId)) continue;
-      const selected = this.catalogs.filter(
-        (c) => c.package.packageId === packageId,
-      );
-      if (selected.length !== 1)
-        throw new Error(
-          this.t(
-            "Нужна однозначная версия плагина.",
-            "Select an unambiguous plugin version.",
-          ),
-        );
-      locks.push({ ...selected[0].package, source: null });
-    }
-    this.pending ??= this.envelope({
-      type: "patch_draft",
-      draft_id: this.draft.draftId,
-      expected_version: this.draft.version,
-      edit: {
-        type: "replace_configuration",
-        document: copy(this.document),
-        package_lock: locks,
-      },
-    });
-    const result = await this.sendPending<{ draft: Draft }>();
-    this.draft = result.draft;
-    this.document = copy(result.draft.document);
-    this.pending = null;
-    this.attempted = false;
-    this.conflict = false;
-    this.persist();
-    this.notice = this.t("Черновик сохранён", "Draft saved");
+    return saveDraft(this);
   }
   async apply() {
-    await this.run(async () => {
-      if (this.pending?.command.type === "apply_draft") {
-        await this.finishApply();
-        return;
-      }
-      if (this.pending) {
-        await this.save();
-        return;
-      }
-      await this.save();
-      if (!this.draft) return;
-      this.plan = await this.client.query<Plan>({
-        type: "plan_apply",
-        draft_id: this.draft.draftId,
-        expected_draft_version: this.draft.version,
-        expected_active: this.snapshot?.active ?? null,
-        allow_disruption: false,
-      });
-      this.pending = this.envelope({
-        type: "apply_draft",
-        draft_id: this.draft.draftId,
-        expected_draft_version: this.draft.version,
-        expected_active: this.snapshot?.active ?? null,
-        allow_disruption: false,
-        plan_hash: this.plan.planHash,
-      });
-      this.attempted = false;
-      await this.finishApply();
-    });
+    return applyDraft(this);
   }
   async retry() {
     await this.run(async () => {
@@ -394,30 +345,7 @@ export class EditorSession {
     });
   }
   async finishApply() {
-    if (!this.pending) return;
-    const receipt = await this.sendPending<{ operationId: string }>();
-    this.operationId = receipt.operationId;
-    this.persist();
-    this.operation = await this.client.query<Operation>({
-      type: "operation",
-      operation_id: receipt.operationId,
-    });
-    await this.refresh();
-    this.pending = null;
-    this.attempted = false;
-    this.persist();
-    this.notice = this.preview
-      ? this.t(
-          "Пример сохранён. Оборудование не используется.",
-          "Example saved. No hardware is used.",
-        )
-      : this.operation.state === "succeeded" &&
-          this.operation.runtimeHealth === "applied"
-        ? this.t("Действия применены", "Actions applied")
-        : this.t(
-            `Состояние применения: ${this.operation.state}`,
-            `Apply status: ${this.operation.state}`,
-          );
+    return finishApply(this);
   }
   async mergeLatest() {
     await this.run(async () => {

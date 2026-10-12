@@ -94,7 +94,7 @@
             >{/each}
         </div>
         {#each Object.values(session.document?.pluginInstances ?? {}).filter((i) => i.packageId === device?.package.packageId) as instance}{@const catalog =
-            session.catalogs.find(
+            session.availableCatalogs.find(
               (c) => c.package.packageId === instance.packageId,
             )}{@const shape = catalog
             ? schemaFor(catalog, instance.settingsSchema)?.shape

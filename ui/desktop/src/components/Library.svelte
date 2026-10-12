@@ -53,6 +53,13 @@
     /><kbd>/</kbd></label
   >
   <div class="action-library">
+    {#if session.ambiguousPackages.length}<p class="library-help invalid">
+        {t(
+          "Несколько версий пакета. Нужна зафиксированная версия в workspace:",
+          "Multiple package versions. Pin a version in the workspace:",
+        )}
+        {session.ambiguousPackages.join(", ")}
+      </p>{/if}
     {#each [...new Set(filtered.map((a) => a.catalog.package.packageId))] as packageId}<div
         class="library-group"
       >

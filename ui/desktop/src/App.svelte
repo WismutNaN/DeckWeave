@@ -200,6 +200,10 @@
           disabled={session.busy}
           onclick={() => session.retry()}
           >{t("Повторить тот же запрос", "Retry same request")}</button
+        >{/if}{#if native && !session.preview && !session.document && !session.pending}<button
+          class="secondary"
+          disabled={session.busy}
+          onclick={connect}>{t("Подключиться повторно", "Reconnect")}</button
         >{/if}
     </div>{/if}
   <div class="workspace-body">
