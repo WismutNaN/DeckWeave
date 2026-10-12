@@ -57,6 +57,12 @@ Host выдаёт namespace по package + configured instance + data-root/accou
 
 Это логическая граница host APIs, не обещание OS sandbox для user-trusted native process: такой процесс обладает правами пользователя. Для custom web view broker остаётся фактической обязательной границей доступа.
 
+## Исполняемый контракт service client
+
+Application port `PluginServiceClient` предоставляет `start/poll_job/release_job`, owner-scoped cancellation и `subscribe/poll_subscription/unsubscribe`. Completion содержит SchemaRef и bounded value; failed/cancelled/unknown-outcome различаются. Terminal result удерживает bounded lease до release либо объявленного retention timeout. Cleanup допускается после revoke; новые вызовы — нет. Snapshot/delta содержат generation/revision/sequence, gap требует нового snapshot. Эти методы не блокируют scheduler на внешнем I/O.
+
+`application/tests/service_lifecycle.rs` исполняет один порт для layout → выбранный windows provider и hub → выбранный MQTT provider: два runs, отмена одного владельца, другой жив, snapshot, provider restart, stale completion, revoke и освобождение leases. Это conformance fake; live broker transport по-прежнему должен быть подключён перед первой зависимой integration.
+
 ## Приёмка
 
 До UI Фазы 6 необходимы contract fixtures для двух аккаунтов, двух contributions одной runtime group, transitive dependency resolution, missing/optional/cyclic/version-conflict и revoke во время service call. Полный каталог/installer реализуется в Фазе 12, но UI не закрепляет модель «один package = один instance».

@@ -43,6 +43,8 @@ pub enum ServiceCallError {
     Stale,
     #[error("service queue or byte budget exceeded")]
     Capacity,
+    #[error("service schema or payload is invalid")]
+    Invalid,
 }
 
 impl DelegationContext {
@@ -105,6 +107,13 @@ pub trait PluginServiceClient: Send + Sync {
         input: serde_json::Value,
         context: &DelegationContext,
     ) -> Result<String, ServiceCallError>;
+    fn poll_job(
+        &self,
+        job: &str,
+        owner: &ServiceOwner,
+    ) -> Result<ServiceJobState, ServiceCallError>;
+    /// Release a terminal result lease; pending work must be cancelled first.
+    fn release_job(&self, job: &str, owner: &ServiceOwner) -> Result<(), ServiceCallError>;
     fn cancel_owner(&self, owner: &ServiceOwner) -> Result<(), ServiceCallError>;
     fn subscribe(
         &self,
@@ -113,6 +122,40 @@ pub trait PluginServiceClient: Send + Sync {
         maximum_items: usize,
     ) -> Result<String, ServiceCallError>;
     fn unsubscribe(&self, lease: &str, owner: &ServiceOwner) -> Result<(), ServiceCallError>;
+    /// Snapshot/delta delivery is bounded. A gap or changed generation requires resubscribe.
+    fn poll_subscription(
+        &self,
+        lease: &str,
+        owner: &ServiceOwner,
+    ) -> Result<Option<ServiceUpdate>, ServiceCallError>;
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ServiceJobState {
+    Pending,
+    Completed {
+        schema: SchemaRef,
+        value: serde_json::Value,
+    },
+    Failed {
+        code: NamespacedKind,
+    },
+    Cancelled,
+    UnknownOutcome,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ServiceUpdateKind {
+    Snapshot,
+    Delta,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ServiceUpdate {
+    pub cursor: SubscriptionCursor,
+    pub kind: ServiceUpdateKind,
+    pub schema: SchemaRef,
+    pub value: serde_json::Value,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -12,7 +12,7 @@
 | Live execution | Общий monotonic clock, timer pump, provider budget, ordered scheduler/dispatch, activation commit после routes, cleanup receipt/deadline и stop drain | Negative/missing ACK при shutdown доказаны новым real-process test. Остаются held-output fixture с другим живым owner, apply/revoke/crash и mixed ingress/overflow в настоящем bridge; descriptor QoS проверен отдельно |
 | Presentation | ItemRef/revision/hit capture, slot next/back/consumer count, DesktopViewSession lease model; InteractionSession query fence/schema/retention и owner/provider cancellation | Persistent-view lifecycle и scoped document CAS/export fake проверены. Остаются общий presenter + tasks/windows/notes, asset fake и mixed unread/metric/date fixtures |
 | Composition | Desktop: PackageGraphCompiler, static catalog по package lock, ScopedAuthorizationStore. Credential preflight подключён; default unresolved блокирует activation до запуска процесса | End-to-end credential-resolution/revoke fixture. LocalePreferencesService + JSON CAS store подключены в Desktop; tests доказывают restart, delivery retry и static catalog fallback/hash |
-| Services | Typed role bindings, transitive resolver, cycle/optional/missing/artifact conflicts; delegation intersection/deadline/fence и subscription gap rules с tests | Live broker ещё не подключён: serviceBindings сохраняются, но compiler явно блокирует execution; нужна fake nested call/subscription lifecycle acceptance |
+| Services | Typed role bindings, transitive resolver, cycle/optional/missing/artifact conflicts; delegation intersection/deadline/fence и subscription gap rules с tests | `service_lifecycle` доказывает job/subscription results, cancel, provider restart, revoke и lease cleanup на выбранных windows/MQTT roles. Live broker ещё не подключён: serviceBindings сохраняются, но compiler явно блокирует execution |
 
 Следующие обязательные срезы: (1) cleanup/ingress conformance; (2) presentation/data/collection fakes; (3) credential application use cases; (4) integrated gate. Реальные hardware, DSP, renderer и внешние services имеют собственные более поздние этапы. Наличие DTO и успешный M1 не закрывают перечисленные проверки.
 
@@ -30,7 +30,7 @@
 
 - [x] Ввести versioned configured-instance/settings/binding model в Workspace/Plugin Runtime ports и protocol; package/group/session/physical target остаются разными IDs (→ [композиция](../contracts/plugin-composition.md), CG-01/06).
 - [x] Реализовать activation нескольких contributions/instances одной group с их settings и scoped CredentialRefs; добавить required-feature compatibility и import preserving unknown optional data (→ [Plugins](../contracts/plugins.md), [Lifecycle migrations](../contracts/lifecycle.md#миграции-и-неизвестные-данные)).
-- [ ] Описать/проверить fake resolver transitive requirements, explicit provider selection, missing/optional/cyclic/version-conflict и locked artifacts. Зафиксировать service-call/delegation/subscription port до UI; полноценный shared service broker допускается позже до первого зависимого plugin (→ [ADR-0019](../decisions/0019-plugin-composition.md)).
+- [x] Описать/проверить fake resolver transitive requirements, explicit provider selection, missing/optional/cyclic/version-conflict и locked artifacts. Зафиксировать service-call/delegation/subscription port до UI; полноценный shared service broker допускается позже до первого зависимого plugin (→ [ADR-0019](../decisions/0019-plugin-composition.md)).
 
 Выход: два аккаунта и state+action contributions в одной group не смешивают настройки/данные; restart/rollback сохраняет выбранные bindings; provider не выбирается случайно. SDK library/recipe reuse не требует лишнего runtime dependency.
 
@@ -69,7 +69,7 @@
 ## Финальная демонстрация и разрешение перехода
 
 - [ ] Один reusable collection presenter получает fake tasks/windows/notes; item actions адресуют конкретную revision (→ [PLG-022](../plugins/productivity.md#plg-022)).
-- [ ] Fake layout consumer использует выбранный fake window service; fake hub использует выбранный fake MQTT role. Lifecycle/delegation можно доказать test port без сетевых credentials (→ [композиция](../contracts/plugin-composition.md)).
+- [x] Fake layout consumer использует выбранный fake window service; fake hub использует выбранный fake MQTT role. Lifecycle/delegation можно доказать test port без сетевых credentials (→ [композиция](../contracts/plugin-composition.md)).
 - [ ] Fake transcript/HTTP record → task create показывает structured bindings; two instances не смешиваются (→ [PLG-009](../plugins/integrations.md#plg-009)).
 - [ ] Fake clock/game/held-output/telemetry fixture доказывает order, deadlines и cleanup; physical frame latency измеряется позже (→ [PLG-021](../plugins/productivity.md#plg-021)).
 - [ ] Зафиксировать результаты, оставшиеся platform limits и backward compatibility. B2 и live-path fixes обязательны; прочие целевые runtime features имеют назначенный этап и не выдаются за готовые (→ [исследование](../research/plugin-feasibility.md)).
