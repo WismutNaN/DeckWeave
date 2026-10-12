@@ -98,7 +98,12 @@ fn service(
         ProfileStoreLimits::default(),
     ));
     let host = Arc::new(HostRuntime::start(Arc::new(TestPlatform { root }))?);
-    Ok(ApplicationGateway::new(host, store, authorizer))
+    Ok(ApplicationGateway::new(
+        host,
+        store,
+        authorizer,
+        Arc::new(deckweave_application::UnavailableApplyUseCase),
+    ))
 }
 
 #[test]
@@ -124,7 +129,10 @@ fn replay_returns_the_document_committed_with_its_receipt() -> Result<(), Box<dy
     let mut second = envelope(&epoch, "second", "Second", false)?;
     let AppCommand::PatchDraft {
         expected_version, ..
-    } = &mut second.command;
+    } = &mut second.command
+    else {
+        return Err(std::io::Error::other("expected draft command").into());
+    };
     *expected_version = DraftVersion::try_new(2)?;
     gateway.command(&caller, second)?;
     drop(gateway);

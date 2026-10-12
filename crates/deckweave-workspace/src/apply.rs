@@ -134,6 +134,10 @@ pub trait ApplyOperationRepository: Send + Sync {
         &self,
         revision: &WorkspaceRevision,
     ) -> Result<(), ApplyRepositoryError>;
+    fn load_candidate_revision(
+        &self,
+        selection: &ActiveSelection,
+    ) -> Result<WorkspaceRevision, ApplyRepositoryError>;
     fn begin_apply(
         &self,
         intent: &ApplyOperationIntent,

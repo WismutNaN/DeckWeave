@@ -36,7 +36,10 @@ pub(super) fn validate_finish(
     let valid = match state {
         ApplyOperationState::Succeeded => {
             current.commit_status == ApplyCommitStatus::Committed
-                && health == ApplyRuntimeHealth::Applied
+                && matches!(
+                    health,
+                    ApplyRuntimeHealth::Applied | ApplyRuntimeHealth::Degraded
+                )
         }
         ApplyOperationState::Degraded => {
             current.commit_status == ApplyCommitStatus::Committed

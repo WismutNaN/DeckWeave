@@ -32,6 +32,14 @@ impl ApplyOperationRepository for JsonProfileStore {
             .map_err(map_profile_error)
     }
 
+    fn load_candidate_revision(
+        &self,
+        selection: &deckweave_workspace::ActiveSelection,
+    ) -> Result<WorkspaceRevision, ApplyRepositoryError> {
+        ProfileStore::load_revision(self, &selection.workspace_id, &selection.revision_id)
+            .map_err(map_profile_error)
+    }
+
     fn begin_apply(
         &self,
         intent: &ApplyOperationIntent,
@@ -177,15 +185,17 @@ impl ApplyOperationRepository for JsonProfileStore {
         let _guard = self.lock_apply_store()?;
         let current = self.operation_inner(operation_id)?;
         if current.state.is_terminal() {
-            if current.state == state
-                && current.runtime_health == runtime_health
-                && current.detail == detail
-            {
-                return Ok(current);
+            if current.state != state {
+                return Err(ApplyRepositoryError::InvalidTransition(
+                    "terminal operation result cannot be rewritten".into(),
+                ));
             }
-            return Err(ApplyRepositoryError::InvalidTransition(
-                "terminal operation cannot be rewritten".into(),
-            ));
+            validate_finish(&current, state, runtime_health)?;
+            if current.runtime_health != runtime_health || current.detail != detail {
+                self.write_status(operation_id, state, runtime_health, detail)?;
+                return self.operation_inner(operation_id);
+            }
+            return Ok(current);
         }
         validate_finish(&current, state, runtime_health)?;
         self.write_status(operation_id, state, runtime_health, detail)?;

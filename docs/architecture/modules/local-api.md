@@ -12,6 +12,7 @@
 | `AppCommand`, `AppQuery` | enums | Stable operations |
 | `OperationReceipt` | struct | Accepted mutation/operation ID |
 | `OperationSnapshot` | struct | Progress/result |
+| `ApplyUseCase` | port | Host-owned plan/apply/status без зависимости Gateway от Host implementation |
 | `SubscriptionCursor` | value | Delta/snapshot resume |
 | `ApiAuthScope` | enum | Read/draft/apply/admin |
 
@@ -48,5 +49,7 @@
 ## Заметки для агента
 
 > Сначала реализовать in-process test adapter, затем loopback HTTP/WS и CLI. OpenAPI/JSON Schema генерируется из того же command vocabulary. Не делать Tauri-only methods.
+
+In-process contract уже поддерживает `PlanApply`, `ApplyDraft` и `Operation`: plan авторизуется scope `simulation`, commit — `apply`, status — `read`. `OperationId` выводится Host из server-issued dedup window/key, поэтому lost reply повторно адресует тот же durable intent. Desktop production composition подключается отдельно с runtime coordinator, а не через особый Tauri-only путь.
 
 Нормативный контракт: [Application API](../../contracts/application-api.md), включая scopes с первого service adapter и [идемпотентность](../../contracts/application-api.md#идемпотентность-и-dry-run).

@@ -130,12 +130,12 @@ fn run(options: LaunchOptions) -> Result<(), Box<dyn std::error::Error>> {
                 Arc::clone(&host) as Arc<dyn deckweave_application::HostStatusSource>,
                 draft_store,
                 authorizer,
+                Arc::new(deckweave_application::UnavailableApplyUseCase),
             );
             app.manage(host);
             app.manage(gateway);
 
-            // WebView cache принадлежит тому же root; portable не пишет browser
-            // profile в общий installed data directory.
+            // WebView cache принадлежит root; portable не пишет его в installed data directory.
             let window = tauri::WebviewWindowBuilder::new(
                 app,
                 "main",

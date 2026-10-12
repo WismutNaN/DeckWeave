@@ -9,9 +9,11 @@ use deckweave_workspace::{
     ActiveSelection, DraftRepository, DraftRepositoryError, WorkspaceCandidate,
 };
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use thiserror::Error;
+
+mod token;
+use token::{build_token, calculate_plan_hash};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -66,6 +68,26 @@ impl PlanToken {
     #[must_use]
     pub fn draft_version(&self) -> DraftVersion {
         self.draft_version
+    }
+
+    #[must_use]
+    pub fn workspace_id(&self) -> &WorkspaceId {
+        &self.workspace_id
+    }
+
+    #[must_use]
+    pub fn candidate_sha256(&self) -> &str {
+        &self.candidate_sha256
+    }
+
+    #[must_use]
+    pub fn package_lock_sha256(&self) -> &str {
+        &self.package_lock_sha256
+    }
+
+    #[must_use]
+    pub fn expected_active(&self) -> Option<&ActiveSelection> {
+        self.expected_active.as_ref()
     }
 }
 
@@ -284,67 +306,6 @@ impl ApplyPlanningService {
         let evidence = self.evidence.snapshot()?;
         validate_evidence(&plan.token, &evidence)
     }
-}
-
-fn build_token(
-    candidate: &WorkspaceCandidate,
-    compiled: &CompiledExecutionPlan,
-    evidence: &PlanningEvidence,
-    expires_at_monotonic_millis: u64,
-) -> Result<PlanToken, ApplyPlanningError> {
-    let mut token = PlanToken {
-        host_boot_id: evidence.host_boot_id.clone(),
-        draft_id: candidate.draft_id().clone(),
-        workspace_id: candidate.workspace_id().clone(),
-        draft_version: candidate.version(),
-        candidate_sha256: candidate.content_sha256().into(),
-        package_lock_sha256: candidate.package_lock_sha256().into(),
-        assets_sha256: candidate.assets_sha256().into(),
-        compiled_plan_sha256: compiled.semantic_sha256().into(),
-        registry_revision: evidence.registry_revision,
-        grant_revision: evidence.grant_revision,
-        expected_active: evidence.active.clone(),
-        expires_at_monotonic_millis,
-        plan_hash: String::new(),
-    };
-    token.plan_hash = calculate_plan_hash(&token)?;
-    Ok(token)
-}
-
-fn calculate_plan_hash(token: &PlanToken) -> Result<String, ApplyPlanningError> {
-    #[derive(Serialize)]
-    #[serde(rename_all = "camelCase")]
-    struct HashInput<'a> {
-        host_boot_id: &'a HostBootId,
-        draft_id: &'a DraftId,
-        workspace_id: &'a WorkspaceId,
-        draft_version: DraftVersion,
-        candidate_sha256: &'a str,
-        package_lock_sha256: &'a str,
-        assets_sha256: &'a str,
-        compiled_plan_sha256: &'a str,
-        registry_revision: RegistryRevision,
-        grant_revision: GrantRevision,
-        expected_active: &'a Option<ActiveSelection>,
-        expires_at_monotonic_millis: u64,
-    }
-    let input = HashInput {
-        host_boot_id: &token.host_boot_id,
-        draft_id: &token.draft_id,
-        workspace_id: &token.workspace_id,
-        draft_version: token.draft_version,
-        candidate_sha256: &token.candidate_sha256,
-        package_lock_sha256: &token.package_lock_sha256,
-        assets_sha256: &token.assets_sha256,
-        compiled_plan_sha256: &token.compiled_plan_sha256,
-        registry_revision: token.registry_revision,
-        grant_revision: token.grant_revision,
-        expected_active: &token.expected_active,
-        expires_at_monotonic_millis: token.expires_at_monotonic_millis,
-    };
-    let bytes = serde_json::to_vec(&input)
-        .map_err(|error| ApplyPlanningError::Serialization(error.to_string()))?;
-    Ok(format!("{:x}", Sha256::digest(bytes)))
 }
 
 fn validate_candidate(

@@ -9,6 +9,8 @@ use std::sync::{Arc, Mutex};
 mod planning;
 pub use deckweave_workspace::ActiveSelection;
 pub use planning::*;
+mod apply;
+pub use apply::*;
 
 pub struct HostRuntime {
     platform: Arc<dyn HostPlatform>,

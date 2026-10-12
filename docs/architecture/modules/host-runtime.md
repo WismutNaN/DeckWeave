@@ -12,6 +12,7 @@
 | `HostSnapshot` | immutable struct | Согласованный query snapshot |
 | `ApplyPlan`, `ApplyReport` | struct | Resource diff и результат cutover |
 | `ApplyPlanningService`, `PlanToken` | service/value | Candidate compile, prepare и повторная проверка fenced preconditions перед barrier |
+| `ApplyCoordinator`, `RuntimeCutover` | service/port | Сериализованный intent → prepare → barrier → commit → activate и startup recovery |
 | `PlanningEvidenceSource`, `RuntimeActivation` | ports | Снимок boot/topology/grants/active selection и prepare без effects |
 | `LifecycleState` | enum | Starting/Running/Degraded/Stopping |
 | `ActivationEpoch`, `ApplyCommitRecord` | value/document | Runtime generation и durable точка выбора revision |
@@ -58,6 +59,6 @@
 
 `deckweave-host` не реализует `ApplicationService`: Gateway создаётся отдельно в composition root и получает read-only lifecycle projection и bounded-context repositories.
 
-Текущая реализация содержит startup locks/status/autostart и D-срез planning seam. Profile adapter уже реализует port immutable apply intent/status/active commit, но production Host coordinator и публичный apply path ещё подключаются следующим срезом E1/C2. `ApplyPlanningService` использует явно ограниченный fixture compiler; Фаза 5 заменяет его настоящим без изменения fencing/acceptance. Путь command → virtual process → revoke/shutdown/recovery проверяется через composition приложения, включая работу при закрытом WebView.
+Текущая реализация содержит startup locks/status/autostart, fenced planning и durable `ApplyCoordinator`. In-process `ApplicationGateway` проходит plan/apply/operation, grant change на barrier, idempotent replay и startup reactivation. Desktop composition пока намеренно использует unavailable adapter: production driver с isolated virtual process подключается срезом C2. `ApplyPlanningService` использует явно ограниченный fixture compiler; Фаза 5 заменяет его настоящим без изменения fencing/acceptance.
 
 ArtifactBroker реализует узкий application port с injected temporary-storage adapter; engine не зависит от Host implementation. Limits и lifecycle: [automation artifacts](../../contracts/automation.md#artifact-и-доступ-к-данным). Это небольшой сервис host, не новый обязательный процесс или database.

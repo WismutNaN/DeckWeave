@@ -3,6 +3,7 @@ pub use deckweave_domain::ids::PrincipalId;
 use deckweave_domain::ids::{
     DedupEpoch, DraftId, DraftVersion, IdempotencyKey, OperationId, TraceId,
 };
+use deckweave_workspace::{ActiveSelection, ApplyOperationSnapshot};
 pub use deckweave_workspace::{
     DraftCommand, DraftRepository as DraftStore, DraftRepositoryError as DraftStoreError,
     DraftView, MutationKey, MutationWindow, StoredDraftMutation, WorkspaceCandidate,
@@ -33,7 +34,17 @@ pub struct RequestContext {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AppQuery {
     Host,
-    Draft { draft_id: DraftId },
+    Draft {
+        draft_id: DraftId,
+    },
+    PlanApply {
+        draft_id: DraftId,
+        expected_draft_version: DraftVersion,
+        expected_active: Option<ActiveSelection>,
+    },
+    Operation {
+        operation_id: OperationId,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -41,6 +52,8 @@ pub enum AppQuery {
 pub enum AppQueryResult {
     Host(HostSnapshot),
     Draft(DraftView),
+    ApplyPlan(crate::ApplyPlanPreview),
+    Operation(Box<ApplyOperationSnapshot>),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -50,6 +63,12 @@ pub enum AppCommand {
         draft_id: DraftId,
         expected_version: DraftVersion,
         edit: DraftCommand,
+    },
+    ApplyDraft {
+        draft_id: DraftId,
+        expected_draft_version: DraftVersion,
+        expected_active: Option<ActiveSelection>,
+        plan_hash: String,
     },
 }
 
@@ -101,6 +120,8 @@ pub enum ApiErrorCode {
     IdempotencyExpired,
     CapacityExceeded,
     InvalidCommand,
+    PlanConflict,
+    RecoveryRequired,
     Internal,
 }
 

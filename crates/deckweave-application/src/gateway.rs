@@ -3,15 +3,19 @@
 
 use crate::{
     ApiAuthScope, ApiAuthorizationError, ApiAuthorizer, ApiError, ApiErrorCode, AppCommand,
-    AppCommandResult, AppQuery, AppQueryResult, ApplicationService, CommandEnvelope,
-    DraftMutationReceipt, HostSnapshot, RequestContext,
+    AppCommandResult, AppQuery, AppQueryResult, ApplicationService, ApplyUseCase, CommandEnvelope,
+    DraftMutationReceipt, ExecuteApplyRequest, HostSnapshot, OperationReceipt, PlanApplyRequest,
+    RequestContext,
 };
 use deckweave_domain::ids::PrincipalId;
-use deckweave_workspace::{DraftRepository, DraftRepositoryError, MutationKey};
+use deckweave_workspace::{DraftRepository, MutationKey};
 use std::{
     collections::{BTreeMap, BTreeSet},
     sync::{Arc, Mutex},
 };
+
+mod errors;
+use errors::{api_error, map_apply_error, map_store_error};
 
 pub trait HostStatusSource: Send + Sync {
     fn snapshot(&self) -> HostSnapshot;
@@ -21,6 +25,7 @@ pub struct ApplicationGateway {
     host: Arc<dyn HostStatusSource>,
     drafts: Arc<dyn DraftRepository>,
     authorizer: Arc<dyn ApiAuthorizer>,
+    apply: Arc<dyn ApplyUseCase>,
 }
 
 impl ApplicationGateway {
@@ -29,11 +34,13 @@ impl ApplicationGateway {
         host: Arc<dyn HostStatusSource>,
         drafts: Arc<dyn DraftRepository>,
         authorizer: Arc<dyn ApiAuthorizer>,
+        apply: Arc<dyn ApplyUseCase>,
     ) -> Self {
         Self {
             host,
             drafts,
             authorizer,
+            apply,
         }
     }
 
@@ -75,14 +82,40 @@ impl ApplicationService for ApplicationGateway {
     }
 
     fn query(&self, context: &RequestContext, query: AppQuery) -> Result<AppQueryResult, ApiError> {
-        self.authorize(context, ApiAuthScope::Read)?;
         match query {
-            AppQuery::Host => Ok(AppQueryResult::Host(self.snapshot())),
-            AppQuery::Draft { draft_id } => self
-                .drafts
-                .get_draft(&draft_id)
-                .map(AppQueryResult::Draft)
-                .map_err(|error| map_store_error(context, error)),
+            AppQuery::Host => {
+                self.authorize(context, ApiAuthScope::Read)?;
+                Ok(AppQueryResult::Host(self.snapshot()))
+            }
+            AppQuery::Draft { draft_id } => {
+                self.authorize(context, ApiAuthScope::Read)?;
+                self.drafts
+                    .get_draft(&draft_id)
+                    .map(AppQueryResult::Draft)
+                    .map_err(|error| map_store_error(context, error))
+            }
+            AppQuery::PlanApply {
+                draft_id,
+                expected_draft_version,
+                expected_active,
+            } => {
+                self.authorize(context, ApiAuthScope::Simulation)?;
+                self.apply
+                    .plan_apply(&PlanApplyRequest {
+                        draft_id,
+                        expected_draft_version,
+                        expected_active,
+                    })
+                    .map(AppQueryResult::ApplyPlan)
+                    .map_err(|error| map_apply_error(context, error))
+            }
+            AppQuery::Operation { operation_id } => {
+                self.authorize(context, ApiAuthScope::Read)?;
+                self.apply
+                    .operation(&operation_id)
+                    .map(|snapshot| AppQueryResult::Operation(Box::new(snapshot)))
+                    .map_err(|error| map_apply_error(context, error))
+            }
         }
     }
 
@@ -91,7 +124,11 @@ impl ApplicationService for ApplicationGateway {
         context: &RequestContext,
         envelope: CommandEnvelope,
     ) -> Result<AppCommandResult, ApiError> {
-        self.authorize(context, ApiAuthScope::Draft)?;
+        let required_scope = match &envelope.command {
+            AppCommand::PatchDraft { .. } => ApiAuthScope::Draft,
+            AppCommand::ApplyDraft { .. } => ApiAuthScope::Apply,
+        };
+        self.authorize(context, required_scope)?;
         if envelope.request_id.is_empty() || envelope.request_id.len() > 128 {
             return Err(api_error(
                 context,
@@ -143,87 +180,39 @@ impl ApplicationService for ApplicationGateway {
                     dry_run: false,
                 })
             }
+            AppCommand::ApplyDraft {
+                draft_id,
+                expected_draft_version,
+                expected_active,
+                plan_hash,
+            } => {
+                if envelope.dry_run {
+                    return Err(api_error(
+                        context,
+                        ApiErrorCode::InvalidCommand,
+                        "api.error.apply_dry_run_requires_plan_query",
+                        false,
+                        BTreeMap::new(),
+                    ));
+                }
+                self.apply
+                    .execute_apply(&ExecuteApplyRequest {
+                        principal_id: context.principal_id.clone(),
+                        dedup_epoch: envelope.dedup_epoch,
+                        idempotency_key: envelope.idempotency_key,
+                        draft_id,
+                        expected_draft_version,
+                        expected_active,
+                        plan_hash,
+                    })
+                    .map(|snapshot| {
+                        AppCommandResult::OperationAccepted(OperationReceipt {
+                            operation_id: snapshot.intent.operation_id,
+                        })
+                    })
+                    .map_err(|error| map_apply_error(context, error))
+            }
         }
-    }
-}
-
-fn map_store_error(context: &RequestContext, error: DraftRepositoryError) -> ApiError {
-    match error {
-        DraftRepositoryError::NotFound => api_error(
-            context,
-            ApiErrorCode::NotFound,
-            "api.error.draft_not_found",
-            false,
-            BTreeMap::new(),
-        ),
-        DraftRepositoryError::VersionConflict { expected, current } => api_error(
-            context,
-            ApiErrorCode::RevisionConflict,
-            "api.error.revision_conflict",
-            false,
-            BTreeMap::from([
-                ("expected".into(), expected.into()),
-                ("current".into(), current.into()),
-            ]),
-        ),
-        DraftRepositoryError::IdempotencyConflict => api_error(
-            context,
-            ApiErrorCode::IdempotencyConflict,
-            "api.error.idempotency_conflict",
-            false,
-            BTreeMap::new(),
-        ),
-        DraftRepositoryError::IdempotencyExpired => api_error(
-            context,
-            ApiErrorCode::IdempotencyExpired,
-            "api.error.idempotency_expired",
-            false,
-            BTreeMap::new(),
-        ),
-        DraftRepositoryError::ReceiptQuota => api_error(
-            context,
-            ApiErrorCode::CapacityExceeded,
-            "api.error.mutation_receipt_quota",
-            false,
-            BTreeMap::new(),
-        ),
-        DraftRepositoryError::InvalidCommand(message) => api_error(
-            context,
-            ApiErrorCode::InvalidCommand,
-            "api.error.invalid_command",
-            false,
-            BTreeMap::from([("reason".into(), message.into())]),
-        ),
-        DraftRepositoryError::InvalidCandidate(message) => api_error(
-            context,
-            ApiErrorCode::InvalidCommand,
-            "api.error.invalid_candidate",
-            false,
-            BTreeMap::from([("reason".into(), message.into())]),
-        ),
-        DraftRepositoryError::Unavailable(message) => api_error(
-            context,
-            ApiErrorCode::Unavailable,
-            "api.error.profile_store_unavailable",
-            true,
-            BTreeMap::from([("reason".into(), message.into())]),
-        ),
-    }
-}
-
-fn api_error(
-    context: &RequestContext,
-    code: ApiErrorCode,
-    message_key: &str,
-    retryable: bool,
-    details: BTreeMap<String, serde_json::Value>,
-) -> ApiError {
-    ApiError {
-        code,
-        message_key: message_key.into(),
-        details,
-        retryable,
-        trace_id: context.trace_id.clone(),
     }
 }
 

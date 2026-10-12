@@ -121,7 +121,12 @@ fn service(
     authorizer: Arc<InMemoryApiAuthorizer>,
 ) -> Result<ApplicationGateway, PlatformError> {
     let host = Arc::new(HostRuntime::start(Arc::new(TestPlatform { root }))?);
-    Ok(ApplicationGateway::new(host, store, authorizer))
+    Ok(ApplicationGateway::new(
+        host,
+        store,
+        authorizer,
+        Arc::new(deckweave_application::UnavailableApplyUseCase),
+    ))
 }
 
 fn invalid_envelope() -> Result<CommandEnvelope, Box<dyn Error>> {

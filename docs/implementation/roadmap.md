@@ -133,7 +133,7 @@
 - [x] D2 — compiler/activation ports и fenced plan token с повторной проверкой preconditions.
 - [ ] C2 — production runtime coordinator через public application path.
 - [x] E0 — publication outcomes и disk reconciliation для неоднозначного replace.
-- [ ] E1 — durable apply/operation tracking и recovery acceptance.
+- [x] E1 — durable apply/operation tracking и recovery acceptance.
 - [ ] B2 — checkpoint/compaction до начала editor-heavy Фазы 6; не блокирует первый bounded virtual apply после B1.
 
 Выход gate — demonstration `application command → prepare → commit → virtual activation → restart/recovery`. Перенос реализации в отдельные crates и зелёные unit tests сами по себе этот gate не закрывают. Реальные actions/hardware не подключаются, пока owner/cleanup/recovery не доказаны.
@@ -298,8 +298,8 @@ checkpoint/compaction B2, production runtime coordination и apply пока от
 - [x] Реализовать draft commands, undo/redo и named snapshots (→ [ADR-0003](../decisions/0003-storage.md)).
 - [x] Реализовать selective export/import, asset reachability и unresolved credential mapping без запуска packages (→ [Profile Store](../architecture/modules/profile-store.md), [Контракты миграций](../contracts/lifecycle.md#миграции-и-неизвестные-данные)).
 - [x] Реализовать transport-independent ApplicationService и expected draft revision (→ [Модуль: Local API](../architecture/modules/local-api.md)).
-- [ ] Реализовать OperationId, durable operation tracking и status queries через Application Gateway (→ [Модуль: Local API](../architecture/modules/local-api.md)).
-- [ ] Реализовать Host apply skeleton с durable commit record, barrier, disruption/degraded policy, package lock и operation receipts (→ [ADR-0012](../decisions/0012-apply-and-execution-lifecycle.md), [Модуль: Host Runtime](../architecture/modules/host-runtime.md)).
+- [x] Реализовать OperationId, durable operation tracking и status queries через Application Gateway (→ [Модуль: Local API](../architecture/modules/local-api.md)).
+- [x] Реализовать Host apply skeleton с durable commit record, barrier, disruption/degraded policy, package lock и operation receipts (→ [ADR-0012](../decisions/0012-apply-and-execution-lifecycle.md), [Модуль: Host Runtime](../architecture/modules/host-runtime.md)).
 - [x] Проверять principals/scopes внутри ApplicationService, global durable dedup/expiry до revision check, dry-run без effects (→ [API](../contracts/application-api.md#идемпотентность-и-dry-run)).
 - [ ] Завершить identity/ownership, runtime coordination, storage reconciliation и позднюю compaction по [gate A–E](#pre-apply-gate) до объявления apply готовым.
 - [x] Добавить in-process test client; HTTP/WS transport отложить до Фазы 16 (→ [Application API](../contracts/application-api.md)).
