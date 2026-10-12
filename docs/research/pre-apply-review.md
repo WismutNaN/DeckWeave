@@ -41,9 +41,7 @@ DDD migration R1–R4 создала полезные границы: Workspace 
 
 Весь срез A этим не закрыт: нормализованный signal ingress, command routes и persisted bindings должны использовать тот же shared type, а затем пройти migration/compatibility fixture. Runtime resolution продолжает добавлять session/generation/revision; эти transient поля запрещено сохранять как identity.
 
-**P1, статический дефект.** В том же registry `ResourceLeaseRecord` хранит только `owner_package_id`, а `invalidate_session` удаляет session без очистки leases. После падения владельца exclusive resource остаётся занят в arbiter. Освобождение «всего package» также неверно: у package могут быть несколько runtime groups и prepared/active owners.
-
-Исправление требует owner identity и lifecycle: session-scoped lease либо prepare/probe operation owner с deadline; cancel/revoke/replacement освобождает только нужного owner. Тест: группа A падает, её ресурс доступен повторному acquire, ресурс живой группы B остаётся занят. До commit ownership подготовленного ресурса не означает разрешение на production output.
+**A2 реализован.** Resource arbiter выделен из registry aggregate. `ResourceLeaseRecord` хранит discriminated owner: полную runtime `SessionIdentity` либо prepare/probe operation с `OperationId` и monotonic deadline. Session replacement/invalidation, operation cancellation и expiry освобождают только точного owner; stale cleanup не может снять lease новой generation. Fixtures подтверждают, что падение группы A освобождает её ресурс, но не ресурс живой группы B. До commit ownership подготовленного ресурса по-прежнему не означает разрешение на production output.
 
 **P1, статический дефект.** [RuntimeController::activate_descriptors](../../crates/deckweave-plugin-supervisor/src/supervisor.rs) сначала вызывает `start_session`, затем `register_snapshot`. При ошибке descriptor остаётся пустая session, но `registered` ещё false; `process_exited` её не инвалидирует. Регистрация initial session/snapshot должна быть атомарной либо иметь гарантированный rollback. Валидация новой session не должна разрушать рабочую старую topology при неуспешном prepare.
 

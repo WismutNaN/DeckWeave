@@ -9,10 +9,16 @@ use deckweave_domain::{
         RuntimeGroupId, SessionGeneration,
     },
 };
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 mod descriptors;
 use descriptors::{find_port, validate_node_set, validate_nodes};
+mod resources;
+use resources::ResourceArbiter;
+pub use resources::{
+    CanonicalResourceKey, ResourceLeaseMode, ResourceLeaseOwner, ResourceLeaseRecord,
+    ResourceOperationKind,
+};
 use thiserror::Error;
 
 /// Compatibility alias for early registry consumers. New persisted contracts
@@ -51,52 +57,6 @@ pub struct RegistrySnapshot {
     pub resource_leases: Vec<ResourceLeaseRecord>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
-#[serde(transparent)]
-pub struct CanonicalResourceKey(String);
-
-impl CanonicalResourceKey {
-    pub fn try_new(value: impl Into<String>) -> Result<Self, RegistryError> {
-        let value = value.into();
-        if value.is_empty()
-            || value.len() > 256
-            || value.chars().any(|character| character.is_control())
-        {
-            return Err(RegistryError::InvalidResourceKey);
-        }
-        Ok(Self(value))
-    }
-
-    #[must_use]
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl<'de> Deserialize<'de> for CanonicalResourceKey {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let value = String::deserialize(deserializer)?;
-        Self::try_new(value).map_err(serde::de::Error::custom)
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ResourceLeaseMode {
-    Shared,
-    Exclusive,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ResourceLeaseRecord {
-    pub lease_id: ResourceLeaseId,
-    pub owner_package_id: PackageId,
-    pub resource: CanonicalResourceKey,
-    pub mode: ResourceLeaseMode,
-    pub purpose: String,
-}
-
 #[derive(Debug, Clone)]
 struct SessionState {
     identity: SessionIdentity,
@@ -108,9 +68,8 @@ struct SessionState {
 #[derive(Debug, Default)]
 pub struct CapabilityRegistry {
     sessions: BTreeMap<(PackageId, RuntimeGroupId), SessionState>,
-    resources: BTreeMap<ResourceLeaseId, ResourceLeaseRecord>,
+    resources: ResourceArbiter,
     revision: u64,
-    next_resource_lease: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
@@ -154,7 +113,7 @@ impl CapabilityRegistry {
         {
             return Err(RegistryError::StaleSession);
         }
-        self.sessions.insert(
+        let replaced = self.sessions.insert(
             key,
             SessionState {
                 identity,
@@ -164,6 +123,12 @@ impl CapabilityRegistry {
                 snapshot_registered: false,
             },
         );
+        if let Some(replaced) = replaced {
+            self.resources
+                .release_owner(&ResourceLeaseOwner::RuntimeSession {
+                    session: replaced.identity,
+                });
+        }
         self.bump_revision()?;
         Ok(())
     }
@@ -234,6 +199,10 @@ impl CapabilityRegistry {
             return Err(RegistryError::StaleSession);
         }
         self.sessions.remove(&key);
+        self.resources
+            .release_owner(&ResourceLeaseOwner::RuntimeSession {
+                session: session.clone(),
+            });
         self.bump_revision()?;
         Ok(())
     }
@@ -261,45 +230,47 @@ impl CapabilityRegistry {
 
     pub fn acquire_resource(
         &mut self,
-        owner_package_id: PackageId,
+        owner: ResourceLeaseOwner,
         resource: CanonicalResourceKey,
         mode: ResourceLeaseMode,
         purpose: impl Into<String>,
     ) -> Result<ResourceLeaseRecord, RegistryError> {
-        let conflict = self.resources.values().any(|existing| {
-            existing.resource == resource
-                && (existing.mode == ResourceLeaseMode::Exclusive
-                    || mode == ResourceLeaseMode::Exclusive)
-        });
-        if conflict {
-            return Err(RegistryError::ResourceConflict);
+        if let ResourceLeaseOwner::RuntimeSession { session } = &owner {
+            self.current_session(session)?;
         }
-        self.next_resource_lease = self
-            .next_resource_lease
-            .checked_add(1)
-            .ok_or(RegistryError::CounterExhausted)?;
-        let lease = ResourceLeaseRecord {
-            lease_id: ResourceLeaseId::try_new(format!(
-                "resource-lease-{}",
-                self.next_resource_lease
-            ))
-            .map_err(|_| RegistryError::CounterExhausted)?,
-            owner_package_id,
-            resource,
-            mode,
-            purpose: purpose.into(),
-        };
-        self.resources.insert(lease.lease_id.clone(), lease.clone());
+        let lease = self
+            .resources
+            .acquire(owner, resource, mode, purpose.into())?;
         self.bump_revision()?;
         Ok(lease)
     }
 
     pub fn release_resource(&mut self, lease_id: &ResourceLeaseId) -> Result<(), RegistryError> {
-        self.resources
-            .remove(lease_id)
-            .ok_or(RegistryError::UnknownResourceLease)?;
+        self.resources.release(lease_id)?;
         self.bump_revision()?;
         Ok(())
+    }
+
+    pub fn release_resources_for_owner(
+        &mut self,
+        owner: &ResourceLeaseOwner,
+    ) -> Result<usize, RegistryError> {
+        let released = self.resources.release_owner(owner);
+        if released > 0 {
+            self.bump_revision()?;
+        }
+        Ok(released)
+    }
+
+    pub fn expire_resource_operations(
+        &mut self,
+        now_host_ticks: u64,
+    ) -> Result<usize, RegistryError> {
+        let released = self.resources.expire_operations(now_host_ticks);
+        if released > 0 {
+            self.bump_revision()?;
+        }
+        Ok(released)
     }
 
     pub fn snapshot(&self) -> Result<RegistrySnapshot, RegistryError> {
@@ -321,7 +292,7 @@ impl CapabilityRegistry {
                         })
                 })
                 .collect(),
-            resource_leases: self.resources.values().cloned().collect(),
+            resource_leases: self.resources.records().cloned().collect(),
         })
     }
 

@@ -33,6 +33,8 @@
 - Stable endpoint содержит package/node/provider, discriminated device/service target и element/capability/port path; локальные IDs не считаются глобальными.
 - Runtime group/session/generation/revision не сохраняются в binding и появляются только в resolved handle.
 - Lease conflict виден compiler/apply до side effect, где возможно.
+- Resource lease принадлежит полной runtime session либо bounded prepare/probe operation; package ID сам по себе не является cleanup key.
+- Replacement/invalidation, cancel и deadline expiry освобождают leases только точного owner; stale generation не затрагивает текущую.
 - Canonical resource key описывает physical interface/endpoint независимо от provider aliases; probe использует тот же arbiter.
 - Discovery candidates не открывают exclusive handles и не дают output permission.
 - Disconnect/sequence gap инициирует resync и cleanup held outputs; freshness не преобразуется в false/zero.

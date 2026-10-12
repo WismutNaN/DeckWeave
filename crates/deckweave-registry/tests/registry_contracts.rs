@@ -2,13 +2,14 @@
 use deckweave_domain::{
     capability::{NodeDescriptor, SoftwareServiceDescriptor},
     ids::{
-        CapabilityId, DescriptorRevision, DeviceIdentity, ElementId, NodeId, PackageId,
-        PluginSessionId, PortId, ProviderId, RuntimeGroupId, ServiceId, SessionGeneration,
+        CapabilityId, DescriptorRevision, DeviceIdentity, ElementId, NodeId, OperationId,
+        PackageId, PluginSessionId, PortId, ProviderId, RuntimeGroupId, ServiceId,
+        SessionGeneration,
     },
 };
 use deckweave_registry::{
     CanonicalResourceKey, CapabilityRegistry, EndpointTargetRef, PortPath, RegistryError,
-    ResourceLeaseMode, SessionIdentity, StablePortRef,
+    ResourceLeaseMode, ResourceLeaseOwner, ResourceOperationKind, SessionIdentity, StablePortRef,
 };
 use std::{collections::BTreeMap, error::Error, fs, path::PathBuf};
 
@@ -20,11 +21,29 @@ fn fixture(name: &str) -> Result<NodeDescriptor, Box<dyn Error>> {
 }
 
 fn session(generation: u64) -> Result<SessionIdentity, Box<dyn Error>> {
+    grouped_session("control", generation)
+}
+
+fn grouped_session(group: &str, generation: u64) -> Result<SessionIdentity, Box<dyn Error>> {
     Ok(SessionIdentity {
         package_id: PackageId::try_new("org.deckweave.fixture.keyboard")?,
-        runtime_group_id: RuntimeGroupId::try_new("control")?,
-        plugin_session_id: PluginSessionId::try_new(format!("session-{generation}"))?,
+        runtime_group_id: RuntimeGroupId::try_new(group)?,
+        plugin_session_id: PluginSessionId::try_new(format!("session-{group}-{generation}"))?,
         generation: SessionGeneration::try_new(generation)?,
+    })
+}
+
+fn operation_owner(
+    package: &str,
+    operation: &str,
+    kind: ResourceOperationKind,
+    expires_at_host_ticks: u64,
+) -> Result<ResourceLeaseOwner, Box<dyn Error>> {
+    Ok(ResourceLeaseOwner::Operation {
+        package_id: PackageId::try_new(package)?,
+        operation_id: OperationId::try_new(operation)?,
+        kind,
+        expires_at_host_ticks,
     })
 }
 
@@ -200,20 +219,35 @@ fn canonical_resource_arbiter_detects_provider_alias_conflicts() -> Result<(), B
     let mut registry = CapabilityRegistry::default();
     let resource = CanonicalResourceKey::try_new("local/usb/5548:1008/interface-1")?;
     let first = registry.acquire_resource(
-        PackageId::try_new("org.deckweave.provider.first")?,
+        operation_owner(
+            "org.deckweave.provider.first",
+            "discover-first",
+            ResourceOperationKind::Probe,
+            100,
+        )?,
         resource.clone(),
         ResourceLeaseMode::Shared,
         "discovery",
     )?;
     let second = registry.acquire_resource(
-        PackageId::try_new("org.deckweave.provider.second")?,
+        operation_owner(
+            "org.deckweave.provider.second",
+            "observe-second",
+            ResourceOperationKind::Prepare,
+            100,
+        )?,
         resource.clone(),
         ResourceLeaseMode::Shared,
         "observe",
     )?;
     assert_eq!(
         registry.acquire_resource(
-            PackageId::try_new("org.deckweave.provider.probe")?,
+            operation_owner(
+                "org.deckweave.provider.probe",
+                "exclusive-probe",
+                ResourceOperationKind::Probe,
+                100,
+            )?,
             resource,
             ResourceLeaseMode::Exclusive,
             "device-studio-probe",
@@ -222,6 +256,159 @@ fn canonical_resource_arbiter_detects_provider_alias_conflicts() -> Result<(), B
     );
     registry.release_resource(&first.lease_id)?;
     registry.release_resource(&second.lease_id)?;
+    Ok(())
+}
+
+#[test]
+fn session_invalidation_releases_only_its_resource_leases() -> Result<(), Box<dyn Error>> {
+    let mut registry = CapabilityRegistry::default();
+    let group_a = grouped_session("group-a", 1)?;
+    let group_b = grouped_session("group-b", 1)?;
+    registry.start_session(group_a.clone())?;
+    registry.start_session(group_b.clone())?;
+
+    let resource_a = CanonicalResourceKey::try_new("local/usb/a/interface-1")?;
+    let resource_b = CanonicalResourceKey::try_new("local/usb/b/interface-1")?;
+    registry.acquire_resource(
+        ResourceLeaseOwner::RuntimeSession {
+            session: group_a.clone(),
+        },
+        resource_a.clone(),
+        ResourceLeaseMode::Exclusive,
+        "group-a-control",
+    )?;
+    registry.acquire_resource(
+        ResourceLeaseOwner::RuntimeSession {
+            session: group_b.clone(),
+        },
+        resource_b.clone(),
+        ResourceLeaseMode::Exclusive,
+        "group-b-control",
+    )?;
+
+    registry.invalidate_session(&group_a)?;
+    assert_eq!(
+        registry.acquire_resource(
+            ResourceLeaseOwner::RuntimeSession {
+                session: group_a.clone(),
+            },
+            resource_a.clone(),
+            ResourceLeaseMode::Shared,
+            "stale-runtime",
+        ),
+        Err(RegistryError::StaleSession)
+    );
+    let probe = operation_owner(
+        "org.deckweave.provider.probe",
+        "probe-after-a-crash",
+        ResourceOperationKind::Probe,
+        100,
+    )?;
+    assert!(
+        registry
+            .acquire_resource(
+                probe.clone(),
+                resource_a,
+                ResourceLeaseMode::Exclusive,
+                "probe-a",
+            )
+            .is_ok()
+    );
+    assert_eq!(
+        registry.acquire_resource(probe, resource_b, ResourceLeaseMode::Exclusive, "probe-b",),
+        Err(RegistryError::ResourceConflict)
+    );
+    let leases = registry.snapshot()?.resource_leases;
+    assert_eq!(leases.len(), 2);
+    assert!(leases.iter().any(|lease| {
+        lease.owner
+            == ResourceLeaseOwner::RuntimeSession {
+                session: group_b.clone(),
+            }
+    }));
+    Ok(())
+}
+
+#[test]
+fn stale_session_cleanup_cannot_release_replacement_resources() -> Result<(), Box<dyn Error>> {
+    let mut registry = CapabilityRegistry::default();
+    let old = session(1)?;
+    let current = session(2)?;
+    let resource = CanonicalResourceKey::try_new("local/usb/replaced/interface-1")?;
+    registry.start_session(old.clone())?;
+    registry.acquire_resource(
+        ResourceLeaseOwner::RuntimeSession {
+            session: old.clone(),
+        },
+        resource.clone(),
+        ResourceLeaseMode::Exclusive,
+        "old-runtime",
+    )?;
+
+    registry.start_session(current.clone())?;
+    registry.acquire_resource(
+        ResourceLeaseOwner::RuntimeSession {
+            session: current.clone(),
+        },
+        resource.clone(),
+        ResourceLeaseMode::Exclusive,
+        "current-runtime",
+    )?;
+    assert_eq!(
+        registry.invalidate_session(&old),
+        Err(RegistryError::StaleSession)
+    );
+    assert_eq!(
+        registry.acquire_resource(
+            operation_owner(
+                "org.deckweave.provider.probe",
+                "probe-current-resource",
+                ResourceOperationKind::Probe,
+                100,
+            )?,
+            resource,
+            ResourceLeaseMode::Exclusive,
+            "must-conflict",
+        ),
+        Err(RegistryError::ResourceConflict)
+    );
+    Ok(())
+}
+
+#[test]
+fn operation_resource_leases_expire_and_cancel_by_exact_owner() -> Result<(), Box<dyn Error>> {
+    let mut registry = CapabilityRegistry::default();
+    let prepare = operation_owner(
+        "org.deckweave.provider.prepare",
+        "prepare-1",
+        ResourceOperationKind::Prepare,
+        50,
+    )?;
+    let probe = operation_owner(
+        "org.deckweave.provider.probe",
+        "probe-1",
+        ResourceOperationKind::Probe,
+        100,
+    )?;
+    registry.acquire_resource(
+        prepare.clone(),
+        CanonicalResourceKey::try_new("local/usb/prepare/interface-1")?,
+        ResourceLeaseMode::Exclusive,
+        "prepare",
+    )?;
+    registry.acquire_resource(
+        probe.clone(),
+        CanonicalResourceKey::try_new("local/usb/probe/interface-1")?,
+        ResourceLeaseMode::Exclusive,
+        "probe",
+    )?;
+
+    assert_eq!(registry.expire_resource_operations(49)?, 0);
+    assert_eq!(registry.expire_resource_operations(50)?, 1);
+    assert_eq!(registry.snapshot()?.resource_leases.len(), 1);
+    assert_eq!(registry.release_resources_for_owner(&probe)?, 1);
+    assert_eq!(registry.release_resources_for_owner(&probe)?, 0);
+    assert!(registry.snapshot()?.resource_leases.is_empty());
     Ok(())
 }
 
