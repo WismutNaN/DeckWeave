@@ -1,8 +1,8 @@
 # Проверка готовности к apply после DDD migration
 
-Дата: 2026-10-12. Проверенная исходная версия: `2bae564`. Документ фиксирует аудит реализации, а не меняет нормативные контракты. Текущие задачи ведутся в [gate Фазы 4](../implementation/roadmap.md#pre-apply-gate); повторный аудит обновляет этот файл, а не создаёт ещё один параллельный список задач.
+Дата: 2026-10-12. Исходный аудит: `2bae564`; повторная проверка перехода к Фазе 5: `a3569bf` (см. [актуальный вывод](#phase-5-readiness)). Документ фиксирует аудит реализации, а не меняет нормативные контракты. Текущие задачи ведутся в [gate Фазы 4](../implementation/roadmap.md#pre-apply-gate) и [срезах Фазы 5](../implementation/phase-5-automation.md); повторный аудит обновляет этот файл, а не создаёт ещё один параллельный список задач.
 
-## Вывод
+## Вывод исходного аудита
 
 DDD migration R1–R4 создала полезные границы: Workspace Configuration отделён от хранения, Gateway — от Host, OS adapters — от ports. Перепроектирование с нуля не требуется. Однако завершение переноса кода не означает готовность durable apply. Сейчас Фаза 4 уже идёт; её следующий безопасный результат — согласованные mutation/identity/ownership contracts и работающий Host coordinator на virtual fixture.
 
@@ -14,13 +14,13 @@ DDD migration R1–R4 создала полезные границы: Workspace 
 
 Доказательства разделены:
 
-- **Воспроизведено:** новый тест сначала падает на исходном коде и проходит после исправления.
+- **Воспроизведено:** новый тест нарушаемого инварианта падает на проверенной версии. Статус исправления указывается отдельно; исправленные случаи дополнительно проходят regression test.
 - **Статический дефект:** конкретная последовательность публичных вызовов нарушает contract; отдельный executable probe не запускался.
 - **Незавершённая способность:** scaffold ещё не обещает production behavior; перед подключением требуется acceptance gate.
 
 Существующие проверки дали baseline; они не использованы как доказательство отсутствия ошибок. Linux, реальное hardware, отключение питания и опубликованный GitHub CI этим локальным аудитом не проверялись.
 
-После изменений прошли шесть новых regression tests и затронутые suites Host/Workspace/Profiles/Registry/Supervisor/Platform Host, Clippy по всему core workspace, format, architecture boundaries и проверка links/anchors/JSON во всех 69 Markdown-документах. Точные команды package checks соответствуют [development](../implementation/development.md#проверки). Открытые пункты A–E ниже не выдаются за исправленные этими проверками.
+После исправлений исходного аудита прошли шесть новых regression tests и затронутые suites Host/Workspace/Profiles/Registry/Supervisor/Platform Host, Clippy по всему core workspace, format, architecture boundaries и проверка links/anchors/JSON во всех 69 Markdown-документах. Это историческое evidence, не повторный запуск на `a3569bf`. Точные команды package checks соответствуют [development](../implementation/development.md#проверки). Открытые пункты A–E ниже не выдаются за исправленные этими проверками.
 
 ## Исправлено в ходе аудита
 
@@ -47,11 +47,11 @@ Raw protocol `Signal` несёт полный `EndpointPath`; одиночный
 
 ## B — Общий mutation ledger и ограниченное хранение
 
-**B1 реализован.** `ApplicationService::open_mutation_window` после проверки scope выдаёт и сохраняет одно активное окно на principal; неизвестный, заменённый или истёкший epoch возвращает `idempotency_expired` даже для replay. Receipt адресуется O(1) по хешу глобального `(principal, epoch, key)`, а target/expected version/command входят в fingerprint. Поэтому один key на двух drafts даёт conflict до version check и после restart.
+**B1 реализован для draft mutations; общий scope с apply ещё не закрыт (F5-R1 ниже).** `ApplicationService::open_mutation_window` после проверки scope выдаёт и сохраняет одно активное окно на principal; неизвестный, заменённый или истёкший epoch возвращает `idempotency_expired` даже для replay. Draft receipt адресуется O(1) по хешу `(principal, epoch, key)`, а target/expected version/command входят в fingerprint. Поэтому один key на двух drafts даёт conflict до version check и после restart; это не доказывает collision между `PatchDraft` и `ApplyDraft`.
 
 Document commit использует recoverable последовательность immutable transaction → pending ledger record → draft head → immutable receipt. При restart bounded recovery допубликовывает candidate/receipt либо останавливается на диагностируемом divergence. Fault tests покрывают ошибку до pending, между pending/head и между head/receipt; отдельные tests — global collision, expiry, restart, authorization revoke и receipt quota. Pending и receipts ограничены конфигурируемыми quotas; прежний линейный поиск receipt по draft chain удалён.
 
-**B2 остаётся до editor Фазы 6.** Append-only transaction snapshots теперь не участвуют в обычном lookup ключа и ограничены общей receipt quota, поэтому больше не создают квадратичный поиск или скрытый `HistoryLimit` для каждого нового command. Однако checkpoint/compaction и crash-safe GC ещё не реализованы. При compaction должны сохраняться pending operations, действующие dedup windows, receipts, revisions/snapshots/assets; crash в середине GC не делает опубликованное состояние нечитаемым. Benchmark достаточно провести на небольшой конфигурируемой границе и серии растущих историй, без дорогого hardware soak.
+**B2 остаётся до editor Фазы 6.** Append-only transaction snapshots больше не участвуют в обычном lookup ключа; receipt quota ограничивает историю. Однако весь write path не стал O(1): `begin_mutation` вызывает `directory_entry_count`, который перечисляет каталог receipts и собирает entries в `Vec`. Серия новых mutations сохраняет квадратичную суммарную стоимость quota accounting до достижения лимита. Checkpoint/compaction, эффективный счётчик/index и crash-safe GC ещё не реализованы. При compaction должны сохраняться pending operations, действующие dedup windows, receipts, revisions/snapshots/assets; crash в середине GC не делает опубликованное состояние нечитаемым. Benchmark достаточно провести на небольшой конфигурируемой границе и серии растущих историй, без дорогого hardware soak.
 
 ## C — Process I/O и единый runtime owner
 
@@ -110,3 +110,30 @@ Host `ApplyPlanningService` связывает plan hash с HostBootId, draft ve
 Cargo dependency allowlist и size ratchet полезны, но не доказывают DDD автоматически: они не проверяют инварианты aggregate и не запрещают всякий `std::fs` внутри domain. При ревью нового use case нужны владелец инварианта, port contract и межконтекстный failure test. Перенос файлов без изменения ответственности не закрывает такой review.
 
 Текущая структура `product → contracts → architecture/modules → implementation` уже пригодна для расширения. Повторное перемещение всех файлов не улучшит её. Внесены точечные изменения source-of-truth contracts, исправлены преувеличенные статусы, выделены проверяемые pre-apply slices. После закрытия gate этот отчёт остаётся evidence либо переносится в archive с обновлением ссылок; текущие задачи не дублируются в новых файлах.
+
+<a id="phase-5-readiness"></a>
+## Проверка перехода к Фазе 5 — `a3569bf`
+
+**Начинать pure graph/compiler/scheduler следует; подключение live effects требует среза 5.0.** Изменения после `95b8090` существенно закрыли предыдущие замечания: stable/runtime endpoint identity, scoped leases, initial topology, bounded process transport, candidate/fence, production composition и durable apply имеют реализацию и целевые fixtures. Возвращаться к проектированию с нуля не нужно. Однако три новых проверки выявили незакрытые переходы между ledger, commit history и startup recovery. Фазу 4 нельзя считать полностью завершённой только на основании E2 kill matrix.
+
+### Воспроизведённые дефекты — пока не исправлены
+
+| ID / приоритет | Входная последовательность и результат | Причина и требуемая граница исправления |
+|---|---|---|
+| F5-R1 / P1 | Через Gateway выполнить `ApplyDraft`, затем `PatchDraft` с теми же principal/issued epoch/key. Ожидался `IdempotencyConflict`; получен успешный `DraftMutation`, документ изменился до version 2 | [Gateway](../../crates/deckweave-application/src/gateway.rs) направляет commands в разные ledgers. [Apply operation ID](../../crates/deckweave-host/src/apply/support.rs) и [draft receipt lookup](../../crates/deckweave-profiles/src/draft/ledger.rs) не резервируют общий key scope. Нужен общий durable claim, согласованный с intent/recovery; две проверки разных каталогов оставляют race |
+| F5-R2 / P1 | Опубликовать commit A, не записав terminal status; затем опубликовать и завершить B; вызвать recovery. Получен `PreconditionChanged("cannot finish Committed/Committed as Failed/Inactive")` | [ApplyCoordinator::recover](../../crates/deckweave-host/src/apply.rs) считает всякую неактивную pending operation незакоммиченной. Superseded commit — отдельный случай: факт commit сохраняется, прежняя activation не повторяется, неизвестное завершение не становится failed-before-commit |
+| F5-R3 / P1 | Создать две terminal operations; вызвать `recoverable_operations(1)`. Вместо пустого списка получен `CapacityExceeded` | [Profile Store recovery](../../crates/deckweave-profiles/src/apply.rs) проверяет количество всех operation directories до фильтрации terminal. [Desktop composition](../../apps/desktop/src-tauri/src/composition.rs) вызывает `recover(256)`: после накопления более 256 операций startup может завершиться ошибкой даже без pending work. Нужны bounded scan/index и отдельный pending budget |
+
+Проверки выполнены отдельными временными integration targets, переиспользующими fixtures `durable_apply.rs` и `apply_operations.rs`. Запускались только новые `review_probe_*`: две Host-проверки и одна Profiles-проверка скомпилировались и упали на указанных assertions. Существующие suites повторно не запускались. Временные targets убраны из обычной test discovery; локальные исходники сохранены в ignored `test-results/phase5-readiness-a3569bf/`. Для постоянных regression tests в 5.0 добавить оба порядка R1 и restart, superseded committed history R2, более 256 terminal operations вместе с pending/corrupt records для R3. Повышение startup limit и безусловное игнорирование ошибок эти инварианты не исправляют.
+
+### Что ещё ограничивает реализацию Фазы 5
+
+Это статические наблюдения и отсутствующие способности, а не дополнительные выполненные crash tests:
+
+- [InvocationRequest](../../protocol/deckweave/v1/control.proto) содержит operation ID, epoch и descriptor revision, но не полный target path или negotiated endpoint handle. Domain `CommandEnvelope` уже адресуемый; wire path ещё нельзя считать пригодным для двух одинаковых устройств. Полный target и required-feature negotiation нужны до первого реального dispatch.
+- [CompiledExecutionPlan](../../crates/deckweave-automation/src/plan.rs) пока выбирает empty/virtual fixture, не содержит executable IR. Compiler получает номера registry/grant revisions, но не descriptor/schema catalog. Cold-start plan требует metadata без неявного запуска plugin; prepare затем проверяет фактические descriptors и связывает plan с новой session.
+- [Runtime coordinator](../../crates/deckweave-plugin-supervisor/src/host/coordinator.rs) хранит один prepared/active virtual runtime, а recovery отдельно разбирает JSON fixture. В частности, compiler принимает `virtual_disruptive_echo`, а recovery parser принимает только `virtual_echo`. Обе ветки должны пользоваться одним compiler/binding path; Host не должен изучать новые graph node kinds по мере расширения.
+- [Instance monitor](../../crates/deckweave-plugin-supervisor/src/host/instance.rs) потребляет envelope, но ещё не передаёт signal/outcome body в scheduler. Apply barrier пока не проверен живым effect dispatcher. Самих callback/boolean flags недостаточно: epoch, grants, route generation и cleanup owner должны проверяться на реальном dispatch.
+- Исторический `Succeeded/Applied` operation receipt не заменяет текущее runtime health после process exit/revoke. Live health projection и события lifecycle нужны вместе с integration, а не после появления UI.
+
+Эти границы покрывает [план 5.0–5.6](../implementation/phase-5-automation.md). B2 compaction остаётся обязательной до editor Фазы 6 и не блокирует pure engine. Полная поддержка Handy, браузера, Telegram, lighting/layers и media не переносится в Фазу 5: здесь доказываются общий typed result path, адресуемость и смена плана, на которых следующие фазы смогут строиться.

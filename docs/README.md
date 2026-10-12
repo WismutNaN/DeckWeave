@@ -1,6 +1,6 @@
 # Документация DeckWeave
 
-DeckWeave объединяет устройства и приложения через плагины: ввод, действия с результатами, визуальные поверхности, подсветку и будущие media streams. Реализованы protocol/plugin foundations, Profile/Workspace foundation Фазы 4 и DDD migration R1–R4. [Аудит реализации](research/pre-apply-review.md) выявил незакрытые identity/lease/ledger/I/O границы; следующая работа — [gate перед durable apply](implementation/roadmap.md#pre-apply-gate). Реальные input hooks, interaction UI и device providers ещё не готовы. Локальные проверки Windows подтверждают отдельные способности; ручная приёмка и GitHub CI ещё не выполнены. Полная спецификация описывает целевую систему. [Запуск и проверки](implementation/development.md), [статус фаз](implementation/roadmap.md#фаза-4--profile-revisions-и-application-api).
+DeckWeave объединяет устройства и приложения через плагины: ввод, действия с результатами, визуальные поверхности, подсветку и будущие media streams. Реализованы protocol/plugin foundations, Profile/Workspace Фазы 4, production virtual apply и DDD migration R1–R4. [Повторный аудит](research/pre-apply-review.md#phase-5-readiness) выявил три dedup/recovery дефекта; они закрываются в 5.0 перед подключением effects. Pure compiler/scheduler можно начинать по [плану Фазы 5](implementation/phase-5-automation.md). Реальные input hooks, interaction UI и device providers ещё не готовы. Ручная приёмка и GitHub CI ещё не выполнены. Полная спецификация описывает целевую систему. [Запуск и проверки](implementation/development.md), [статус фаз](implementation/roadmap.md#фаза-4--profile-revisions-и-application-api).
 
 ## Порядок чтения
 
@@ -17,7 +17,7 @@ DeckWeave объединяет устройства и приложения че
 | `product/` | Назначение, требования, сценарии, режимы и UX | [Замысел](product/vision.md), [режимы](product/modes.md), [UX](product/ux.md) |
 | `architecture/` | Устройство системы, DDD-контексты и границы модулей | [Обзор](architecture/overview.md), [DDD](architecture/ddd.md), [модули](architecture/modules/README.md) |
 | `contracts/` | Нормативное поведение на границах | Таблица ниже |
-| `implementation/` | Порядок реализации, срезы и проверки | [План](implementation/roadmap.md), [разработка](implementation/development.md) |
+| `implementation/` | Порядок реализации, срезы и проверки | [Roadmap](implementation/roadmap.md), [Фаза 5](implementation/phase-5-automation.md), [разработка](implementation/development.md) |
 | `decisions/` | Нумерованные ADR с причиной выбора | [Реестр ADR](decisions/README.md) |
 | `research/` | Первичные источники, наблюдения, сравнение и reuse-кандидаты | [Референсы](research/REFERENCES.md), [анализ реализаций](research/implementation-review.md), [аудит перед apply](research/pre-apply-review.md) |
 | `archive/` | Исторические материалы, не текущие требования | [Исходный стек](archive/initial-stack.md), [первый аудит](archive/2026-10-12-initial-audit.md) |

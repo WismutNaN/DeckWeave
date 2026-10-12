@@ -6,7 +6,7 @@
 
 ## Статус
 
-Реализованы desktop shell, protocol/plugin foundations, revision/draft store и Application Gateway; завершена структурная DDD migration R1–R4. Фаза 4 уже идёт. [Аудит реализации](docs/research/pre-apply-review.md) определил [условия перед durable apply](docs/implementation/roadmap.md#pre-apply-gate): identity/ownership, общий mutation ledger, runtime coordination и recovery. Реальные устройства и automation engine ещё не подключены. Локальные проверки Windows проходят; ручная приёмка меню трея и первый запуск GitHub CI ещё впереди.
+Реализованы desktop shell, protocol/plugin foundations, revision/draft store, Application Gateway и durable apply через isolated virtual runtime; завершена структурная DDD migration R1–R4. [Повторный аудит](docs/research/pre-apply-review.md#phase-5-readiness) выявил три dedup/recovery дефекта перед live effects. Pure compiler/scheduler можно начинать по [плану Фазы 5](docs/implementation/phase-5-automation.md). Реальные устройства и automation engine ещё не подключены. Существующие локальные проверки имеют evidence, новые отрицательные сценарии пока не проходят; ручная приёмка меню трея и первый запуск GitHub CI ещё впереди.
 
 ## Запуск для разработки
 

@@ -4,7 +4,7 @@
 
 ## Обязательные зависимости и срезы
 
-Нормативные failure/ordering contracts: [Lifecycle](../contracts/lifecycle.md). При расхождении module summary с контрактом сначала исправляется документация. Process-crash apply/recovery подтверждён production fixture; power-loss durability и B2 compaction остаются отдельными ограничениями. [Аудит после DDD migration](../research/pre-apply-review.md) отделяет доказанные свойства от незавершённых способностей.
+Нормативные failure/ordering contracts: [Lifecycle](../contracts/lifecycle.md). При расхождении module summary с контрактом сначала исправляется документация. Production fixture подтверждает отдельные process-crash apply/recovery переходы; повторный аудит обнаружил ещё три dedup/recovery случая для [среза 5.0](phase-5-automation.md). Power-loss durability и B2 compaction остаются отдельными ограничениями. [Аудит после DDD migration](../research/pre-apply-review.md#phase-5-readiness) отделяет доказанные свойства от незавершённых способностей.
 
 Расширяемость проверяется до SDK freeze на [сценариях](../product/scenarios.md): независимые keyboard/analog/RGB/surface/job/media descriptors, typed results, geometry и dynamic ports. [Исследование реализаций](../research/implementation-review.md) определяет reuse-кандидатов и ограничения evidence; существующий upstream метод не закрывает hardware acceptance.
 
@@ -12,7 +12,7 @@
 |---|---|
 | 3 | Static index → handshake/virtual provider → leases/discovery/restart; отдельно ранний C0/C1 compatibility spike на pinned open fixture |
 | 4 | После draft/store: A identity/owners → B ledger/retention → C runtime coordinator → D candidate/apply ports → E commit/recovery; [gate](#pre-apply-gate) до hardware |
-| 5 | Compiler → scheduler/ordering → async outcomes/epochs/replay; performance baseline |
+| 5 | Recovery/dedup 5.0 → graph/wire contract → compiler/IR → scheduler → runtime dispatch → M1 → replay/latency; [подробные срезы](phase-5-automation.md) |
 | 6 | Canvas/select → schema-form binding → draft/apply/health; готовый preset укладывается в click budget |
 | 8 | Protocol/identity fixtures → inputs → frames/light/haptic; неподтверждённый hardware не считается реализованным |
 | 9 | Backend benchmark/ADR → display renderer/frame protocol → basic LightFrame/ownership → hit testing/preview → editor; diff loss fixture обязателен |
@@ -38,7 +38,7 @@
 |---:|---|---|:---:|:---:|
 | 1 | Скелет репозитория | Workspace компилируется, UI shell и CI запускаются | S | [~] |
 | 2 | Domain и protocol contracts | Versioned types/schemas/generated code | M | [x] |
-| 3 | Plugin supervisor и virtual package | Foundations готовы; Host integration ещё не закрыта | L | [~] |
+| 3 | Plugin supervisor и virtual package | Foundations и virtual apply готовы; live dispatch/restart integration — в Фазе 5 | L | [~] |
 | 4 | Profile revisions и application API | Draft/validate/apply/rollback через API | L | [~] |
 | 5 | Минимальный automation engine | Source → action → feedback deterministic path | L | [ ] |
 | 6 | Desktop workspace canvas | Устройства и bindings редактируются в UI | L | [ ] |
@@ -120,7 +120,7 @@
 - [ ] B завершён; API dedup contract реализован целиком, а не только в одном draft.
 - [x] C завершён; интеграция использует production composition и внешний watchdog для hang tests.
 - [x] D завершён; Фаза 4 использует ограниченный fake compiler для empty/virtual fixtures. Он не принимает произвольный graph как пустой plan; Фаза 5 заменяет adapter настоящим compiler на том же acceptance.
-- [x] E завершён на process-crash уровне; evidence отделено от power-loss/filesystem assumptions.
+- [~] E2 process-crash matrix выполнена; повторный аудит выявил recovery gaps F5-R2/F5-R3. Закрыть их в [срезе 5.0](phase-5-automation.md#50--закрыть-обнаруженные-переходы-фазы-4); evidence отделено от power-loss/filesystem assumptions.
 
 Порядок малых обратимых срезов:
 
@@ -129,7 +129,7 @@
 - [x] A3 — атомарная initial registration без пустой session и без разрушения прежней topology.
 - [x] A4 — persisted binding, normalized signal ingress и command route используют общие stable/runtime endpoint types; deprecated локальный PortId не разрешается эвристически.
 - [x] C1 — bounded/nonblocking process transport и независимый kill path.
-- [x] B1 — global mutation ledger, issued epochs, recovery и bounded quota/index.
+- [~] B1 — общий ledger для draft mutations, issued epochs, recovery и bounded quota/index реализованы; общий key scope с apply ещё требует [F5-R1](../research/pre-apply-review.md#phase-5-readiness).
 - [x] D1 — immutable WorkspaceCandidate, unique package/assets и проверка referenced asset bytes/metadata.
 - [x] D2 — compiler/activation ports и fenced plan token с повторной проверкой preconditions.
 - [x] C2 — production runtime coordinator через public application path.
@@ -225,7 +225,7 @@ generation drift check, TypeScript contracts и Rust domain/protocol tests.
 **Цель:** доказать lazy, isolated, restartable plugin lifecycle.
 **Результат:** virtual test package индексируется без запуска, активируется lease, публикует device и восстанавливается после crash.
 **Трудоёмкость:** L
-**Статус:** [~] Foundations готовы; аудит выявил незакрытые registry/lease/I/O и Host integration paths. Они закрываются срезами A/C [pre-apply gate](#pre-apply-gate).
+**Статус:** [~] Foundations, registry/lease/I/O и virtual Host integration реализованы срезами A/C [pre-apply gate](#pre-apply-gate). Live event/outcome dispatch и применение restart/backoff в работающем engine проверяются в [срезе 5.4](phase-5-automation.md#54--runtime-plan-activation-и-безопасный-dispatch).
 
 ### Контекст для агента
 > Domain/protocol types существуют. Hardware и UI ещё не нужны; virtual package служит единственным provider и reference fixture.
@@ -272,7 +272,7 @@ Executable C1 spike остаётся обязательным условием �
 **Цель:** создать безопасный путь read → draft → validate → plan → apply → rollback.
 **Результат:** CLI/test client редактирует virtual workspace, получает conflict и возвращается к snapshot.
 **Трудоёмкость:** L
-**Статус:** [~] В процессе: готовы Profile Store, Workspace Configuration, Application Gateway и process-crash apply/recovery; до editor остаётся B2 compaction.
+**Статус:** [~] Основной apply path реализован; перед live effects Фазы 5 открыты три dedup/recovery исправления [5.0](phase-5-automation.md#50--закрыть-обнаруженные-переходы-фазы-4). До editor также остаётся B2 compaction.
 
 ### Контекст для агента
 > Plugin lifecycle и production coordinator проходят public application path с isolated virtual fixture. Active automation пока пуст; фаза строит источник истины и command/query boundary.
@@ -292,7 +292,7 @@ Export переносит выбранные revision contents как portable t
 Dry-run использует тот же command vocabulary, но не пишет draft и не резервирует idempotency key;
 повтор mutation после restart читает durable receipt и согласованный исторический document. B1 добавил
 авторизованную выдачу persisted dedup windows, global receipt index, expiry/quota и recovery pending commit;
-checkpoint/compaction B2 пока отсутствует. Durable apply и production runtime coordination реализованы; process-crash gate E закрыт, а power-loss допущения явно не обещаны [gate A–E](#pre-apply-gate).
+checkpoint/compaction B2 пока отсутствует. Durable apply и production runtime coordination реализованы; E2 подтверждает проверенную kill matrix, но повторный аудит обнаружил cross-command dedup и recovery gaps. Они закрываются в [5.0](phase-5-automation.md#50--закрыть-обнаруженные-переходы-фазы-4); power-loss гарантии не обещаны [gate A–E](#pre-apply-gate).
 
 ### Задачи
 
@@ -302,8 +302,8 @@ checkpoint/compaction B2 пока отсутствует. Durable apply и produ
 - [x] Реализовать transport-independent ApplicationService и expected draft revision (→ [Модуль: Local API](../architecture/modules/local-api.md)).
 - [x] Реализовать OperationId, durable operation tracking и status queries через Application Gateway (→ [Модуль: Local API](../architecture/modules/local-api.md)).
 - [x] Реализовать Host apply skeleton с durable commit record, barrier, disruption/degraded policy, package lock и operation receipts (→ [ADR-0012](../decisions/0012-apply-and-execution-lifecycle.md), [Модуль: Host Runtime](../architecture/modules/host-runtime.md)).
-- [x] Проверять principals/scopes внутри ApplicationService, global durable dedup/expiry до revision check, dry-run без effects (→ [API](../contracts/application-api.md#идемпотентность-и-dry-run)).
-- [~] Identity/ownership, runtime coordination и process-crash storage reconciliation закрыты; B2 checkpoint/compaction остаётся до editor Фазы 6 по [gate A–E](#pre-apply-gate).
+- [~] Principals/scopes, draft dedup/expiry до revision check и dry-run без effects реализованы; общий scope ключа между draft/apply ещё требует F5-R1 (→ [API](../contracts/application-api.md#идемпотентность-и-dry-run), [ревью](../research/pre-apply-review.md#phase-5-readiness)).
+- [~] Identity/ownership и runtime coordination реализованы; recovery history требует F5-R2/F5-R3, B2 checkpoint/compaction остаётся до editor Фазы 6 по [gate A–E](#pre-apply-gate).
 - [x] Добавить in-process test client; HTTP/WS transport отложить до Фазы 16 (→ [Application API](../contracts/application-api.md)).
 
 ### Тесты
@@ -329,12 +329,28 @@ checkpoint/compaction B2 пока отсутствует. Durable apply и produ
 **Статус:** [ ] Не начата
 
 ### Контекст для агента
-> Profile/API и virtual plugin готовы. Реализуется узкий graph subset без schedules и complex UI.
+> Profile/API и isolated virtual apply дают основу интеграции. Три обнаруженных dedup/recovery дефекта закрываются в 5.0 до live effects; pure compiler/scheduler можно делать независимо. Реализуется узкий graph subset без schedules и complex UI.
+
+### Порядок реализации
+
+Подробные границы, владельцы и acceptance каждого среза — [план Фазы 5](phase-5-automation.md). Каждый срез оценивается на 1–5 дней и делится дальше, если не помещается; это не одна большая замена fixture compiler.
+
+| Срез | Результат |
+|---|---|
+| 5.0 | Общий draft/apply key scope, recovery superseded commits и bounded обход terminal history |
+| 5.1 | Versioned typed graph, полный invocation target, delivery outcomes и limits |
+| 5.2 | Executable IR и чистый compiler; static catalog и runtime binding разделены |
+| 5.3 | Scheduler без I/O, fake clock, run-local results и детерминированный порядок |
+| 5.4 | Несколько runtime groups, живой dispatcher/barrier, epochs, cleanup и health |
+| 5.5 | Сквозной virtual source → condition → action → typed result → state → feedback |
+| 5.6 | Replay тем же scheduler, bounded trace и latency/load baseline |
 
 ### Задачи
 
+- [ ] Закрыть F5-R1–R3 до подключения effects (→ [срез 5.0](phase-5-automation.md#50--закрыть-обнаруженные-переходы-фазы-4)).
+- [ ] Согласовать versioned graph и полный invocation target с required-feature negotiation и Rust/TS wire fixtures (→ [срез 5.1](phase-5-automation.md#51--graph-contract-и-адресуемый-invocation-protocol), [Capabilities](../contracts/capabilities.md)).
 - [ ] Реализовать graph compiler для source/action/state/condition/feedback (→ [Модуль: Automation Engine](../architecture/modules/automation-engine.md)).
-- [ ] Заменить ограниченный compiler adapter Фазы 4, сохранив [apply acceptance](#pre-apply-gate); проверять typed graph/schema semantics отдельно от structural JSON validation. M1 проходит через production Host и isolated virtual process.
+- [ ] Заменить fixture compiler и runtime/recovery JSON branches общим IR/binding path, сохранив [apply acceptance](#pre-apply-gate); обеспечить cold-start metadata и несколько required runtime groups. M1 проходит через production Host и isolated virtual processes (→ [срезы 5.2–5.5](phase-5-automation.md)).
 - [ ] Реализовать immutable ExecutionPlan и serialized workspace scheduler (→ [ADR-0010](../decisions/0010-compiled-automation-plan.md)).
 - [ ] Разделить edge queue и coalescing value lane (→ [Архитектура — Конкурентность и QoS](../architecture/overview.md#конкурентность-и-qos)).
 - [ ] Реализовать trace/correlation/causation и basic loop guard (→ [Модуль: Diagnostics & Test Lab](../architecture/modules/diagnostics-test-lab.md)).
@@ -351,6 +367,7 @@ checkpoint/compaction B2 пока отсутствует. Durable apply и produ
 - [ ] Ordering/fault: encoder +1,+1,-1 не теряется; axis-before-button не подменяется будущим axis; edge overflow освобождает held outputs; late completion после apply не запускает action.
 - [ ] Result: accepted job не считается success; два invocation получают свои outputs; malformed/oversized result отклоняется, duplicate terminal не создаёт второй effect.
 - [ ] Cross-context: два одинаковых device instances и service с одинаковыми локальными ports; topology/schema change после plan, revoke во время job и старый completion после apply.
+- [ ] Recovery/dedup: один key между PatchDraft/ApplyDraft в обоих порядках и после restart; superseded committed operation; startup после более 256 terminal operations.
 
 ### Ссылки
 
@@ -371,6 +388,7 @@ checkpoint/compaction B2 пока отсутствует. Durable apply и produ
 
 ### Задачи
 
+- [ ] Закрыть B2 checkpoint/compaction и bounded quota accounting перед editor-heavy нагрузкой; сохранить receipts/pending operations при GC/restart (→ [gate B2](#pre-apply-gate), [Profile Store](../architecture/modules/profile-store.md)).
 - [ ] До canvas подключить Tauri adapter к Application Gateway с host-derived principal и общими DTO; проверить parity command/query/error с in-process client, receipt replay и snapshot reconnect (→ [Application API](../contracts/application-api.md)).
 
 - [ ] Реализовать virtualized infinite canvas и device cards (→ [Модуль: Desktop Shell](../architecture/modules/desktop-shell.md)).
