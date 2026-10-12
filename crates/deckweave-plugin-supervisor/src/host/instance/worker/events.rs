@@ -78,7 +78,7 @@ pub(super) fn receive(
             }
         }
         Err(ProcessError::Timeout) => return false,
-        Err(_) => {
+        Err(error) => {
             instance
                 .failed_release
                 .store(true, std::sync::atomic::Ordering::SeqCst);
@@ -99,7 +99,7 @@ pub(super) fn receive(
             }
             health.update(instance.health_entry(
                 RuntimeHealthStatus::Unavailable,
-                Some("plugin process exited".into()),
+                Some(format!("plugin transport unavailable: {error}")),
             ));
             topology_faults(instance, activation_epoch, sink);
             return true;

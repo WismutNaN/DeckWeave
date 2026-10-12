@@ -9,6 +9,8 @@ use deckweave_protocol::{
     },
 };
 use std::{error::Error, io, process::Command, time::Duration};
+#[path = "virtual_plugin_held.rs"]
+mod held;
 
 const DESCRIPTOR: &str =
     include_str!("../../../../protocol/fixtures/descriptors/observe-keyboard.node.json");
@@ -143,6 +145,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     let mut pending_signals: Vec<Signal> = Vec::new();
+    let mut held = held::HeldOutputs::default();
     loop {
         let Some(envelope) = read_envelope(&mut stdin, maximum)? else {
             return Ok(());
@@ -161,6 +164,54 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
             }
             Some(protocol_envelope::Body::LocaleContext(context)) => {
+                if std::env::current_exe()?
+                    .with_file_name("mixed-flood")
+                    .exists()
+                {
+                    use std::io::Write;
+                    let signals = m1_signals()?;
+                    let mut burst = Vec::new();
+                    for index in 0..1024 {
+                        let mut signal = if index % 8 == 0 {
+                            signals[0].clone()
+                        } else {
+                            signals[2].clone()
+                        };
+                        if index % 8 == 0 {
+                            signal.payload = Some(json_payload(
+                                "org.deckweave.schema.boolean",
+                                &serde_json::json!(false),
+                            )?);
+                        }
+                        signal.sequence = 100 + index;
+                        message_id += 1;
+                        send(
+                            &mut burst,
+                            maximum,
+                            generation,
+                            message_id,
+                            protocol_envelope::Body::Signal(signal),
+                        )?;
+                    }
+                    stdout.write_all(&burst)?;
+                    stdout.flush()?;
+                }
+                if let Some(request) = held.on_locale()? {
+                    message_id += 1;
+                    send(
+                        &mut stdout,
+                        maximum,
+                        generation,
+                        message_id,
+                        protocol_envelope::Body::JobOutcome(TerminalOutcome {
+                            invocation_id: request.invocation_id,
+                            result: Some(terminal_outcome::Result::Succeeded(json_payload(
+                                "org.deckweave.schema.text",
+                                &serde_json::json!("held complete"),
+                            )?)),
+                        }),
+                    )?;
+                }
                 std::fs::write(
                     std::env::current_exe()?.with_file_name("locale.json"),
                     serde_json::to_vec(
@@ -177,6 +228,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                 };
                 if cleanup_mode == "ignore" {
                     continue;
+                }
+                if cleanup_mode != "reject" {
+                    held.cleanup(&request)?;
                 }
                 message_id += 1;
                 send(
@@ -273,6 +327,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                         ))),
                     }),
                 )?;
+                if held.hold(&request)? {
+                    continue;
+                }
                 message_id += 1;
                 send(
                     &mut stdout,

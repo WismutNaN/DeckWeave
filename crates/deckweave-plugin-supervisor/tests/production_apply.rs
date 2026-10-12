@@ -57,6 +57,8 @@ mod cleanup_receipts;
 mod configured_instances;
 #[path = "support/credentials.rs"]
 mod credentials;
+#[path = "support/held_outputs.rs"]
+mod held_outputs;
 #[path = "support/m1_fixture.rs"]
 mod m1_fixture;
 #[path = "support/production_apply_crash.rs"]
