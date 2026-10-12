@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-use deckweave_domain::ids::{
-    DedupEpoch, DraftId, DraftVersion, IdempotencyKey, PrincipalId, WorkspaceId,
-};
+use deckweave_domain::ids::{DraftId, DraftVersion, IdempotencyKey, PrincipalId, WorkspaceId};
 use deckweave_platform::{AtomicFileStore, StorageError};
 use deckweave_platform_host::NativeAtomicFileStore;
 use deckweave_profiles::{
-    DraftCommand, DraftEditor, DraftMutationError, JsonProfileStore, MutationKey,
-    ProfileStoreLimits, WorkspaceDraft,
+    DraftCommand, DraftEditor, DraftMutationError, JsonProfileStore, MutationClock, MutationKey,
+    ProfileStoreError, ProfileStoreLimits, WorkspaceDraft,
 };
 use sha2::{Digest, Sha256};
 use std::{
@@ -16,7 +14,7 @@ use std::{
     path::Path,
     sync::{
         Arc,
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicU64, AtomicUsize, Ordering},
     },
 };
 
@@ -36,10 +34,19 @@ fn draft() -> Result<WorkspaceDraft, Box<dyn Error>> {
     })
 }
 
-fn mutation_key(id: &str) -> Result<MutationKey, Box<dyn Error>> {
+fn another_draft() -> Result<WorkspaceDraft, Box<dyn Error>> {
+    let mut draft = draft()?;
+    draft.draft_id = DraftId::try_new("draft-other")?;
+    draft.workspace_id = WorkspaceId::try_new("workspace-other")?;
+    Ok(draft)
+}
+
+fn mutation_key(store: &JsonProfileStore, id: &str) -> Result<MutationKey, Box<dyn Error>> {
+    let principal_id = PrincipalId::try_new("local-user")?;
+    let window = store.open_mutation_window(&principal_id)?;
     Ok(MutationKey {
-        principal_id: PrincipalId::try_new("local-user")?,
-        dedup_epoch: DedupEpoch::try_new("boot-1")?,
+        principal_id,
+        dedup_epoch: window.dedup_epoch,
         idempotency_key: IdempotencyKey::try_new(id)?,
     })
 }
@@ -62,7 +69,7 @@ fn mutation_is_durable_and_deduplication_precedes_version_check() -> Result<(), 
         pointer: "/title".into(),
         value: serde_json::json!("Durable"),
     };
-    let key = mutation_key("request-1")?;
+    let key = mutation_key(&store, "request-1")?;
 
     let first = store.mutate_draft(&original.draft_id, key.clone(), original.version, &command)?;
     assert!(!first.replayed);
@@ -87,7 +94,7 @@ fn mutation_is_durable_and_deduplication_precedes_version_check() -> Result<(), 
     assert!(matches!(
         store.mutate_draft(
             &original.draft_id,
-            mutation_key("request-2")?,
+            mutation_key(&store, "request-2")?,
             original.version,
             &command,
         ),
@@ -113,7 +120,7 @@ fn undo_and_redo_are_bounded_session_state() -> Result<(), Box<dyn Error>> {
     let mut editor = DraftEditor::open(Arc::clone(&store), original.draft_id.clone(), 2)?;
 
     editor.apply(
-        mutation_key("apply-1")?,
+        mutation_key(&store, "apply-1")?,
         original.version,
         DraftCommand::Set {
             pointer: "/count".into(),
@@ -124,7 +131,7 @@ fn undo_and_redo_are_bounded_session_state() -> Result<(), Box<dyn Error>> {
     assert!(!editor.has_redo());
 
     let undo = editor
-        .undo(mutation_key("undo-1")?)?
+        .undo(mutation_key(&store, "undo-1")?)?
         .ok_or_else(|| std::io::Error::other("missing undo entry"))?;
     assert_eq!(undo.receipt.after_version.get(), 3);
     assert_eq!(
@@ -134,7 +141,7 @@ fn undo_and_redo_are_bounded_session_state() -> Result<(), Box<dyn Error>> {
     assert!(editor.has_redo());
 
     let redo = editor
-        .redo(mutation_key("redo-1")?)?
+        .redo(mutation_key(&store, "redo-1")?)?
         .ok_or_else(|| std::io::Error::other("missing redo entry"))?;
     assert_eq!(redo.receipt.after_version.get(), 4);
     assert_eq!(
@@ -153,6 +160,28 @@ struct FailOnCall {
     fail_on: usize,
 }
 
+struct TestClock {
+    now: AtomicU64,
+}
+
+impl TestClock {
+    fn new(now: u64) -> Self {
+        Self {
+            now: AtomicU64::new(now),
+        }
+    }
+
+    fn set(&self, now: u64) {
+        self.now.store(now, Ordering::SeqCst);
+    }
+}
+
+impl MutationClock for TestClock {
+    fn unix_seconds(&self) -> Result<u64, ProfileStoreError> {
+        Ok(self.now.load(Ordering::SeqCst))
+    }
+}
+
 #[test]
 fn undo_and_redo_reject_changes_from_another_editor() -> Result<(), Box<dyn Error>> {
     for redo in [false, true] {
@@ -162,7 +191,7 @@ fn undo_and_redo_reject_changes_from_another_editor() -> Result<(), Box<dyn Erro
         store.create_draft(&original)?;
         let mut editor = DraftEditor::open(Arc::clone(&store), original.draft_id.clone(), 8)?;
         editor.apply(
-            mutation_key("own-edit")?,
+            mutation_key(&store, "own-edit")?,
             original.version,
             DraftCommand::Set {
                 pointer: "/title".into(),
@@ -170,12 +199,12 @@ fn undo_and_redo_reject_changes_from_another_editor() -> Result<(), Box<dyn Erro
             },
         )?;
         if redo {
-            editor.undo(mutation_key("own-undo")?)?;
+            editor.undo(mutation_key(&store, "own-undo")?)?;
         }
         let before_external = store.load_draft(&original.draft_id)?.draft;
         store.mutate_draft(
             &original.draft_id,
-            mutation_key("external")?,
+            mutation_key(&store, "external")?,
             before_external.version,
             &DraftCommand::Set {
                 pointer: "/external".into(),
@@ -184,9 +213,9 @@ fn undo_and_redo_reject_changes_from_another_editor() -> Result<(), Box<dyn Erro
         )?;
         let expected = store.load_draft(&original.draft_id)?.draft;
         let result = if redo {
-            editor.redo(mutation_key("redo")?)
+            editor.redo(mutation_key(&store, "redo")?)
         } else {
-            editor.undo(mutation_key("undo")?)
+            editor.undo(mutation_key(&store, "undo")?)
         };
         assert!(
             matches!(result, Err(DraftMutationError::VersionConflict { .. })),
@@ -205,7 +234,7 @@ fn accepting_a_new_version_starts_a_new_undo_history() -> Result<(), Box<dyn Err
     store.create_draft(&original)?;
     let mut editor = DraftEditor::open(Arc::clone(&store), original.draft_id.clone(), 8)?;
     editor.apply(
-        mutation_key("own-edit")?,
+        mutation_key(&store, "own-edit")?,
         original.version,
         DraftCommand::Set {
             pointer: "/title".into(),
@@ -214,7 +243,7 @@ fn accepting_a_new_version_starts_a_new_undo_history() -> Result<(), Box<dyn Err
     )?;
     store.mutate_draft(
         &original.draft_id,
-        mutation_key("external")?,
+        mutation_key(&store, "external")?,
         DraftVersion::try_new(2)?,
         &DraftCommand::Set {
             pointer: "/external".into(),
@@ -223,14 +252,14 @@ fn accepting_a_new_version_starts_a_new_undo_history() -> Result<(), Box<dyn Err
     )?;
     let external = store.load_draft(&original.draft_id)?.draft;
     editor.apply(
-        mutation_key("after-refresh")?,
+        mutation_key(&store, "after-refresh")?,
         external.version,
         DraftCommand::Set {
             pointer: "/title".into(),
             value: "After refresh".into(),
         },
     )?;
-    editor.undo(mutation_key("undo")?)?;
+    editor.undo(mutation_key(&store, "undo")?)?;
     assert_eq!(
         store.load_draft(&original.draft_id)?.draft.document,
         external.document
@@ -263,7 +292,9 @@ impl AtomicFileStore for FailOnCall {
 fn unpublished_transaction_is_ignored_and_retryable() -> Result<(), Box<dyn Error>> {
     let directory = tempfile::tempdir()?;
     let original = draft()?;
-    native_store(directory.path()).create_draft(&original)?;
+    let setup = native_store(directory.path());
+    setup.create_draft(&original)?;
+    let key = mutation_key(&setup, "retry-1")?;
     let failing = JsonProfileStore::new(
         directory.path().to_path_buf(),
         Arc::new(FailOnCall {
@@ -276,8 +307,6 @@ fn unpublished_transaction_is_ignored_and_retryable() -> Result<(), Box<dyn Erro
         pointer: "/title".into(),
         value: serde_json::json!("Published after retry"),
     };
-    let key = mutation_key("retry-1")?;
-
     assert!(matches!(
         failing.mutate_draft(&original.draft_id, key.clone(), original.version, &command),
         Err(DraftMutationError::Store(_))
@@ -292,6 +321,153 @@ fn unpublished_transaction_is_ignored_and_retryable() -> Result<(), Box<dyn Erro
 }
 
 #[test]
+fn pending_mutation_recovers_failures_around_head_and_receipt_publication()
+-> Result<(), Box<dyn Error>> {
+    for fail_on in [3, 4] {
+        let directory = tempfile::tempdir()?;
+        let original = draft()?;
+        let setup = native_store(directory.path());
+        setup.create_draft(&original)?;
+        let key = mutation_key(&setup, &format!("recover-{fail_on}"))?;
+        let failing = JsonProfileStore::new(
+            directory.path().to_path_buf(),
+            Arc::new(FailOnCall {
+                call: AtomicUsize::new(0),
+                fail_on,
+            }),
+            ProfileStoreLimits::default(),
+        );
+        let command = DraftCommand::Set {
+            pointer: "/title".into(),
+            value: serde_json::json!(format!("Recovered {fail_on}")),
+        };
+
+        assert!(matches!(
+            failing.mutate_draft(&original.draft_id, key.clone(), original.version, &command),
+            Err(DraftMutationError::Store(_))
+        ));
+
+        let reopened = native_store(directory.path());
+        let loaded = reopened.load_draft(&original.draft_id)?;
+        assert_eq!(loaded.draft.version.get(), 2, "fail_on={fail_on}");
+        assert_eq!(
+            loaded.draft.document["title"],
+            format!("Recovered {fail_on}"),
+            "fail_on={fail_on}"
+        );
+        let replay = reopened.mutate_draft(&original.draft_id, key, original.version, &command)?;
+        assert!(replay.replayed, "fail_on={fail_on}");
+    }
+    Ok(())
+}
+
+#[test]
+fn mutation_key_is_global_across_drafts_and_survives_restart() -> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    let store = native_store(directory.path());
+    let first_draft = draft()?;
+    let second_draft = another_draft()?;
+    store.create_draft(&first_draft)?;
+    store.create_draft(&second_draft)?;
+    let key = mutation_key(&store, "global-key")?;
+    let command = DraftCommand::Set {
+        pointer: "/title".into(),
+        value: serde_json::json!("First target"),
+    };
+    store.mutate_draft(
+        &first_draft.draft_id,
+        key.clone(),
+        first_draft.version,
+        &command,
+    )?;
+
+    let reopened = native_store(directory.path());
+    assert!(matches!(
+        reopened.mutate_draft(&second_draft.draft_id, key, second_draft.version, &command,),
+        Err(DraftMutationError::IdempotencyConflict)
+    ));
+    assert_eq!(
+        reopened.load_draft(&second_draft.draft_id)?.draft,
+        second_draft
+    );
+    Ok(())
+}
+
+#[test]
+fn expired_or_unknown_mutation_windows_are_rejected_before_replay() -> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    let clock = Arc::new(TestClock::new(100));
+    let limits = ProfileStoreLimits {
+        dedup_window_seconds: 10,
+        ..ProfileStoreLimits::default()
+    };
+    let store = JsonProfileStore::with_mutation_clock(
+        directory.path().to_path_buf(),
+        Arc::new(NativeAtomicFileStore),
+        limits,
+        Arc::clone(&clock) as Arc<dyn MutationClock>,
+    );
+    let original = draft()?;
+    store.create_draft(&original)?;
+    let key = mutation_key(&store, "expires")?;
+    let command = DraftCommand::Set {
+        pointer: "/title".into(),
+        value: serde_json::json!("Committed"),
+    };
+    store.mutate_draft(&original.draft_id, key.clone(), original.version, &command)?;
+
+    clock.set(110);
+    assert!(matches!(
+        store.mutate_draft(&original.draft_id, key, original.version, &command),
+        Err(DraftMutationError::IdempotencyExpired)
+    ));
+    let renewed = store.open_mutation_window(&PrincipalId::try_new("local-user")?)?;
+    assert_eq!(renewed.issued_at_unix_seconds, 110);
+    Ok(())
+}
+
+#[test]
+fn receipt_quota_stops_new_mutations_without_changing_the_draft() -> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    let limits = ProfileStoreLimits {
+        maximum_mutation_receipts: 1,
+        ..ProfileStoreLimits::default()
+    };
+    let store = JsonProfileStore::new(
+        directory.path().to_path_buf(),
+        Arc::new(NativeAtomicFileStore),
+        limits,
+    );
+    let original = draft()?;
+    store.create_draft(&original)?;
+    store.mutate_draft(
+        &original.draft_id,
+        mutation_key(&store, "quota-first")?,
+        original.version,
+        &DraftCommand::Set {
+            pointer: "/first".into(),
+            value: true.into(),
+        },
+    )?;
+    let before_rejected = store.load_draft(&original.draft_id)?.draft;
+
+    assert!(matches!(
+        store.mutate_draft(
+            &original.draft_id,
+            mutation_key(&store, "quota-second")?,
+            before_rejected.version,
+            &DraftCommand::Set {
+                pointer: "/second".into(),
+                value: true.into(),
+            },
+        ),
+        Err(DraftMutationError::ReceiptQuota)
+    ));
+    assert_eq!(store.load_draft(&original.draft_id)?.draft, before_rejected);
+    Ok(())
+}
+
+#[test]
 fn corrupt_primary_head_falls_back_to_last_published_backup() -> Result<(), Box<dyn Error>> {
     let directory = tempfile::tempdir()?;
     let store = native_store(directory.path());
@@ -299,7 +475,7 @@ fn corrupt_primary_head_falls_back_to_last_published_backup() -> Result<(), Box<
     store.create_draft(&original)?;
     store.mutate_draft(
         &original.draft_id,
-        mutation_key("head-1")?,
+        mutation_key(&store, "head-1")?,
         original.version,
         &DraftCommand::Set {
             pointer: "/title".into(),
@@ -321,7 +497,7 @@ fn corrupt_primary_head_falls_back_to_last_published_backup() -> Result<(), Box<
 
     store.mutate_draft(
         &original.draft_id,
-        mutation_key("head-recovery-write")?,
+        mutation_key(&store, "head-recovery-write")?,
         original.version,
         &DraftCommand::Set {
             pointer: "/title".into(),

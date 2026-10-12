@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use super::*;
-use deckweave_domain::ids::{DraftId, DraftVersion};
+use deckweave_domain::ids::{DraftId, DraftVersion, PrincipalId};
 use deckweave_workspace::{
-    DraftEditError, DraftRepository, DraftRepositoryError, DraftView, StoredDraftMutation,
-    preview_draft_mutation as edit_draft, validate_draft,
+    DraftEditError, MutationWindow, preview_draft_mutation as edit_draft, validate_draft,
 };
 use serde::{Deserialize, Serialize};
 #[path = "editor.rs"]
 mod editor;
 pub use editor::DraftEditor;
+mod ledger;
+use ledger::MutationLedgerRecord;
+mod repository;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -43,6 +45,10 @@ pub enum DraftMutationError {
     VersionConflict { expected: u64, current: u64 },
     #[error("idempotency key already belongs to another payload")]
     IdempotencyConflict,
+    #[error("idempotency window is unknown or expired")]
+    IdempotencyExpired,
+    #[error("mutation receipt quota is exhausted")]
+    ReceiptQuota,
     #[error("draft command is invalid: {0}")]
     InvalidCommand(String),
     #[error("draft version counter exhausted")]
@@ -82,6 +88,7 @@ impl JsonProfileStore {
             .mutation_lock
             .lock()
             .map_err(|_| ProfileStoreError::LockPoisoned)?;
+        self.recover_pending_mutations()?;
         let head_path = self.draft_head_path(&draft.draft_id);
         if head_path.exists() {
             let loaded = self.load_draft_chain(&draft.draft_id)?;
@@ -112,6 +119,11 @@ impl JsonProfileStore {
     }
 
     pub fn load_draft(&self, draft_id: &DraftId) -> Result<LoadedDraft, DraftMutationError> {
+        let _guard = self
+            .mutation_lock
+            .lock()
+            .map_err(|_| ProfileStoreError::LockPoisoned)?;
+        self.recover_pending_mutations()?;
         let chain = self.load_draft_chain(draft_id)?;
         Ok(LoadedDraft {
             draft: chain.transaction.draft,
@@ -140,20 +152,15 @@ impl JsonProfileStore {
             .mutation_lock
             .lock()
             .map_err(|_| ProfileStoreError::LockPoisoned)?;
+        self.recover_pending_mutations()?;
+        self.validate_mutation_key(&key)?;
+        let fingerprint = mutation_fingerprint(draft_id, expected_version, command)?;
+        if let Some(outcome) = self.lookup_mutation(&key, &fingerprint)? {
+            return Ok(outcome);
+        }
         let chain = self.load_draft_chain(draft_id)?;
         if chain.recovered_from_backup {
             self.repair_draft_head(&chain.head)?;
-        }
-        let fingerprint = mutation_fingerprint(draft_id, expected_version, command)?;
-        if let Some((receipt, draft)) = self.find_receipt(&chain, &key)? {
-            if receipt.payload_fingerprint == fingerprint {
-                return Ok(MutationOutcome {
-                    draft,
-                    receipt,
-                    replayed: true,
-                });
-            }
-            return Err(DraftMutationError::IdempotencyConflict);
         }
         if chain.transaction.draft.version != expected_version {
             return Err(DraftMutationError::VersionConflict {
@@ -177,21 +184,40 @@ impl JsonProfileStore {
         };
         let transaction = DraftTransaction {
             storage_version: STORAGE_VERSION,
-            previous_transaction_sha256: Some(chain.head.transaction_sha256),
+            previous_transaction_sha256: Some(chain.head.transaction_sha256.clone()),
             draft: next,
             receipt: Some(receipt.clone()),
         };
         let transaction_sha256 = self.write_draft_transaction(&transaction)?;
+        let ledger_record = MutationLedgerRecord::new(
+            chain.head.transaction_sha256,
+            transaction_sha256.clone(),
+            receipt.clone(),
+        );
+        self.begin_mutation(&ledger_record)?;
         self.publish_draft_head(&DraftHead {
             storage_version: STORAGE_VERSION,
             draft_id: draft_id.clone(),
             transaction_sha256,
         })?;
+        self.commit_mutation(&ledger_record)?;
         Ok(MutationOutcome {
             draft: transaction.draft,
             receipt,
             replayed: false,
         })
+    }
+
+    pub fn open_mutation_window(
+        &self,
+        principal_id: &PrincipalId,
+    ) -> Result<MutationWindow, DraftMutationError> {
+        let _guard = self
+            .mutation_lock
+            .lock()
+            .map_err(|_| ProfileStoreError::LockPoisoned)?;
+        self.recover_pending_mutations()?;
+        self.open_mutation_window_locked(principal_id)
     }
 
     fn draft_directory(&self, draft_id: &DraftId) -> PathBuf {
@@ -315,94 +341,6 @@ impl JsonProfileStore {
         validate_draft(&transaction.draft)
             .map_err(|error| DraftMutationError::InvalidCommand(error.to_string()))?;
         Ok(transaction)
-    }
-
-    fn find_receipt(
-        &self,
-        chain: &DraftChainHead,
-        key: &MutationKey,
-    ) -> Result<Option<(MutationReceipt, WorkspaceDraft)>, DraftMutationError> {
-        let draft_id = &chain.transaction.draft.draft_id;
-        let mut current = Some(chain.head.transaction_sha256.clone());
-        for _ in 0..self.limits.maximum_draft_transactions {
-            let Some(sha256) = current else {
-                return Ok(None);
-            };
-            let transaction = self.read_transaction(draft_id, &sha256)?;
-            if let Some(receipt) = transaction.receipt
-                && receipt.key == *key
-            {
-                return Ok(Some((receipt, transaction.draft)));
-            }
-            current = transaction.previous_transaction_sha256;
-        }
-        Err(DraftMutationError::HistoryLimit)
-    }
-}
-
-impl DraftRepository for JsonProfileStore {
-    fn get_draft(&self, draft_id: &DraftId) -> Result<DraftView, DraftRepositoryError> {
-        let draft = self
-            .load_draft(draft_id)
-            .map_err(map_application_store_error)?
-            .draft;
-        Ok(draft_view(draft))
-    }
-
-    fn preview_draft_mutation(
-        &self,
-        draft_id: &DraftId,
-        expected_version: DraftVersion,
-        command: &DraftCommand,
-    ) -> Result<DraftView, DraftRepositoryError> {
-        JsonProfileStore::preview_draft_mutation(self, draft_id, expected_version, command)
-            .map(draft_view)
-            .map_err(map_application_store_error)
-    }
-
-    fn mutate_draft(
-        &self,
-        draft_id: &DraftId,
-        key: MutationKey,
-        expected_version: DraftVersion,
-        command: &DraftCommand,
-    ) -> Result<StoredDraftMutation, DraftRepositoryError> {
-        let outcome =
-            JsonProfileStore::mutate_draft(self, draft_id, key, expected_version, command)
-                .map_err(map_application_store_error)?;
-        Ok(StoredDraftMutation {
-            draft: draft_view(outcome.draft),
-            key: outcome.receipt.key,
-            before_version: outcome.receipt.before_version,
-            after_version: outcome.receipt.after_version,
-            document_sha256: outcome.receipt.document_sha256,
-            replayed: outcome.replayed,
-        })
-    }
-}
-
-fn draft_view(draft: WorkspaceDraft) -> DraftView {
-    DraftView {
-        draft_id: draft.draft_id,
-        workspace_id: draft.workspace_id,
-        base_revision_id: draft.base_revision_id,
-        version: draft.version,
-        document: draft.document,
-    }
-}
-
-fn map_application_store_error(error: DraftMutationError) -> DraftRepositoryError {
-    match error {
-        DraftMutationError::Store(ProfileStoreError::NotFound) => DraftRepositoryError::NotFound,
-        DraftMutationError::Store(ProfileStoreError::InvalidDocument(message))
-        | DraftMutationError::InvalidCommand(message) => {
-            DraftRepositoryError::InvalidCommand(message)
-        }
-        DraftMutationError::VersionConflict { expected, current } => {
-            DraftRepositoryError::VersionConflict { expected, current }
-        }
-        DraftMutationError::IdempotencyConflict => DraftRepositoryError::IdempotencyConflict,
-        other => DraftRepositoryError::Unavailable(other.to_string()),
     }
 }
 

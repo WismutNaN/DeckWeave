@@ -128,7 +128,7 @@
 - [x] A2 — owner-scoped leases и точечный cleanup session/prepare/probe owner.
 - [x] A3 — атомарная initial registration без пустой session и без разрушения прежней topology.
 - [x] C1 — bounded/nonblocking process transport и независимый kill path.
-- [ ] B1 — global mutation ledger, issued epochs, recovery и bounded quota/index.
+- [x] B1 — global mutation ledger, issued epochs, recovery и bounded quota/index.
 - [ ] D — candidate/compiler/activation ports и fenced plan token.
 - [ ] C2 — production runtime coordinator через public application path.
 - [ ] E0 — publication outcomes и disk reconciliation для неоднозначного replace.
@@ -287,7 +287,9 @@ Export переносит выбранные revision contents как portable t
 срез добавил transport-independent command/query ApplicationService и in-process client. Profiles
 реализует DraftRepository port, а Application Gateway проверяет principal scopes, expected DraftVersion и stable API errors.
 Dry-run использует тот же command vocabulary, но не пишет draft и не резервирует idempotency key;
-повтор mutation после restart читает durable receipt и согласованный исторический document. Global dedup windows, production runtime coordination и apply пока отсутствуют; порядок закрытия задаёт [gate A–E](#pre-apply-gate).
+повтор mutation после restart читает durable receipt и согласованный исторический document. B1 добавил
+авторизованную выдачу persisted dedup windows, global receipt index, expiry/quota и recovery pending commit;
+checkpoint/compaction B2, production runtime coordination и apply пока отсутствуют. Порядок закрытия задаёт [gate A–E](#pre-apply-gate).
 
 ### Задачи
 
@@ -297,8 +299,8 @@ Dry-run использует тот же command vocabulary, но не пише�
 - [x] Реализовать transport-independent ApplicationService и expected draft revision (→ [Модуль: Local API](../architecture/modules/local-api.md)).
 - [ ] Реализовать OperationId, durable operation tracking и status queries через Application Gateway (→ [Модуль: Local API](../architecture/modules/local-api.md)).
 - [ ] Реализовать Host apply skeleton с durable commit record, barrier, disruption/degraded policy, package lock и operation receipts (→ [ADR-0012](../decisions/0012-apply-and-execution-lifecycle.md), [Модуль: Host Runtime](../architecture/modules/host-runtime.md)).
-- [x] Проверять principals/scopes внутри ApplicationService, per-draft durable dedup до revision check, dry-run без effects (→ [API](../contracts/application-api.md#идемпотентность-и-dry-run)).
-- [ ] Завершить global dedup/expiry, identity/ownership, runtime coordination и storage reconciliation по [gate A–E](#pre-apply-gate) до объявления apply готовым.
+- [x] Проверять principals/scopes внутри ApplicationService, global durable dedup/expiry до revision check, dry-run без effects (→ [API](../contracts/application-api.md#идемпотентность-и-dry-run)).
+- [ ] Завершить identity/ownership, runtime coordination, storage reconciliation и позднюю compaction по [gate A–E](#pre-apply-gate) до объявления apply готовым.
 - [x] Добавить in-process test client; HTTP/WS transport отложить до Фазы 16 (→ [Application API](../contracts/application-api.md)).
 
 ### Тесты

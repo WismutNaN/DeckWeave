@@ -15,6 +15,15 @@ pub struct MutationKey {
     pub idempotency_key: IdempotencyKey,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MutationWindow {
+    pub principal_id: PrincipalId,
+    pub dedup_epoch: DedupEpoch,
+    pub issued_at_unix_seconds: u64,
+    pub expires_at_unix_seconds: u64,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DraftView {
@@ -33,6 +42,10 @@ pub enum DraftRepositoryError {
     VersionConflict { expected: u64, current: u64 },
     #[error("idempotency key belongs to another payload")]
     IdempotencyConflict,
+    #[error("idempotency window is unknown or expired")]
+    IdempotencyExpired,
+    #[error("mutation receipt quota is exhausted")]
+    ReceiptQuota,
     #[error("draft command is invalid: {0}")]
     InvalidCommand(String),
     #[error("draft store is unavailable: {0}")]
@@ -51,6 +64,10 @@ pub struct StoredDraftMutation {
 }
 
 pub trait DraftRepository: Send + Sync {
+    fn open_mutation_window(
+        &self,
+        principal_id: &PrincipalId,
+    ) -> Result<MutationWindow, DraftRepositoryError>;
     fn get_draft(&self, draft_id: &DraftId) -> Result<DraftView, DraftRepositoryError>;
     fn preview_draft_mutation(
         &self,

@@ -8,6 +8,7 @@
 | Символ | Тип | Описание |
 |---|---|---|
 | `ApplicationService` | trait | Canonical commands/queries |
+| `open_mutation_window` | use case | Авторизованная выдача/возобновление persisted dedup epoch |
 | `AppCommand`, `AppQuery` | enums | Stable operations |
 | `OperationReceipt` | struct | Accepted mutation/operation ID |
 | `OperationSnapshot` | struct | Progress/result |
@@ -33,6 +34,7 @@
 - Loopback transport не слушает external interfaces.
 - MCP adapter не получает privileged bypass.
 - Повтор key возвращает прежний receipt до проверки старой revision; несовпадающий payload/истёкшее dedup window отклоняется.
+- Авторизация проверяется до выдачи окна и до replay; store различает `idempotency_expired`, conflict и исчерпанную receipt quota.
 - Snapshot/delta cursor имеет HostBootId/sequence; gap требует resync.
 - Dry-run/simulation не запускают plugin/hardware/network effects.
 

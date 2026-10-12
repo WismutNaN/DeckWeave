@@ -65,6 +65,7 @@ pub struct HostSnapshot {
 /// local HTTP/MCP adapters. Authorization stays inside the implementation.
 pub trait ApplicationService: Send + Sync {
     fn snapshot(&self) -> HostSnapshot;
+    fn open_mutation_window(&self, context: &RequestContext) -> Result<MutationWindow, ApiError>;
     fn query(&self, context: &RequestContext, query: AppQuery) -> Result<AppQueryResult, ApiError>;
     fn command(
         &self,

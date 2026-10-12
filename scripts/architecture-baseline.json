@@ -114,12 +114,6 @@
       "reason": "Lifecycle state and process coordination require characterization before separation.",
       "reviewMilestone": "Phase 4 runtime coordination"
     },
-    "crates/deckweave-profiles/src/draft.rs": {
-      "maxLines": 439,
-      "owner": "Profile Store infrastructure",
-      "reason": "Append-only transactions, receipts and recovery remain together until the apply repository and ledger slice; session editor has been extracted.",
-      "reviewMilestone": "Phase 4 apply"
-    },
     "crates/deckweave-profiles/src/export.rs": {
       "maxLines": 427,
       "owner": "Profile Store infrastructure",

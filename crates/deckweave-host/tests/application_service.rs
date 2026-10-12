@@ -66,11 +66,16 @@ fn context(principal: &str, trace: &str) -> Result<RequestContext, Box<dyn Error
     })
 }
 
-fn envelope(key: &str, value: &str, dry_run: bool) -> Result<CommandEnvelope, Box<dyn Error>> {
+fn envelope(
+    epoch: &DedupEpoch,
+    key: &str,
+    value: &str,
+    dry_run: bool,
+) -> Result<CommandEnvelope, Box<dyn Error>> {
     Ok(CommandEnvelope {
         request_id: format!("request-{key}"),
         idempotency_key: IdempotencyKey::try_new(key)?,
-        dedup_epoch: DedupEpoch::try_new("epoch-1")?,
+        dedup_epoch: epoch.clone(),
         dry_run,
         command: AppCommand::PatchDraft {
             draft_id: DraftId::try_new("draft-api")?,
@@ -113,9 +118,10 @@ fn replay_returns_the_document_committed_with_its_receipt() -> Result<(), Box<dy
         [ApiAuthScope::Read, ApiAuthScope::Draft],
     );
     let gateway = service(directory.path().to_path_buf(), Arc::clone(&authorizer))?;
-    let first = envelope("first", "First", false)?;
+    let epoch = gateway.open_mutation_window(&caller)?.dedup_epoch;
+    let first = envelope(&epoch, "first", "First", false)?;
     gateway.command(&caller, first.clone())?;
-    let mut second = envelope("second", "Second", false)?;
+    let mut second = envelope(&epoch, "second", "Second", false)?;
     let AppCommand::PatchDraft {
         expected_version, ..
     } = &mut second.command;
@@ -167,8 +173,9 @@ fn in_process_client_enforces_scopes_dry_run_conflicts_and_dedup() -> Result<(),
         [ApiAuthScope::Read, ApiAuthScope::Draft],
     );
     let host = service(directory.path().to_path_buf(), Arc::clone(&authorizer))?;
+    let epoch = host.open_mutation_window(&allowed)?.dedup_epoch;
 
-    let dry_run = host.command(&allowed, envelope("mutation-1", "Preview", true)?)?;
+    let dry_run = host.command(&allowed, envelope(&epoch, "mutation-1", "Preview", true)?)?;
     let AppCommandResult::DraftMutation {
         draft,
         receipt,
@@ -193,7 +200,7 @@ fn in_process_client_enforces_scopes_dry_run_conflicts_and_dedup() -> Result<(),
     assert_eq!(stored.version.get(), 1);
     assert_eq!(stored.document["title"], "Before");
 
-    let mutation = envelope("mutation-1", "After", false)?;
+    let mutation = envelope(&epoch, "mutation-1", "After", false)?;
     let first = host.command(&allowed, mutation.clone())?;
     let AppCommandResult::DraftMutation {
         receipt: Some(first_receipt),
@@ -221,14 +228,17 @@ fn in_process_client_enforces_scopes_dry_run_conflicts_and_dedup() -> Result<(),
     );
 
     let conflict = host
-        .command(&allowed, envelope("mutation-2", "Stale", false)?)
+        .command(&allowed, envelope(&epoch, "mutation-2", "Stale", false)?)
         .err()
         .ok_or_else(|| std::io::Error::other("stale mutation unexpectedly succeeded"))?;
     assert_eq!(conflict.code, ApiErrorCode::RevisionConflict);
     assert_eq!(conflict.details["current"], 2);
 
     let reused_key = host
-        .command(&allowed, envelope("mutation-1", "Different", false)?)
+        .command(
+            &allowed,
+            envelope(&epoch, "mutation-1", "Different", false)?,
+        )
         .err()
         .ok_or_else(|| std::io::Error::other("reused key unexpectedly succeeded"))?;
     assert_eq!(reused_key.code, ApiErrorCode::IdempotencyConflict);

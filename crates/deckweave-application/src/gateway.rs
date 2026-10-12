@@ -64,6 +64,16 @@ impl ApplicationService for ApplicationGateway {
         self.host.snapshot()
     }
 
+    fn open_mutation_window(
+        &self,
+        context: &RequestContext,
+    ) -> Result<crate::MutationWindow, ApiError> {
+        self.authorize(context, ApiAuthScope::Draft)?;
+        self.drafts
+            .open_mutation_window(&context.principal_id)
+            .map_err(|error| map_store_error(context, error))
+    }
+
     fn query(&self, context: &RequestContext, query: AppQuery) -> Result<AppQueryResult, ApiError> {
         self.authorize(context, ApiAuthScope::Read)?;
         match query {
@@ -160,6 +170,20 @@ fn map_store_error(context: &RequestContext, error: DraftRepositoryError) -> Api
             context,
             ApiErrorCode::IdempotencyConflict,
             "api.error.idempotency_conflict",
+            false,
+            BTreeMap::new(),
+        ),
+        DraftRepositoryError::IdempotencyExpired => api_error(
+            context,
+            ApiErrorCode::IdempotencyExpired,
+            "api.error.idempotency_expired",
+            false,
+            BTreeMap::new(),
+        ),
+        DraftRepositoryError::ReceiptQuota => api_error(
+            context,
+            ApiErrorCode::CapacityExceeded,
+            "api.error.mutation_receipt_quota",
             false,
             BTreeMap::new(),
         ),

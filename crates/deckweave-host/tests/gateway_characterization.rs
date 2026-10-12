@@ -2,7 +2,7 @@
 use deckweave_application::{
     ApiAuthScope, ApiErrorCode, AppCommand, AppQuery, ApplicationGateway, ApplicationService,
     CommandEnvelope, DraftCommand, DraftStore, DraftStoreError, DraftView, InMemoryApiAuthorizer,
-    RequestContext, StoredDraftMutation,
+    MutationWindow, PrincipalId, RequestContext, StoredDraftMutation,
 };
 use deckweave_domain::{
     DeploymentMode, LifecycleState,
@@ -73,6 +73,13 @@ impl CharacterizationStore {
 }
 
 impl DraftStore for CharacterizationStore {
+    fn open_mutation_window(
+        &self,
+        _principal_id: &PrincipalId,
+    ) -> Result<MutationWindow, DraftStoreError> {
+        self.fail()
+    }
+
     fn get_draft(&self, _draft_id: &DraftId) -> Result<DraftView, DraftStoreError> {
         self.fail()
     }
@@ -217,6 +224,20 @@ fn store_errors_keep_the_stable_application_error_contract() -> Result<(), Box<d
             store_error: DraftStoreError::IdempotencyConflict,
             code: ApiErrorCode::IdempotencyConflict,
             message_key: "api.error.idempotency_conflict",
+            retryable: false,
+            details: BTreeMap::new(),
+        },
+        Case {
+            store_error: DraftStoreError::IdempotencyExpired,
+            code: ApiErrorCode::IdempotencyExpired,
+            message_key: "api.error.idempotency_expired",
+            retryable: false,
+            details: BTreeMap::new(),
+        },
+        Case {
+            store_error: DraftStoreError::ReceiptQuota,
+            code: ApiErrorCode::CapacityExceeded,
+            message_key: "api.error.mutation_receipt_quota",
             retryable: false,
             details: BTreeMap::new(),
         },

@@ -5,7 +5,7 @@ use deckweave_domain::ids::{
 };
 pub use deckweave_workspace::{
     DraftCommand, DraftRepository as DraftStore, DraftRepositoryError as DraftStoreError,
-    DraftView, MutationKey, StoredDraftMutation,
+    DraftView, MutationKey, MutationWindow, StoredDraftMutation,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -98,6 +98,8 @@ pub enum ApiErrorCode {
     NotFound,
     RevisionConflict,
     IdempotencyConflict,
+    IdempotencyExpired,
+    CapacityExceeded,
     InvalidCommand,
     Internal,
 }

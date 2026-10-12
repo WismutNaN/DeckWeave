@@ -5,8 +5,8 @@ use deckweave_domain::ids::{AssetId, SnapshotId, WorkspaceId, WorkspaceRevisionI
 use deckweave_platform::{AtomicFileStore, StorageError};
 pub use deckweave_workspace::{
     AssetReference, DraftCommand, ExportSelection, ImportInspection, ImportRevisionSummary,
-    MutationKey, PackageLockEntry, RevisionExportSelection, SnapshotRef, WorkspaceDraft,
-    WorkspaceRevision,
+    MutationKey, MutationWindow, PackageLockEntry, RevisionExportSelection, SnapshotRef,
+    WorkspaceDraft, WorkspaceRevision,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -17,6 +17,8 @@ use std::{
 };
 use thiserror::Error;
 
+mod limits;
+pub use limits::{MutationClock, ProfileStoreLimits, SystemMutationClock};
 pub mod draft;
 pub use draft::{DraftEditor, DraftMutationError, LoadedDraft, MutationOutcome, MutationReceipt};
 pub mod export;
@@ -52,25 +54,6 @@ struct StoredRevision {
     revision: WorkspaceRevision,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ProfileStoreLimits {
-    pub maximum_revision_bytes: u64,
-    pub maximum_asset_bytes: u64,
-    pub maximum_draft_transactions: usize,
-    pub maximum_export_bytes: u64,
-}
-
-impl Default for ProfileStoreLimits {
-    fn default() -> Self {
-        Self {
-            maximum_revision_bytes: 16 * 1024 * 1024,
-            maximum_asset_bytes: 128 * 1024 * 1024,
-            maximum_draft_transactions: 10_000,
-            maximum_export_bytes: 512 * 1024 * 1024,
-        }
-    }
-}
-
 #[derive(Debug, Error)]
 pub enum ProfileStoreError {
     #[error("profile storage I/O failed for {path}: {source}")]
@@ -98,6 +81,8 @@ pub enum ProfileStoreError {
     AssetMetadataConflict,
     #[error("profile store mutex is poisoned")]
     LockPoisoned,
+    #[error("system clock is unavailable: {0}")]
+    Clock(String),
 }
 
 pub trait ProfileStore: Send + Sync {
@@ -132,6 +117,7 @@ pub struct JsonProfileStore {
     atomic_files: Arc<dyn AtomicFileStore>,
     limits: ProfileStoreLimits,
     mutation_lock: Mutex<()>,
+    mutation_clock: Arc<dyn MutationClock>,
 }
 
 impl JsonProfileStore {
@@ -141,11 +127,22 @@ impl JsonProfileStore {
         atomic_files: Arc<dyn AtomicFileStore>,
         limits: ProfileStoreLimits,
     ) -> Self {
+        Self::with_mutation_clock(root, atomic_files, limits, Arc::new(SystemMutationClock))
+    }
+
+    #[must_use]
+    pub fn with_mutation_clock(
+        root: PathBuf,
+        atomic_files: Arc<dyn AtomicFileStore>,
+        limits: ProfileStoreLimits,
+        mutation_clock: Arc<dyn MutationClock>,
+    ) -> Self {
         Self {
             root,
             atomic_files,
             limits,
             mutation_lock: Mutex::new(()),
+            mutation_clock,
         }
     }
 

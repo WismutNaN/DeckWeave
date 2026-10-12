@@ -21,11 +21,13 @@
 | `DraftVersion` | optimistic concurrency value |
 | `WorkspaceRevision` | immutable published document |
 | `DraftRepository` | application port для draft persistence/dedup |
+| `MutationWindow`, `MutationKey` | глобальная identity mutation и выданный Host срок её replay |
 | `ExportPolicy` / `ImportReport` | переносимая конфигурация без grants/secrets |
 
 ## Инварианты
 
 - acknowledged command увеличивает version ровно один раз и имеет durable receipt;
+- один mutation key не может принадлежать разным drafts/commands; replay предшествует optimistic version check;
 - revision не меняется после публикации;
 - rollback создаёт новый draft и затем новую revision;
 - unknown optional extension fields сохраняются round-trip;
