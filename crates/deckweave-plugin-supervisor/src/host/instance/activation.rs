@@ -101,6 +101,15 @@ impl RuntimeInstance {
             .and_then(|s| s.negotiated_features.get(FEATURE_CONFIGURED_INSTANCES))
             .copied()
             != Some(1)
+            || self
+                .controller
+                .session()
+                .and_then(|s| {
+                    s.negotiated_features
+                        .get(deckweave_protocol::FEATURE_ACTIVATION_COMMIT)
+                })
+                .copied()
+                != Some(1)
         {
             return Err(HostRuntimeError::Protocol(
                 "grouped activation is not negotiated".into(),

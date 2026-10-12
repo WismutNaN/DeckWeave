@@ -2,7 +2,7 @@
 use super::*;
 use deckweave_domain::localization::LocaleContext;
 
-fn apply_current(
+pub(super) fn apply_current(
     gateway: &ApplicationGateway,
     context: &RequestContext,
     repository: &JsonProfileStore,
