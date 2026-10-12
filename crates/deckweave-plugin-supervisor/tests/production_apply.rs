@@ -55,6 +55,8 @@ const FIXTURE: &str = env!("CARGO_BIN_EXE_deckweave-virtual-plugin-fixture");
 mod cleanup_receipts;
 #[path = "support/configured_instances.rs"]
 mod configured_instances;
+#[path = "support/credentials.rs"]
+mod credentials;
 #[path = "support/m1_fixture.rs"]
 mod m1_fixture;
 #[path = "support/production_apply_crash.rs"]

@@ -2,6 +2,8 @@
 //! Bounded, fenced command routing to active runtime workers.
 
 use super::instance::{ActiveWorker, WorkerCommand, WorkerKey};
+#[cfg(test)]
+mod tests;
 use deckweave_application::AuthorizationStore;
 use deckweave_domain::{
     automation::{DeckWeaveError, ErrorCategory},
@@ -25,6 +27,7 @@ struct DispatchState {
 
 #[derive(Clone)]
 struct WorkerRoute {
+    failed_release: Arc<std::sync::atomic::AtomicBool>,
     sender: mpsc::SyncSender<WorkerCommand>,
     grant_revision: GrantRevision,
     features: BTreeMap<String, u32>,
@@ -61,6 +64,7 @@ impl RuntimeDispatchHub {
                 (
                     worker.key().clone(),
                     WorkerRoute {
+                        failed_release: worker.failed_release(),
                         sender: worker.sender(),
                         grant_revision: worker.grant_revision(),
                         features: worker.features().clone(),
@@ -121,8 +125,14 @@ impl RuntimeIntentDispatcher for RuntimeDispatchHub {
                     .copied()
                     != Some(1)
                 {
+                    worker
+                        .failed_release
+                        .store(true, std::sync::atomic::Ordering::SeqCst);
                     failure = Some(rejected("owner_cleanup_not_negotiated"));
                 } else if worker.sender.try_send(command.clone().into()).is_err() {
+                    worker
+                        .failed_release
+                        .store(true, std::sync::atomic::Ordering::SeqCst);
                     failure = Some(rejected("owner_cleanup_queue_unavailable"));
                 }
             }

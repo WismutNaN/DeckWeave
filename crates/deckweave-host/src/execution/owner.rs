@@ -41,6 +41,8 @@ pub enum LiveExecutionError {
     MissingBinding(GraphNodeId),
     #[error("live scheduler rejected an event: {0}")]
     Scheduler(String),
+    #[error("owner cleanup could not be admitted: {0}")]
+    Cleanup(String),
 }
 
 pub(super) struct ActiveExecution {
@@ -162,12 +164,26 @@ impl LiveExecutionOwner {
                 payload,
                 source_ticks,
                 reliability,
-            } => IngressKind::Signal {
-                source: source.stable,
-                payload,
-                source_ticks,
-                reliability,
-            },
+            } => {
+                if !self
+                    .state
+                    .lock()
+                    .map_err(|_| LiveExecutionError::Poisoned)?
+                    .active
+                    .as_ref()
+                    .is_some_and(|active| {
+                        active.bindings.values().any(|binding| binding == &source)
+                    })
+                {
+                    return Ok(());
+                }
+                IngressKind::Signal {
+                    source: source.stable,
+                    payload,
+                    source_ticks,
+                    reliability,
+                }
+            }
             RuntimeEventKind::Invocation(reply) => IngressKind::Invocation { reply },
             RuntimeEventKind::TopologyFault { endpoint } => IngressKind::TopologyFault { endpoint },
             RuntimeEventKind::GrantFault => IngressKind::GrantFault,
@@ -270,6 +286,7 @@ impl LiveExecutionOwner {
 
     fn dispatch_commands(&self, commands: Vec<RuntimeCommand>) -> Result<(), LiveExecutionError> {
         let mut failures = Vec::new();
+        let mut cleanup_failure = None;
         for command in commands {
             let trace_command = command.clone();
             self.trace
@@ -285,6 +302,14 @@ impl LiveExecutionOwner {
                     .lock()
                     .map_err(|_| LiveExecutionError::Poisoned)?
                     .dispatch_rejected(&trace_command, &failure.error.code);
+                if matches!(
+                    trace_command,
+                    RuntimeCommand::CleanupAll { .. }
+                        | RuntimeCommand::CleanupRun { .. }
+                        | RuntimeCommand::Cancel { .. }
+                ) {
+                    cleanup_failure = Some(failure.error.code.clone());
+                }
                 if let Some(invocation_id) = invocation_id {
                     failures.push((invocation_id, failure));
                 }
@@ -293,7 +318,7 @@ impl LiveExecutionOwner {
         for (invocation_id, failure) in failures {
             self.publish_dispatch_failure(invocation_id, failure);
         }
-        Ok(())
+        cleanup_failure.map_or(Ok(()), |code| Err(LiveExecutionError::Cleanup(code)))
     }
 
     fn publish_dispatch_failure(

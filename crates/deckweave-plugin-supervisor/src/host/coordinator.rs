@@ -130,9 +130,10 @@ impl ProductionRuntimeCoordinator {
 
     pub fn shutdown(&self) -> Result<(), HostRuntimeError> {
         self.dispatcher.close();
-        self.execution
+        let barrier_result = self
+            .execution
             .close_barrier(elapsed_millis(self.clock))
-            .map_err(|error| HostRuntimeError::State(error.to_string()))?;
+            .map_err(|error| HostRuntimeError::State(error.to_string()));
         let (prepared, active) = {
             let mut state = self.lock_state()?;
             state.dispatcher_closed = true;
@@ -145,10 +146,10 @@ impl ProductionRuntimeCoordinator {
             .deactivate()
             .map_err(|error| HostRuntimeError::State(error.to_string()))?;
         self.dispatcher.clear();
-        if prepared_result.is_ok() && active_result.is_ok() {
+        if barrier_result.is_ok() && prepared_result.is_ok() && active_result.is_ok() {
             self.health.mark_all_stopped();
         }
-        prepared_result.and(active_result)
+        barrier_result.and(prepared_result).and(active_result)
     }
 
     pub(super) fn lock_state(
@@ -343,6 +344,11 @@ impl ProductionRuntimeCoordinator {
         operation_id: &OperationId,
         plan: &CompiledExecutionPlan,
     ) -> Result<(), HostRuntimeError> {
+        // Credential resolution may change while providers are being prepared.
+        // Repeat the scoped preflight before closing the old active plan.
+        for requirement in plan.runtime_requirements() {
+            self.resolve_requirement(requirement)?;
+        }
         let mut state = self.lock_state()?;
         let prepared = state
             .prepared

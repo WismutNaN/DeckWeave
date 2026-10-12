@@ -30,6 +30,8 @@ use deckweave_host::{
 };
 use serde_json::json;
 
+#[path = "support/cleanup_admission.rs"]
+mod cleanup_admission;
 #[path = "support/live_clock.rs"]
 mod live_clock;
 #[path = "support/ordering.rs"]

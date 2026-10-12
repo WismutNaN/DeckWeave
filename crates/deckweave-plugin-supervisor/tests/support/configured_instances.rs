@@ -3,12 +3,12 @@ use super::*;
 use deckweave_domain::{ids::PluginInstanceId, localization::LocaleContext};
 use deckweave_workspace::PluginInstanceConfiguration;
 use serde_json::json;
+type ConfiguredFixture = (WorkspaceDraft, Arc<dyn PlanCompiler>, PathBuf);
 
-#[test]
-fn static_catalog_activates_two_accounts_in_one_process_and_recovers_settings()
--> Result<(), Box<dyn Error>> {
-    let directory = tempfile::tempdir()?;
-    let root = directory.path();
+pub(super) fn configured_fixture(
+    root: &Path,
+    credentials: bool,
+) -> Result<ConfiguredFixture, Box<dyn Error>> {
     let hash = stage_named_package(
         root,
         "first",
@@ -54,7 +54,14 @@ fn static_catalog_activates_two_accounts_in_one_process_and_recovers_settings()
                 settings_revision: index as u64 + 1,
                 settings_schema: settings_schema.clone(),
                 settings: json!({"account":format!("user-{index}")}),
-                credentials: BTreeMap::new(),
+                credentials: if credentials {
+                    BTreeMap::from([(
+                        "token".into(),
+                        deckweave_domain::ids::CredentialRef::try_new(format!("account-{index}"))?,
+                    )])
+                } else {
+                    BTreeMap::new()
+                },
                 service_bindings: BTreeMap::new(),
                 required_features: BTreeMap::new(),
                 extensions: BTreeMap::new(),
@@ -75,6 +82,15 @@ fn static_catalog_activates_two_accounts_in_one_process_and_recovers_settings()
     )?);
     let compiler =
         Arc::new(deckweave_plugin_supervisor::package::PackageGraphCompiler::new(packages));
+    Ok((draft, compiler, package_root))
+}
+
+#[test]
+fn static_catalog_activates_two_accounts_in_one_process_and_recovers_settings()
+-> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    let root = directory.path();
+    let (draft, compiler, package_root) = configured_fixture(root, false)?;
     let repository = Arc::new(JsonProfileStore::new(
         root.join("profiles"),
         Arc::new(NativeAtomicFileStore),

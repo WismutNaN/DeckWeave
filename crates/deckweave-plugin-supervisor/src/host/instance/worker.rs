@@ -132,6 +132,9 @@ impl ActiveWorker {
     pub(crate) fn sender(&self) -> mpsc::SyncSender<WorkerCommand> {
         self.sender.clone()
     }
+    pub(crate) fn failed_release(&self) -> Arc<std::sync::atomic::AtomicBool> {
+        self.failed_release.clone()
+    }
     pub(crate) fn key(&self) -> &WorkerKey {
         &self.key
     }
@@ -330,6 +333,9 @@ fn dispatch(
             wire::command_body(command)
         {
             instance.cleanup_failed = true;
+            instance
+                .failed_release
+                .store(true, std::sync::atomic::Ordering::SeqCst);
             instance.cleanups.remove(&cleanup.cleanup_id);
             sink.publish(RuntimeEvent {
                 activation_epoch,
