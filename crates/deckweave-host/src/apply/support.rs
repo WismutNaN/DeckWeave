@@ -96,10 +96,11 @@ pub(super) fn map_planning_error(error: ApplyPlanningError) -> ApplyUseCaseError
         ApplyPlanningError::PreconditionChanged(field) => {
             ApplyUseCaseError::PreconditionChanged(format!("{field:?}"))
         }
-        ApplyPlanningError::Compile(error) => ApplyUseCaseError::InvalidPlan(error.to_string()),
-        ApplyPlanningError::DisruptionNotAllowed => {
-            ApplyUseCaseError::InvalidPlan("disruptive handoff was not allowed".into())
+        ApplyPlanningError::Compile(deckweave_automation::PlanCompileError::Diagnostics(items)) => {
+            ApplyUseCaseError::Diagnostics(items)
         }
+        ApplyPlanningError::Compile(error) => ApplyUseCaseError::InvalidPlan(error.to_string()),
+        ApplyPlanningError::DisruptionNotAllowed => ApplyUseCaseError::DisruptionRequired,
         other => ApplyUseCaseError::Unavailable(other.to_string()),
     }
 }

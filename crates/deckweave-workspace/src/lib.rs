@@ -5,6 +5,8 @@ mod apply;
 mod binding;
 mod candidate;
 mod command;
+mod diagnostic;
+pub use diagnostic::DraftDiagnostic;
 mod model;
 mod plugin_instance;
 pub mod plugin_services;

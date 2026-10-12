@@ -19,6 +19,7 @@ const MANIFEST_NAME: &str = "deckweave-plugin.json";
 const MAX_MANIFEST_BYTES: u64 = 1024 * 1024;
 mod catalog;
 mod editor;
+mod instance_templates;
 mod lookup;
 mod planning;
 mod projection;

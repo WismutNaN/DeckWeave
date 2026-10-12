@@ -104,6 +104,21 @@ impl ApplicationService for ApplicationGateway {
 
     fn query(&self, context: &RequestContext, query: AppQuery) -> Result<AppQueryResult, ApiError> {
         match query {
+            AppQuery::ActiveDocument => {
+                self.authorize(context, ApiAuthScope::Read)?;
+                self.editor
+                    .active_document()
+                    .map(AppQueryResult::ActiveDocument)
+                    .map_err(|_| {
+                        api_error(
+                            context,
+                            ApiErrorCode::Unavailable,
+                            "api.error.editor_unavailable",
+                            true,
+                            BTreeMap::new(),
+                        )
+                    })
+            }
             AppQuery::EditorSnapshot => {
                 self.authorize(context, ApiAuthScope::Read)?;
                 self.editor

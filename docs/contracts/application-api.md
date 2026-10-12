@@ -232,3 +232,10 @@ Stable codes отделены от локализованного текста. 
 - OpenAction WebSocket;
 - SQLite/cache layout;
 - log file format.
+
+Phase 6 editor additions: `ActiveDocument` returns the persisted active selection and
+its document under Read authorization for the review diff. Compiler validation errors
+include bounded `diagnostics` entries `{code,nodeId,field}` in the existing error DTO;
+field values, credentials and private payloads are excluded. A disruptive planning
+request without consent returns `api.error.disruption_required`; the editor must request
+a fresh plan with explicit consent, then apply that plan's exact preconditions.

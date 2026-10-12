@@ -53,3 +53,62 @@ fn cleanup_overflow_marks_failed_owner_and_still_releases_other_workers()
     );
     Ok(())
 }
+
+#[test]
+fn configured_feedback_requires_explicit_dispatch_negotiation() -> Result<(), Box<dyn Error>> {
+    let hub = RuntimeDispatchHub::new(Arc::new(
+        deckweave_application::ScopedAuthorizationStore::default(),
+    ));
+    let epoch = ActivationEpoch::try_new(1)?;
+    let target: RuntimeEndpointRef = serde_json::from_value(serde_json::json!({
+        "stable":{"packageId":"org.fixture.configured","nodeId":"node","target":{"kind":"service","providerId":"provider","serviceId":"service"},"port":{"elementId":"button","capabilityId":"text","portId":"value"}},
+        "runtimeGroupId":"control","pluginSessionId":"session","sessionGeneration":1,"descriptorRevision":1
+    }))?;
+    let key = WorkerKey::from_endpoint(&target);
+    let (sender, receiver) = mpsc::sync_channel(1);
+    {
+        let mut state = hub.state.lock().map_err(|e| e.to_string())?;
+        state.epoch = Some(epoch);
+        state.closed = false;
+        state.workers.insert(
+            key.clone(),
+            WorkerRoute {
+                sender,
+                grant_revision: hub.authorization.revision()?,
+                features: BTreeMap::from([(FEATURE_VALUE_WRITE_ENDPOINT_PATH.into(), 1)]),
+                failed_release: Arc::new(AtomicBool::new(false)),
+            },
+        );
+    }
+    let command = RuntimeCommand::Feedback {
+        configured_instance_id: Some(deckweave_domain::ids::PluginInstanceId::try_new("work")?),
+        run_id: deckweave_domain::ids::ExecutionId::try_new("run")?,
+        graph_node_id: deckweave_domain::ids::GraphNodeId::try_new("feedback")?,
+        activation_epoch: epoch,
+        target,
+        schema: serde_json::from_value(
+            serde_json::json!({"id":"org.fixture.text","version":{"major":1,"minor":0}}),
+        )?,
+        value: serde_json::json!("test"),
+    };
+    assert_eq!(
+        hub.dispatch(command.clone())
+            .err()
+            .ok_or("expected rejection")?
+            .error
+            .code,
+        "configured_dispatch_not_negotiated"
+    );
+    assert!(receiver.try_recv().is_err());
+    hub.state
+        .lock()
+        .map_err(|e| e.to_string())?
+        .workers
+        .get_mut(&key)
+        .ok_or("worker")?
+        .features
+        .insert(deckweave_protocol::FEATURE_CONFIGURED_DISPATCH.into(), 1);
+    hub.dispatch(command.clone()).map_err(|e| e.error.code)?;
+    assert!(matches!(receiver.try_recv()?, WorkerCommand::Dispatch(actual) if *actual == command));
+    Ok(())
+}

@@ -288,6 +288,7 @@ fn exercise(
         process.send(&envelope(
             4,
             protocol_envelope::Body::Invoke(InvocationRequest {
+                configured_instance_id: None,
                 invocation_id: "controlled-1".into(),
                 run_id: "run-1".into(),
                 operation_id: "media-transport".into(),
@@ -346,6 +347,7 @@ fn exercise(
         process.send(&envelope(
             5,
             protocol_envelope::Body::Invoke(InvocationRequest {
+                configured_instance_id: None,
                 invocation_id: "window-catalog-1".into(),
                 run_id: "run-1".into(),
                 operation_id: "list-windows".into(),

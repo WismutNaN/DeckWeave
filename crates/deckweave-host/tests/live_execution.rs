@@ -452,3 +452,23 @@ fn operation(
         extensions: Default::default(),
     })
 }
+// SPDX-License-Identifier: GPL-3.0-or-later
+#[test]
+fn configured_feedback_uses_the_compiled_instance_identity() -> Result<(), Box<dyn Error>> {
+    let dispatcher = Arc::new(RecordingDispatcher::default());
+    let owner =
+        LiveExecutionOwner::new(HostBootId::try_new("boot-configured")?, dispatcher.clone());
+    let (mut graph, binding, source) = fixture()?;
+    let instance = deckweave_domain::ids::PluginInstanceId::try_new("work-account")?;
+    graph.endpoint_contracts[1].configured_instance_id = Some(instance.clone());
+    let epoch = owner.activate(
+        "configured",
+        Some(&graph),
+        Some(&binding),
+        GraphLimits::default(),
+    )?;
+    owner.publish(signal(epoch, source, true));
+    let commands = dispatcher.0.lock().map_err(|_| "lock")?;
+    assert!(commands.iter().any(|c| matches!(c, RuntimeCommand::Feedback { configured_instance_id: Some(id), .. } if id == &instance)));
+    Ok(())
+}

@@ -177,14 +177,7 @@ impl RuntimeInstance {
         ));
         for node in nodes {
             if let Some(existing) = self.nodes.iter_mut().find(|n| n.node_id == node.node_id) {
-                if existing.kind != node.kind {
-                    return Err(HostRuntimeError::Protocol("node kind conflict".into()));
-                }
-                existing.devices.extend(node.devices);
-                existing.services.extend(node.services);
-                existing
-                    .validate()
-                    .map_err(|e| HostRuntimeError::Protocol(e.to_string()))?;
+                super::merge::merge(existing, node)?;
             } else {
                 self.nodes.push(node);
             }

@@ -6,6 +6,41 @@ const ACTION_DRAG_PREFIX = "deckweave-action:";
 
 type DragWriter = Pick<DataTransfer, "setData" | "effectAllowed">;
 type DragReader = Pick<DataTransfer, "getData" | "types">;
+export type SelectionDrag = {
+  kind: "control" | "step" | "device";
+  deviceId: string;
+  controlId: string;
+  stepId?: string;
+};
+export const SELECTION_DRAG_TYPE = "application/x-deckweave-selection";
+export function writeSelectionDrag(transfer: DragWriter, value: SelectionDrag) {
+  const text = "deckweave-selection:" + JSON.stringify(value);
+  transfer.setData(SELECTION_DRAG_TYPE, text);
+  transfer.setData("text/plain", text);
+  transfer.effectAllowed = value.kind === "control" ? "copyMove" : "move";
+}
+export function readSelectionDrag(
+  transfer: DragReader | null,
+): SelectionDrag | null {
+  if (!transfer) return null;
+  const text =
+    transfer.getData(SELECTION_DRAG_TYPE) || transfer.getData("text/plain");
+  if (!text.startsWith("deckweave-selection:") || text.length > 8192)
+    return null;
+  try {
+    const value = JSON.parse(text.slice(20));
+    if (
+      ["control", "step", "device"].includes(value?.kind) &&
+      typeof value.deviceId === "string" &&
+      typeof value.controlId === "string" &&
+      (value.kind !== "step" || typeof value.stepId === "string")
+    )
+      return value;
+  } catch {
+    /* чужой drag */
+  }
+  return null;
+}
 
 function payload(endpoint: Endpoint): string {
   return ACTION_DRAG_PREFIX + JSON.stringify(endpoint);

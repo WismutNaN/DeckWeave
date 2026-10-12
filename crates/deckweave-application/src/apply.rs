@@ -43,6 +43,10 @@ pub struct ExecuteApplyRequest {
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum ApplyUseCaseError {
+    #[error("disruptive handoff requires consent")]
+    DisruptionRequired,
+    #[error("workspace validation failed")]
+    Diagnostics(Vec<deckweave_workspace::DraftDiagnostic>),
     #[error("apply target was not found")]
     NotFound,
     #[error("apply precondition changed: {0}")]

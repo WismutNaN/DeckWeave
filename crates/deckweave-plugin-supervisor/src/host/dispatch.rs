@@ -154,6 +154,23 @@ impl RuntimeIntentDispatcher for RuntimeDispatchHub {
         if worker.features.get(feature).copied() != Some(1) {
             return Err(rejected("required_endpoint_feature_not_negotiated"));
         }
+        let configured = match &command {
+            RuntimeCommand::Invoke { request, .. } => request.configured_instance_id.is_some(),
+            RuntimeCommand::Feedback {
+                configured_instance_id,
+                ..
+            } => configured_instance_id.is_some(),
+            _ => false,
+        };
+        if configured
+            && worker
+                .features
+                .get(deckweave_protocol::FEATURE_CONFIGURED_DISPATCH)
+                .copied()
+                != Some(1)
+        {
+            return Err(rejected("configured_dispatch_not_negotiated"));
+        }
         if matches!(&command, RuntimeCommand::Invoke { operation, .. } if operation.resources.iter().any(|resource| resource.hold_until_cleanup))
             && worker
                 .features

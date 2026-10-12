@@ -135,7 +135,7 @@ fn named_arguments_are_compiled_and_concurrent_run_results_remain_separate()
             "lock",
             &fence()?
         ),
-        Err(GraphCompileError::InvalidValue { .. })
+        Err(GraphCompileError::InvalidArgument { field, .. }) if field == "title"
     ));
     graph
         .graph
@@ -157,7 +157,7 @@ fn named_arguments_are_compiled_and_concurrent_run_results_remain_separate()
             "lock",
             &fence()?
         ),
-        Err(GraphCompileError::InvalidValue { .. })
+        Err(GraphCompileError::InvalidArgument { field, .. }) if field == "title"
     ));
     graph
         .graph
@@ -178,7 +178,7 @@ fn named_arguments_are_compiled_and_concurrent_run_results_remain_separate()
             "lock",
             &fence()?
         ),
-        Err(GraphCompileError::InvalidValue { .. })
+        Err(GraphCompileError::InvalidArgument { field, .. }) if field == "title"
     ));
     Ok(())
 }

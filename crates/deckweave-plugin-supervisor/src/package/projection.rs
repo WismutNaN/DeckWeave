@@ -35,6 +35,8 @@ impl PluginCatalogSource for PackageIndex {
             )
             .map_err(map_error)?;
         Ok(PluginCatalogSnapshot {
+            instance_templates: super::instance_templates::read(package, &catalog)
+                .map_err(map_error)?,
             format_version: 1,
             package: request.clone(),
             manifest_sha256: package.manifest_sha256.clone(),

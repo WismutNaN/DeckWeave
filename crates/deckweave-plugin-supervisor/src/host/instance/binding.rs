@@ -17,6 +17,21 @@ pub(super) fn runtime_bindings(
         .controller
         .session()
         .ok_or_else(|| HostRuntimeError::Protocol("runtime session is missing".into()))?;
+    if contracts.iter().any(|c| {
+        c.endpoint.package_id == session.identity.package_id
+            && c.runtime_group_id == session.identity.runtime_group_id
+            && c.configured_instance_id.is_some()
+            && c.port.direction == deckweave_domain::capability::PortDirection::Input
+    }) && session
+        .negotiated_features
+        .get(deckweave_protocol::FEATURE_CONFIGURED_DISPATCH)
+        .copied()
+        != Some(1)
+    {
+        return Err(HostRuntimeError::Protocol(
+            "configured dispatch is not negotiated".into(),
+        ));
+    }
     Ok(contracts
         .iter()
         .filter(|contract| {

@@ -167,6 +167,8 @@ message InvocationRequest {
   EndpointPath target = 9;
   // Relative budget at send time; plugins must not compare host ticks with their own clock.
   optional uint64 remaining_budget_ms = 10;
+  // Requires org.deckweave.configured_dispatch v1 when present.
+  optional string configured_instance_id = 11;
 }
 
 message OwnerCleanup {
@@ -249,6 +251,7 @@ message ValueWrite {
   uint64 descriptor_revision = 4;
   EndpointPath target = 5;
   OpaquePayload value = 6;
+  optional string configured_instance_id = 7;
 }
 
 message Heartbeat {

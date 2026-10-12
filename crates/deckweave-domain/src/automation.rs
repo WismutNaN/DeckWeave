@@ -108,6 +108,8 @@ pub struct ResolvedEndpointRoute {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CommandEnvelope {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub configured_instance_id: Option<crate::ids::PluginInstanceId>,
     pub invocation_id: InvocationId,
     pub execution_id: ExecutionId,
     pub graph_node_id: GraphNodeId,

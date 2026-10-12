@@ -86,6 +86,7 @@ export type CatalogEndpoint = {
   };
 };
 export type Catalog = {
+  instanceTemplates?: InstanceTemplate[];
   package: PackageRef;
   manifestSha256: string;
   schemas: Schema[];
@@ -94,6 +95,25 @@ export type Catalog = {
     defaultLocale: string;
     messages: Record<string, Record<string, string>>;
   } | null;
+};
+export type InstanceTemplate = {
+  contributionId: string;
+  settingsSchema: SchemaRef;
+  labelKey: string;
+  requiredFeatures: Record<string, number>;
+};
+export type DraftDiagnostic = {
+  code: string;
+  nodeId: string | null;
+  field: string | null;
+};
+export type ApplyReview = {
+  draftVersion: number;
+  expectedActive: ActiveSelection | null;
+  before: GraphDocument | null;
+  document: GraphDocument;
+  requiresDisruption: boolean;
+  consent: boolean;
 };
 export type Action = CatalogEndpoint & { catalog: Catalog; title: string };
 export type ActiveSelection = { workspaceId: string; revisionId: string };

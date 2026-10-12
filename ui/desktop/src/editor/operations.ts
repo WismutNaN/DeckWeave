@@ -2,7 +2,13 @@
 // Mutation workflow; EditorSession owns reactive selection and draft state.
 import { copy } from "./api";
 import type { EditorSession } from "./session.svelte";
-import type { Draft, Plan, Operation } from "./types";
+import type {
+  Draft,
+  Plan,
+  Operation,
+  ActiveSelection,
+  GraphDocument,
+} from "./types";
 export async function saveDraft(s: EditorSession) {
   if (s.pending && s.pending.command.type !== "patch_draft")
     throw new Error(
@@ -20,11 +26,12 @@ export async function saveDraft(s: EditorSession) {
       ),
     );
   const locks = [...s.draft.packageLock];
-  const required = new Set(
-    s.document.graph.nodes.flatMap((n) =>
+  const required = new Set([
+    ...s.document.graph.nodes.flatMap((n) =>
       n.kind.endpoint ? [n.kind.endpoint.packageId] : [],
     ),
-  );
+    ...Object.values(s.document.pluginInstances ?? {}).map((i) => i.packageId),
+  ]);
   for (const packageId of required) {
     if (locks.some((p) => p.packageId === packageId)) continue;
     const selected = s.availableCatalogs.filter(
@@ -70,23 +77,19 @@ export async function applyDraft(s: EditorSession) {
     }
     await s.save();
     if (!s.draft) return;
-    s.plan = await s.client.query<Plan>({
-      type: "plan_apply",
-      draft_id: s.draft.draftId,
-      expected_draft_version: s.draft.version,
-      expected_active: s.snapshot?.active ?? null,
-      allow_disruption: false,
-    });
-    s.pending = s.envelope({
-      type: "apply_draft",
-      draft_id: s.draft.draftId,
-      expected_draft_version: s.draft.version,
-      expected_active: s.snapshot?.active ?? null,
-      allow_disruption: false,
-      plan_hash: s.plan.planHash,
-    });
-    s.attempted = false;
-    await s.finishApply();
+    const active = await s.client.query<{
+      selection: ActiveSelection | null;
+      document: GraphDocument | null;
+    }>({ type: "active_document" });
+    s.review = {
+      draftVersion: s.draft.version,
+      expectedActive: active.selection,
+      before: active.document,
+      document: copy(s.document!),
+      requiresDisruption: false,
+      consent: false,
+    };
+    await planReview(s);
   });
 }
 export async function finishApply(s: EditorSession) {
@@ -114,4 +117,76 @@ export async function finishApply(s: EditorSession) {
           `Состояние применения: ${s.operation.state}`,
           `Apply status: ${s.operation.state}`,
         );
+}
+
+export async function planReview(s: EditorSession) {
+  if (
+    !s.review ||
+    !s.draft ||
+    s.review.draftVersion !== s.draft.version ||
+    s.dirty
+  )
+    throw new Error(
+      s.t(
+        "Черновик изменился. Проверьте изменения заново.",
+        "Draft changed. Review it again.",
+      ),
+    );
+  s.plan = null;
+  s.diagnostics = [];
+  try {
+    s.plan = await s.client.query<Plan>({
+      type: "plan_apply",
+      draft_id: s.draft.draftId,
+      expected_draft_version: s.review.draftVersion,
+      expected_active: s.review.expectedActive,
+      allow_disruption: s.review.consent,
+    });
+    s.review.requiresDisruption = s.plan.requiresDisruption;
+  } catch (error) {
+    if (
+      (error as { details?: { requiresDisruption?: boolean } }).details
+        ?.requiresDisruption
+    )
+      s.review.requiresDisruption = true;
+    else throw error;
+  }
+}
+export async function confirmApply(s: EditorSession) {
+  await s.run(async () => {
+    if (
+      !s.review ||
+      !s.draft ||
+      s.dirty ||
+      s.draft.version !== s.review.draftVersion
+    )
+      throw new Error(
+        s.t(
+          "Сначала обновите проверку изменений.",
+          "Refresh the review first.",
+        ),
+      );
+    if (s.review.requiresDisruption && !s.review.consent)
+      throw new Error(
+        s.t(
+          "Подтвердите прерывание работающих действий.",
+          "Confirm interruption of running actions.",
+        ),
+      );
+    if (!s.plan) {
+      await planReview(s);
+      return;
+    }
+    s.pending = s.envelope({
+      type: "apply_draft",
+      draft_id: s.draft.draftId,
+      expected_draft_version: s.review.draftVersion,
+      expected_active: s.review.expectedActive,
+      allow_disruption: s.plan.disruptionAllowed,
+      plan_hash: s.plan.planHash,
+    });
+    s.attempted = false;
+    await s.finishApply();
+    s.review = null;
+  });
 }

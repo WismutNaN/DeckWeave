@@ -158,6 +158,8 @@ impl DurableExecutionPlan {
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum PlanCompileError {
+    #[error("workspace validation failed")]
+    Diagnostics(Vec<deckweave_workspace::DraftDiagnostic>),
     #[error("workspace graph is not supported by the current compiler")]
     UnsupportedGraph,
     #[error("workspace graph is invalid: {0}")]

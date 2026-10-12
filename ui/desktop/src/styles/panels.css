@@ -1,4 +1,56 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+.action-chain li {
+  display: flex;
+  gap: 4px;
+}
+.action-chain li > button:first-child {
+  flex: 1;
+  min-width: 0;
+}
+.action-chain .step-reorder {
+  width: 24px;
+  padding: 0;
+  flex: 0 0 24px;
+}
+.instance-manager,
+.apply-review {
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+}
+.instance-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0;
+}
+.instance-list .active {
+  border-color: var(--accent);
+  background: var(--soft);
+}
+.review-diff {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  margin: 20px 0;
+}
+.review-diff dd {
+  margin: 0;
+  font-weight: 600;
+}
+.review-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
+.disruption-consent {
+  margin-top: 18px;
+  align-items: flex-start;
+}
+.field-invalid {
+  border-left: 2px solid var(--error);
+  padding-left: 10px;
+}
 .runtime-summary {
   position: relative;
   white-space: nowrap;

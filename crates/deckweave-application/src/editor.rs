@@ -43,6 +43,15 @@ pub struct EditorSnapshot {
 }
 pub trait EditorReadSource: Send + Sync {
     fn editor_snapshot(&self) -> Result<EditorSnapshot, String>;
+    fn active_document(&self) -> Result<ActiveDocument, String> {
+        Err("active document unavailable".into())
+    }
+}
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ActiveDocument {
+    pub selection: Option<ActiveSelection>,
+    pub document: Option<serde_json::Value>,
 }
 pub struct UnavailableEditorSource;
 impl EditorReadSource for UnavailableEditorSource {

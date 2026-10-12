@@ -17,6 +17,8 @@
   import WorkspaceCanvas from "./components/WorkspaceCanvas.svelte";
   import Inspector from "./components/Inspector.svelte";
   import DevicePicker from "./components/DevicePicker.svelte";
+  import InstanceManager from "./components/InstanceManager.svelte";
+  import ApplyReview from "./components/ApplyReview.svelte";
   import ThemeSettings from "./components/ThemeSettings.svelte";
   import Icon from "./components/Icon.svelte";
   import RuntimeStatus from "./components/RuntimeStatus.svelte";
@@ -25,6 +27,7 @@
   let ready = $state(!native),
     adding = $state(false),
     settings = $state(false),
+    connections = $state(false),
     startup = $state(false);
   const t = (ru: string, en: string) => session.t(ru, en);
   async function connect() {
@@ -128,6 +131,12 @@
           : t("Черновик сохранён", "Draft saved")}</span
     >
     <div class="header-tools">
+      <button
+        class="icon-button"
+        aria-label={t("Подключения плагинов", "Plugin connections")}
+        disabled={!session.document}
+        onclick={() => (connections = true)}><Icon name="layers" /></button
+      >
       <button
         class="icon-button"
         title={t("Отменить · Ctrl+Z", "Undo · Ctrl+Z")}
@@ -324,3 +333,10 @@
   onclose={() => (adding = false)}
   onexample={example}
 />
+
+<InstanceManager
+  {session}
+  open={connections}
+  onclose={() => (connections = false)}
+/>
+<ApplyReview {session} />

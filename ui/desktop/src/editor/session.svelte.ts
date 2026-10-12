@@ -1,11 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { copy, message, type EditorClient } from "./api";
-import { saveDraft, applyDraft, finishApply } from "./operations";
+import {
+  saveDraft,
+  applyDraft,
+  finishApply,
+  confirmApply,
+  planReview,
+} from "./operations";
 import { defaultBackground, layout, putLayout } from "./appearance";
 import { appendAction, equal, sourceFor } from "./bindings";
 import { mergeDocuments, type RecoveryJournal } from "./recovery";
 import type {
   Action,
+  ApplyReview,
+  DraftDiagnostic,
   Catalog,
   Device,
   Draft,
@@ -28,6 +36,8 @@ export class EditorSession {
     requestedLocale: "ru",
     timeZone: "UTC",
   });
+  review = $state<ApplyReview | null>(null);
+  diagnostics = $state<DraftDiagnostic[]>([]);
   busy = $state(false);
   error = $state("");
   notice = $state("");
@@ -166,6 +176,9 @@ export class EditorSession {
     try {
       await task();
     } catch (cause) {
+      this.diagnostics =
+        (cause as { details?: { diagnostics?: DraftDiagnostic[] } })?.details
+          ?.diagnostics ?? [];
       this.error = message(cause, this.lang);
     } finally {
       this.busy = false;
@@ -241,6 +254,8 @@ export class EditorSession {
       this.document = next;
       this.persist();
       this.plan = null;
+      this.review = null;
+      this.diagnostics = [];
       this.notice = "";
       this.error = "";
     } catch (cause) {
@@ -263,6 +278,8 @@ export class EditorSession {
     this.document = copy(next);
     this.persist();
     this.plan = null;
+    this.review = null;
+    this.diagnostics = [];
     this.notice = "";
   }
   select(deviceId: string, controlId = "") {
@@ -337,6 +354,12 @@ export class EditorSession {
   async apply() {
     return applyDraft(this);
   }
+  async confirmApply() {
+    return confirmApply(this);
+  }
+  async planReview() {
+    return this.run(() => planReview(this));
+  }
   async retry() {
     await this.run(async () => {
       if (this.pending?.command.type === "patch_draft") await this.save();
@@ -363,6 +386,8 @@ export class EditorSession {
       this.document = merged;
       this.conflict = false;
       this.plan = null;
+      this.review = null;
+      this.diagnostics = [];
       this.persist();
       this.notice = this.t(
         "Изменения объединены. Проверьте и сохраните черновик.",

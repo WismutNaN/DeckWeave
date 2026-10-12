@@ -12,6 +12,22 @@ pub struct ProductionEditorSource {
     pub profiles: Arc<dyn ApplyOperationRepository>,
 }
 impl EditorReadSource for ProductionEditorSource {
+    fn active_document(&self) -> Result<ActiveDocument, String> {
+        let commit = self.profiles.active_commit().map_err(|e| e.to_string())?;
+        let document = commit
+            .as_ref()
+            .map(|c| {
+                self.profiles
+                    .load_candidate_revision(&c.candidate)
+                    .map(|r| r.document)
+                    .map_err(|e| e.to_string())
+            })
+            .transpose()?;
+        Ok(ActiveDocument {
+            selection: commit.map(|c| c.candidate),
+            document,
+        })
+    }
     fn editor_snapshot(&self) -> Result<EditorSnapshot, String> {
         let snapshot = self
             .runtime

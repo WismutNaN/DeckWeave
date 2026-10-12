@@ -38,6 +38,7 @@ impl Default for HostRuntimeConfig {
                 features: std::collections::BTreeMap::from([
                     (deckweave_protocol::FEATURE_ACTIVATION_COMMIT.into(), 1),
                     (deckweave_protocol::FEATURE_CONFIGURED_INSTANCES.into(), 1),
+                    (deckweave_protocol::FEATURE_CONFIGURED_DISPATCH.into(), 1),
                     (deckweave_protocol::FEATURE_LOCALE_CONTEXT.into(), 1),
                     (deckweave_protocol::FEATURE_OWNER_CLEANUP.into(), 1),
                     (FEATURE_INVOCATION_ENDPOINT_PATH.into(), 1),

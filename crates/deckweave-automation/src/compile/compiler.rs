@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 mod access;
+mod diagnostic;
 use super::{
     catalog::{CatalogEndpoint, DescriptorCatalog},
     semantics::{
@@ -46,6 +47,8 @@ pub struct CompileAccess {
 
 #[derive(Debug, Clone, PartialEq, Error)]
 pub enum GraphCompileError {
+    #[error("node {node_id} has invalid argument {field}")]
+    InvalidArgument { node_id: GraphNodeId, field: String },
     #[error("graph document cannot be decoded: {0}")]
     InvalidDocument(String),
     #[error(transparent)]
@@ -362,7 +365,7 @@ impl PlanCompiler for GraphPlanCompiler {
             candidate.package_lock_sha256(),
             fence,
         )
-        .map_err(|error| PlanCompileError::InvalidGraph(error.to_string()))
+        .map_err(GraphCompileError::into_plan_error)
     }
 
     fn compile_recovery(
@@ -376,6 +379,6 @@ impl PlanCompiler for GraphPlanCompiler {
             input.package_lock_sha256,
             fence,
         )
-        .map_err(|error| PlanCompileError::InvalidGraph(error.to_string()))
+        .map_err(GraphCompileError::into_plan_error)
     }
 }

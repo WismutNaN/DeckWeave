@@ -56,12 +56,22 @@ pub struct PluginEndpointView {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PluginCatalogSnapshot {
+    pub instance_templates: Vec<PluginInstanceTemplate>,
     pub format_version: u32,
     pub package: PluginCatalogRequest,
     pub manifest_sha256: String,
     pub schemas: Vec<PluginSchemaView>,
     pub endpoints: Vec<PluginEndpointView>,
     pub translations: Option<TranslationCatalog>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PluginInstanceTemplate {
+    pub contribution_id: ContributionId,
+    pub settings_schema: SchemaRef,
+    pub label_key: String,
+    #[serde(default)]
+    pub required_features: std::collections::BTreeMap<deckweave_domain::ids::NamespacedKind, u32>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum PluginCatalogError {

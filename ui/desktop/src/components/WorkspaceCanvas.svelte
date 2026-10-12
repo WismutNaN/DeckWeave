@@ -10,7 +10,12 @@
   import Icon from "./Icon.svelte";
   import { controlBackground, geometry, neighbor } from "../editor/appearance";
   import { equal, owner } from "../editor/bindings";
-  import { hasActionDrag, readActionDrag } from "../editor/drag";
+  import {
+    hasActionDrag,
+    readSelectionDrag,
+    writeSelectionDrag,
+  } from "../editor/drag";
+  import { dropOnControl } from "../editor/drops";
   import type { EditorSession } from "../editor/session.svelte";
   import type { EditorDevice } from "../editor/types";
   let { session, onadd }: { session: EditorSession; onadd: () => void } =
@@ -184,15 +189,8 @@
     if (dropTarget === dropKey(device.id, id)) dropTarget = "";
   }
   function drop(e: DragEvent, device: EditorDevice, id: string) {
-    const endpoint = readActionDrag(e.dataTransfer);
-    if (!endpoint) return;
-    e.preventDefault();
-    e.stopPropagation();
     dropTarget = "";
-    const action = session.actions.find((a) => equal(a.endpoint, endpoint));
-    if (!action) return;
-    session.select(device.id, id);
-    session.assign(action);
+    dropOnControl(session, e, device.id, id);
   }
 </script>
 
@@ -226,6 +224,20 @@
   bind:clientWidth={width}
   bind:clientHeight={height}
   onwheel={wheel}
+  ondragover={(e) => {
+    if (hasActionDrag(e.dataTransfer)) e.preventDefault();
+  }}
+  ondrop={(e) => {
+    const value = readSelectionDrag(e.dataTransfer);
+    if (value?.kind !== "device") return;
+    e.preventDefault();
+    const bounds = area!.getBoundingClientRect();
+    session.select(value.deviceId);
+    session.updateDevice((d) => {
+      d.x = (e.clientX - bounds.left - pan.x) / zoom;
+      d.y = (e.clientY - bounds.top - pan.y) / zoom;
+    });
+  }}
   onpointerdown={(e) => start(e)}
   onpointermove={move}
   onpointerup={stop}
@@ -311,6 +323,19 @@
                 {@const custom = device.controls[element.elementId]}
                 <button
                   class="device-key"
+                  draggable={!session.busy && !session.pending}
+                  title={t(
+                    "Перетащите для копирования; Shift — перенести",
+                    "Drag to copy; Shift to move",
+                  )}
+                  ondragstart={(e) => {
+                    if (e.dataTransfer)
+                      writeSelectionDrag(e.dataTransfer, {
+                        kind: "control",
+                        deviceId: device.id,
+                        controlId: element.elementId,
+                      });
+                  }}
                   data-control-id={element.elementId}
                   data-device-id={device.id}
                   class:drop-target={dropTarget ===

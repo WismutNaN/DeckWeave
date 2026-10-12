@@ -2,7 +2,7 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
   import { actionShape } from "../editor/bindings";
-  import { writeActionDrag } from "../editor/drag";
+  import { writeActionDrag, writeSelectionDrag } from "../editor/drag";
   import type { EditorSession } from "../editor/session.svelte";
   let { session, onadd }: { session: EditorSession; onadd: () => void } =
     $props();
@@ -32,6 +32,15 @@
   </div>
   <nav class="device-list" aria-label={t("Мои устройства", "My devices")}>
     {#each session.devices as device}<button
+        draggable={!session.busy && !session.pending}
+        ondragstart={(e) => {
+          if (e.dataTransfer)
+            writeSelectionDrag(e.dataTransfer, {
+              kind: "device",
+              deviceId: device.id,
+              controlId: "",
+            });
+        }}
         class:active={session.selectedDevice === device.id}
         onclick={() => session.select(device.id)}
         ><Icon name="device" size={17} /><span>{device.descriptor.label}</span

@@ -198,6 +198,7 @@ export function previewClient(): EditorClient {
   const data = previewData();
   let draft = data.draft,
     locale: Locale = { revision: 1, requestedLocale: "ru", timeZone: "UTC" };
+  let activeDocument: GraphDocument | null = null;
   const receipts = new Map<string, { payload: string; result: unknown }>();
   return {
     open: async () => copy(draft),
@@ -214,6 +215,10 @@ export function previewClient(): EditorClient {
     },
     async query<T>(query: Record<string, unknown>): Promise<T> {
       const values: Record<string, unknown> = {
+        active_document: {
+          selection: data.snapshot.active,
+          document: activeDocument,
+        },
         editor_snapshot: data.snapshot,
         plugin_catalog: data.catalog,
         draft,
@@ -258,6 +263,7 @@ export function previewClient(): EditorClient {
         result = { draft: copy(draft) };
       } else if (command.type === "apply_draft") {
         result = { operationId: "preview-operation" };
+        activeDocument = copy(draft.document);
         data.snapshot.active = {
           workspaceId: "preview",
           revisionId: `preview-${draft.version}`,

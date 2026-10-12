@@ -31,6 +31,7 @@ use std::{
 mod activation;
 mod binding;
 mod endpoints;
+mod merge;
 mod wire;
 mod worker;
 pub(super) use worker::{ActiveWorker, WorkerCommand, WorkerKey};

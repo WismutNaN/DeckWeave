@@ -84,6 +84,10 @@ pub(super) fn command_body(
     Ok(match command {
         RuntimeCommand::Invoke { request, operation } => {
             Some(protocol_envelope::Body::Invoke(InvocationRequest {
+                configured_instance_id: request
+                    .configured_instance_id
+                    .as_ref()
+                    .map(ToString::to_string),
                 invocation_id: request.invocation_id.to_string(),
                 run_id: request.execution_id.to_string(),
                 operation_id: operation.operation_id.to_string(),
@@ -97,6 +101,7 @@ pub(super) fn command_body(
             }))
         }
         RuntimeCommand::Feedback {
+            configured_instance_id,
             run_id,
             graph_node_id,
             activation_epoch,
@@ -104,6 +109,7 @@ pub(super) fn command_body(
             schema,
             value,
         } => Some(protocol_envelope::Body::ValueWrite(ValueWrite {
+            configured_instance_id: configured_instance_id.as_ref().map(ToString::to_string),
             run_id: run_id.to_string(),
             graph_node_id: graph_node_id.to_string(),
             activation_epoch: activation_epoch.get(),

@@ -62,3 +62,18 @@ Nested service call получает host-issued owner, выбранный role 
 Collection item адресуется package + instance + collection + item ID + item revision. Click относится к presentation revision; press захватывает ItemRef, release/cancel использует захваченную ссылку после reorder. Slot selections независимы для устройств/кнопок; количество consumers определяет необходимость render/tick. Scene/slot switch — runtime command соответствующего owner, а не запись нового workspace на каждое нажатие.
 
 Invocation-scoped `InteractionSession` завершается выбором/отменой/deadline и ограничивает retained history. Query fence включает session generation, activation epoch, provider generation и query generation. `DesktopViewSession` имеет отдельный lease и документ: закрытие редактора заметки не удаляет заметку и не отменяет все другие окна. Plugin-owned documents/assets изолируются authenticated namespace; их revision/CAS/retention не откатываются молча при workspace rollback. Реальные presenters/storage adapters проходят отдельную acceptance после contract fakes.
+
+Configured instances use `org.deckweave.configured_dispatch` v1 in addition to
+`org.deckweave.configured_instances` v1. Every `InvocationRequest` and `ValueWrite`
+for a configured graph node carries its `configured_instance_id` from the compiled
+contract. An absent field means the unconfigured contribution; it never means
+“pick any active account”. A provider must reject an unknown instance. A host rejects
+configured input contracts during preparation if this feature was not negotiated.
+Identical input-only service descriptors may be shared between these instances;
+output/state sources and devices must retain distinct stable identities. Configuration
+and secrets are not copied into invocation messages.
+
+The verified manifest extension `org.deckweave.instanceTemplates` contains at most
+64 entries `{contributionId, settingsSchema, labelKey, requiredFeatures}`. Contributions
+must belong to this package and the settings schema must exist in its locked catalog.
+This is editor metadata, not permission to start a plugin or reveal credentials.

@@ -266,6 +266,7 @@ test("query failure after apply receipt retains the mutation identity", async ()
   const session = new EditorSession(client);
   await session.load();
   await session.apply();
+  await session.confirmApply();
   assert.ok(session.pending);
   await session.retry();
   assert.equal(session.pending, null);

@@ -11,6 +11,7 @@ impl PluginCatalogSource for Catalog {
     ) -> Result<PluginCatalogSnapshot, PluginCatalogError> {
         self.0.fetch_add(1, Ordering::SeqCst);
         Ok(PluginCatalogSnapshot {
+            instance_templates: vec![],
             format_version: 1,
             package: request.clone(),
             manifest_sha256: "f".repeat(64),

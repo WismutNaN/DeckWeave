@@ -34,6 +34,12 @@ pub(super) fn translate_intent(
                 .insert(invocation_id.clone(), target.clone());
             Ok(RuntimeCommand::Invoke {
                 request: Box::new(CommandEnvelope {
+                    configured_instance_id: active
+                        .graph
+                        .endpoint_contracts
+                        .iter()
+                        .find(|c| c.node_id == node_id)
+                        .and_then(|c| c.configured_instance_id.clone()),
                     invocation_id,
                     execution_id: run_id,
                     graph_node_id: node_id,
@@ -62,6 +68,12 @@ pub(super) fn translate_intent(
                 .map(|contract| contract.port.schema.clone())
                 .ok_or_else(|| LiveExecutionError::MissingBinding(node_id.clone()))?;
             Ok(RuntimeCommand::Feedback {
+                configured_instance_id: active
+                    .graph
+                    .endpoint_contracts
+                    .iter()
+                    .find(|c| c.node_id == node_id)
+                    .and_then(|c| c.configured_instance_id.clone()),
                 run_id,
                 graph_node_id: node_id,
                 activation_epoch: active.epoch,

@@ -20,13 +20,20 @@ pub(super) fn validate(
     let SchemaValueKind::Structured(PayloadSchema::Record { fields }) = &schema.value_kind else {
         return Err(invalid());
     };
-    if fields
+    if let Some((name, _)) = fields
         .iter()
-        .any(|(name, field)| !field.optional && !binding.fields.contains_key(name))
+        .find(|(name, field)| !field.optional && !binding.fields.contains_key(*name))
     {
-        return Err(invalid());
+        return Err(GraphCompileError::InvalidArgument {
+            node_id: action.id.clone(),
+            field: name.clone(),
+        });
     }
     for (name, value) in &binding.fields {
+        let invalid = || GraphCompileError::InvalidArgument {
+            node_id: action.id.clone(),
+            field: name.clone(),
+        };
         let expected = &fields.get(name).ok_or_else(invalid)?.schema;
         let (node, pointer) = match value {
             ValueBinding::Constant { value } => {

@@ -7,6 +7,7 @@ use prost::Message;
 fn invocation_wire_request_carries_the_full_endpoint_path() -> Result<(), Box<dyn std::error::Error>>
 {
     let request = v1::InvocationRequest {
+        configured_instance_id: Some("account-work".into()),
         invocation_id: "invocation-1".into(),
         run_id: "run-1".into(),
         operation_id: "set-level".into(),
@@ -26,6 +27,10 @@ fn invocation_wire_request_carries_the_full_endpoint_path() -> Result<(), Box<dy
         }),
     };
     let decoded = v1::InvocationRequest::decode(request.encode_to_vec().as_slice())?;
+    assert_eq!(
+        decoded.configured_instance_id.as_deref(),
+        Some("account-work")
+    );
     let target = decoded.target.ok_or("missing invocation target")?;
     assert_eq!(target.node_id, "node-a");
     assert_eq!(target.provider_id, "provider-a");

@@ -250,6 +250,7 @@ mod tests {
         value: Value,
     ) -> Result<InvocationRequest, Box<dyn std::error::Error>> {
         Ok(InvocationRequest {
+            configured_instance_id: None,
             invocation_id: "invocation-1".into(),
             run_id: "run-1".into(),
             operation_id: operation.into(),

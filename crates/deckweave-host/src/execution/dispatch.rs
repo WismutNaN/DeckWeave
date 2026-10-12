@@ -42,6 +42,7 @@ pub enum RuntimeCommand {
         operation: OperationDescriptor,
     },
     Feedback {
+        configured_instance_id: Option<deckweave_domain::ids::PluginInstanceId>,
         run_id: ExecutionId,
         graph_node_id: GraphNodeId,
         activation_epoch: ActivationEpoch,

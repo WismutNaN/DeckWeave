@@ -7,6 +7,20 @@ use std::collections::BTreeMap;
 
 pub(super) fn map_apply_error(context: &RequestContext, error: ApplyUseCaseError) -> ApiError {
     match error {
+        ApplyUseCaseError::DisruptionRequired => api_error(
+            context,
+            ApiErrorCode::PlanConflict,
+            "api.error.disruption_required",
+            false,
+            BTreeMap::from([("requiresDisruption".into(), true.into())]),
+        ),
+        ApplyUseCaseError::Diagnostics(diagnostics) => api_error(
+            context,
+            ApiErrorCode::InvalidCommand,
+            "api.error.workspace_invalid",
+            false,
+            BTreeMap::from([("diagnostics".into(), serde_json::json!(diagnostics))]),
+        ),
         ApplyUseCaseError::NotFound => api_error(
             context,
             ApiErrorCode::NotFound,
