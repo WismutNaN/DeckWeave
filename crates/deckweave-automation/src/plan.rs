@@ -2,7 +2,7 @@
 use deckweave_domain::ids::{
     ContributionId, GrantRevision, PackageId, RegistryRevision, RuntimeGroupId,
 };
-use deckweave_workspace::WorkspaceCandidate;
+use deckweave_workspace::{WorkspaceCandidate, WorkspaceRevision};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
@@ -14,6 +14,16 @@ pub const COMPILED_PLAN_EXTENSION_ID: &str = "org.deckweave.automation.compiled-
 pub struct CompileFence {
     pub registry_revision: RegistryRevision,
     pub grant_revision: GrantRevision,
+}
+
+/// Immutable input used only to migrate commits created before compiled plans
+/// became part of the apply record. The caller supplies the original hashes
+/// because a committed revision intentionally omits draft-only identity.
+#[derive(Debug, Clone, Copy)]
+pub struct RecoveryCompileInput<'a> {
+    pub revision: &'a WorkspaceRevision,
+    pub candidate_sha256: &'a str,
+    pub package_lock_sha256: &'a str,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -122,6 +132,12 @@ pub trait PlanCompiler: Send + Sync {
     fn compile(
         &self,
         candidate: &WorkspaceCandidate,
+        fence: &CompileFence,
+    ) -> Result<CompiledExecutionPlan, PlanCompileError>;
+
+    fn compile_recovery(
+        &self,
+        input: RecoveryCompileInput<'_>,
         fence: &CompileFence,
     ) -> Result<CompiledExecutionPlan, PlanCompileError>;
 }

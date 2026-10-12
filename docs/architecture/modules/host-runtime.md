@@ -39,7 +39,7 @@
 - Effects/timers/frames/completions ограждены HostBootId/ActivationEpoch; старый outcome не запускает новую continuation.
 - Частичный failure не выдаётся за successful apply.
 - Plan hash связывает candidate/package/assets, compiler output, HostBootId, registry/grant revisions, expected active selection и monotonic expiry.
-- Apply intent/commit сохраняет checksum-версию compiled plan; startup передаёт Plugin Runtime только проверенные runtime requirements, не исходный graph/fixture JSON.
+- Apply intent/commit сохраняет checksum-версию compiled plan; startup передаёт Plugin Runtime только проверенные runtime requirements, не исходный graph/fixture JSON. Отсутствующий extension старого commit восстанавливается через Automation compiler; повреждённый существующий extension остаётся fail-closed.
 - Prepare и barrier заново читают candidate/evidence; stale или expired plan не вызывает activation/commit.
 - WebView lifecycle не управляет host lifecycle.
 - Shutdown имеет bounded stages и safe-output attempt.

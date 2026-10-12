@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use deckweave_automation::{
-    CompileFence, PlanCompileError, PlanCompiler, RestrictedFixtureCompiler,
+    CompileFence, PlanCompileError, PlanCompiler, RecoveryCompileInput, RestrictedFixtureCompiler,
     VIRTUAL_FIXTURE_CONTRIBUTION_ID, VIRTUAL_FIXTURE_PACKAGE_ID, VIRTUAL_FIXTURE_RUNTIME_GROUP_ID,
 };
 use deckweave_domain::ids::{
     DraftId, DraftVersion, GrantRevision, PackageId, RegistryRevision, WorkspaceId,
+    WorkspaceRevisionId,
 };
 use deckweave_workspace::{PackageLockEntry, WorkspaceCandidate, WorkspaceDraft};
 use std::{collections::BTreeMap, error::Error};
@@ -64,6 +65,16 @@ fn only_empty_and_exact_virtual_echo_fixtures_compile() -> Result<(), Box<dyn Er
     };
     virtual_draft = WorkspaceCandidate::from_draft(source.clone())?;
     let compiled = compiler.compile(&virtual_draft, &fence()?)?;
+    let revision = virtual_draft.to_revision(WorkspaceRevisionId::try_new("compiler-revision")?);
+    let recovered = compiler.compile_recovery(
+        RecoveryCompileInput {
+            revision: &revision,
+            candidate_sha256: virtual_draft.content_sha256(),
+            package_lock_sha256: virtual_draft.package_lock_sha256(),
+        },
+        &fence()?,
+    )?;
+    assert_eq!(recovered, compiled);
     assert_eq!(compiled.runtime_requirements().len(), 1);
     let requirement = &compiled.runtime_requirements()[0];
     assert_eq!(requirement.package_id.as_str(), VIRTUAL_FIXTURE_PACKAGE_ID);

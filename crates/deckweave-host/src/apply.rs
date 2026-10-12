@@ -26,7 +26,7 @@ mod support;
 use cache::PlanCache;
 use support::{
     compiled_plan_from_commit, durable_plan_value, hash_json, map_draft_error, map_planning_error,
-    map_repository_error, operation_id, validate_recovery_plan,
+    map_repository_error, operation_id, validate_recovery_plan, validate_recovery_revision,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]

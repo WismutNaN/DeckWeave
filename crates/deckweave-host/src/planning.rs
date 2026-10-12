@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Host-owned fencing between immutable candidates, compilation and activation.
 
-use deckweave_automation::{CompileFence, CompiledExecutionPlan, PlanCompileError, PlanCompiler};
+use deckweave_automation::{
+    CompileFence, CompiledExecutionPlan, PlanCompileError, PlanCompiler, RecoveryCompileInput,
+};
 use deckweave_domain::ids::{
     DraftId, DraftVersion, GrantRevision, HostBootId, OperationId, RegistryRevision, WorkspaceId,
 };
 use deckweave_workspace::{
-    ActiveSelection, DraftRepository, DraftRepositoryError, WorkspaceCandidate,
+    ActiveSelection, DraftRepository, DraftRepositoryError, WorkspaceCandidate, WorkspaceRevision,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -286,6 +288,30 @@ impl ApplyPlanningService {
             ));
         }
         Ok(prepared)
+    }
+
+    /// Rebuilds the plan for a pre-durable-plan commit through the Automation
+    /// compiler. This migration path is never used to mask a corrupt plan.
+    pub fn compile_recovery(
+        &self,
+        revision: &WorkspaceRevision,
+        candidate_sha256: &str,
+        package_lock_sha256: &str,
+    ) -> Result<CompiledExecutionPlan, ApplyPlanningError> {
+        let evidence = self.evidence.snapshot()?;
+        self.compiler
+            .compile_recovery(
+                RecoveryCompileInput {
+                    revision,
+                    candidate_sha256,
+                    package_lock_sha256,
+                },
+                &CompileFence {
+                    registry_revision: evidence.registry_revision,
+                    grant_revision: evidence.grant_revision,
+                },
+            )
+            .map_err(ApplyPlanningError::from)
     }
 
     pub fn revalidate_for_barrier(

@@ -10,5 +10,5 @@ pub use fixture::{
 };
 pub use plan::{
     COMPILED_PLAN_EXTENSION_ID, CompileFence, CompiledExecutionPlan, DurableExecutionPlan,
-    PlanCompileError, PlanCompiler, RuntimeRequirement,
+    PlanCompileError, PlanCompiler, RecoveryCompileInput, RuntimeRequirement,
 };

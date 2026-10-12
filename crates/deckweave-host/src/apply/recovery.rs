@@ -23,7 +23,18 @@ impl ApplyCoordinator {
                 .operations
                 .load_candidate_revision(&commit.candidate)
                 .map_err(map_repository_error)?;
-            let compiled = compiled_plan_from_commit(commit)?;
+            validate_recovery_revision(commit, &revision)?;
+            let compiled = match compiled_plan_from_commit(commit)? {
+                Some(compiled) => compiled,
+                None => self
+                    .planning
+                    .compile_recovery(
+                        &revision,
+                        &commit.candidate_sha256,
+                        &commit.package_lock_sha256,
+                    )
+                    .map_err(|error| ApplyUseCaseError::RecoveryRequired(error.to_string()))?,
+            };
             validate_recovery_plan(commit, &revision, &compiled)?;
             let outcome = self
                 .runtime

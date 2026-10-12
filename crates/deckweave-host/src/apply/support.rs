@@ -43,26 +43,20 @@ pub(super) fn durable_plan_value(
 
 pub(super) fn compiled_plan_from_commit(
     commit: &ApplyCommitRecord,
-) -> Result<CompiledExecutionPlan, ApplyUseCaseError> {
-    let value = commit
-        .extensions
-        .get(COMPILED_PLAN_EXTENSION_ID)
-        .cloned()
-        .ok_or_else(|| {
-            ApplyUseCaseError::RecoveryRequired(
-                "committed operation has no durable compiled plan; re-apply the revision".into(),
-            )
-        })?;
+) -> Result<Option<CompiledExecutionPlan>, ApplyUseCaseError> {
+    let Some(value) = commit.extensions.get(COMPILED_PLAN_EXTENSION_ID).cloned() else {
+        return Ok(None);
+    };
     serde_json::from_value::<DurableExecutionPlan>(value)
         .map_err(|error| ApplyUseCaseError::RecoveryRequired(error.to_string()))?
         .verify()
+        .map(Some)
         .map_err(|error| ApplyUseCaseError::RecoveryRequired(error.to_string()))
 }
 
-pub(super) fn validate_recovery_plan(
+pub(super) fn validate_recovery_revision(
     commit: &ApplyCommitRecord,
     revision: &WorkspaceRevision,
-    plan: &CompiledExecutionPlan,
 ) -> Result<(), ApplyUseCaseError> {
     if revision.workspace_id != commit.candidate.workspace_id
         || revision.revision_id != commit.candidate.revision_id
@@ -72,6 +66,15 @@ pub(super) fn validate_recovery_plan(
             "committed revision does not match its apply record".into(),
         ));
     }
+    Ok(())
+}
+
+pub(super) fn validate_recovery_plan(
+    commit: &ApplyCommitRecord,
+    revision: &WorkspaceRevision,
+    plan: &CompiledExecutionPlan,
+) -> Result<(), ApplyUseCaseError> {
+    validate_recovery_revision(commit, revision)?;
     for requirement in plan.runtime_requirements() {
         if !revision.package_lock.iter().any(|locked| {
             locked.package_id == requirement.package_id

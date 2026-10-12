@@ -32,6 +32,7 @@ Graph vocabulary принадлежит Automation; shared endpoint/IDs/schema r
 - [x] Единый durable key scope для `PatchDraft` и `ApplyDraft`: Gateway резервирует opaque fingerprint в общем `CommandClaimRepository` до dispatch; command kind, target и preconditions входят в fingerprint. Оба порядка и restart дают conflict.
 - [x] Recovery различает never-committed pending, текущую committed selection и ранее committed operation. Profile Store запечатывает status вытесняемого head до нового commit, а Host завершает неизвестный прежний activation как `Superseded/Inactive`, не как failed-before-commit и не реактивирует её.
 - [x] Recovery потоково обходит terminal history с bounded памятью и расходует `maximum` только на pending work. Regression содержит 300 terminal operations при desktop budget 256. Полный B2 index/checkpoint/GC всё ещё нужен для ограничения времени полного directory scan и storage growth.
+- [x] Commit прежней версии без durable compiled plan мигрируется через отдельный recovery-вход Automation compiler из immutable revision и сохранённых hashes. Host/runtime не разбирают fixture/graph; присутствующий, но повреждённый plan не маскируется recompilation и останавливает recovery.
 
 Выход: три отрицательных сценария из [ревью](../research/pre-apply-review.md#phase-5-readiness) становятся постоянными regression tests. Сохраняются прежние crash/revoke/handoff acceptance. Полный B2 checkpoint/GC можно оставить до Фазы 6, но исправления startup limit и key scope относятся к 5.0.
 
@@ -64,7 +65,7 @@ Graph vocabulary принадлежит Automation; shared endpoint/IDs/schema r
 
 ### 5.4 — Runtime plan activation и безопасный dispatch
 
-- [~] Prepare и recovery используют один сохранённый compiled runtime manifest; Plugin Runtime больше не разбирает `fixture.kind` и не выбирает первый group/contribution. Текущий coordinator пока принимает не более одного requirement; набор нескольких groups/instances остаётся следующим расширением.
+- [~] Prepare и recovery используют один сохранённый compiled runtime manifest; Plugin Runtime больше не разбирает `fixture.kind` и не выбирает первый group/contribution. Для pre-manifest commit действует ограниченный migration path через Automation compiler; новый или повреждённый manifest не перекомпилируется. Текущий coordinator пока принимает не более одного requirement; набор нескольких groups/instances остаётся следующим расширением.
 - [ ] Связать реальный ingress/command/outcome adapters с scheduler. Текущий monitor только обновляет heartbeat и отбрасывает body; его нельзя считать работающим event dispatcher. Descriptor changes, process exit, revoke и restart/backoff становятся owner events.
 - [ ] Сделать barrier частью живого dispatcher: закрыть новые effects, bounded drain/cancel, release held outputs, повторно проверить grants/topology, commit, назначить новую epoch, открыть новый plan. Булевый флаг без проверяющего его dispatch path не закрывает acceptance.
 - [ ] Перед отправкой каждой команды проверять актуальные grants, endpoint generation/revision, epoch и owner lease. Cleanup хранит владельца прежнего output, не вычисляет release через новый mapping. Stop/recovery имеют общий budget для всех runtime groups.

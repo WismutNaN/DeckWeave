@@ -773,6 +773,81 @@ fn startup_reactivates_the_committed_revision_without_replaying_an_input()
 }
 
 #[test]
+fn startup_migrates_a_legacy_commit_through_the_automation_compiler() -> Result<(), Box<dyn Error>>
+{
+    let directory = tempfile::tempdir()?;
+    let repository = Arc::new(JsonProfileStore::new(
+        directory.path().to_path_buf(),
+        Arc::new(NativeAtomicFileStore),
+        ProfileStoreLimits::default(),
+    ));
+    repository.create_draft(&draft()?)?;
+    let candidate = WorkspaceCandidate::from_draft(draft()?)?;
+    let mut intent = stored_intent("apply-legacy", "revision-legacy", None)?;
+    intent.extensions.clear();
+    repository
+        .save_candidate_revision(&candidate.to_revision(intent.candidate.revision_id.clone()))?;
+    repository.begin_apply(&intent)?;
+    repository.mark_prepared(&intent.operation_id)?;
+    repository.publish_commit(&ApplyCommitRecord::from_intent(&intent))?;
+
+    let evidence = Arc::new(Evidence {
+        value: Mutex::new(PlanningEvidence {
+            host_boot_id: HostBootId::try_new("boot-legacy")?,
+            registry_revision: RegistryRevision::try_new(1)?,
+            grant_revision: GrantRevision::try_new(1)?,
+            active: Some(intent.candidate.clone()),
+        }),
+    });
+    let runtime = Arc::new(Runtime::new(Arc::clone(&evidence)));
+    let coordinator = coordinator(repository, evidence, Arc::clone(&runtime))?;
+
+    let recovered = coordinator.recover(16)?;
+    assert_eq!(runtime.recoveries.load(Ordering::SeqCst), 1);
+    assert_eq!(recovered.len(), 1);
+    assert_eq!(recovered[0].state, ApplyOperationState::Succeeded);
+    Ok(())
+}
+
+#[test]
+fn startup_does_not_mask_a_corrupt_durable_plan_with_legacy_migration() -> Result<(), Box<dyn Error>>
+{
+    let directory = tempfile::tempdir()?;
+    let repository = Arc::new(JsonProfileStore::new(
+        directory.path().to_path_buf(),
+        Arc::new(NativeAtomicFileStore),
+        ProfileStoreLimits::default(),
+    ));
+    repository.create_draft(&draft()?)?;
+    let candidate = WorkspaceCandidate::from_draft(draft()?)?;
+    let mut intent = stored_intent("apply-corrupt", "revision-corrupt", None)?;
+    intent.extensions.insert(
+        COMPILED_PLAN_EXTENSION_ID.into(),
+        serde_json::json!({"documentSha256": "invalid", "plan": {}}),
+    );
+    repository
+        .save_candidate_revision(&candidate.to_revision(intent.candidate.revision_id.clone()))?;
+    repository.begin_apply(&intent)?;
+    repository.mark_prepared(&intent.operation_id)?;
+    repository.publish_commit(&ApplyCommitRecord::from_intent(&intent))?;
+
+    let evidence = Arc::new(Evidence {
+        value: Mutex::new(PlanningEvidence {
+            host_boot_id: HostBootId::try_new("boot-corrupt")?,
+            registry_revision: RegistryRevision::try_new(1)?,
+            grant_revision: GrantRevision::try_new(1)?,
+            active: Some(intent.candidate.clone()),
+        }),
+    });
+    let runtime = Arc::new(Runtime::new(Arc::clone(&evidence)));
+    let coordinator = coordinator(repository, evidence, Arc::clone(&runtime))?;
+
+    assert!(coordinator.recover(16).is_err());
+    assert_eq!(runtime.recoveries.load(Ordering::SeqCst), 0);
+    Ok(())
+}
+
+#[test]
 fn startup_marks_an_older_committed_operation_as_superseded() -> Result<(), Box<dyn Error>> {
     let directory = tempfile::tempdir()?;
     let repository = Arc::new(JsonProfileStore::new(
