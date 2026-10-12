@@ -863,10 +863,11 @@ dependencies = [
  "deckweave-platform",
  "directories",
  "fs2",
- "libc",
+ "nix",
  "serde_json",
  "tempfile",
  "windows-registry",
+ "windows-result",
  "windows-sys 0.61.2",
 ]
 

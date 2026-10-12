@@ -3,9 +3,15 @@
 use deckweave_platform::PlatformError;
 use std::path::Path;
 use windows_registry::CURRENT_USER;
+use windows_result::{Error, HRESULT};
 
 const RUN_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
 const APP_NAME: &str = "DeckWeave";
+const ERROR_FILE_NOT_FOUND: u32 = 2;
+
+fn is_not_found(error: &Error) -> bool {
+    error.code() == HRESULT::from_win32(ERROR_FILE_NOT_FOUND)
+}
 
 // Quoting для Windows argv, не для cmd.exe/PowerShell (shell не запускается).
 fn quote(value: &str) -> String {
@@ -44,11 +50,10 @@ pub(super) fn registered(executable: &Path, root: &Path) -> Result<bool, Platfor
     match CURRENT_USER
         .open(RUN_KEY)
         .and_then(|key| key.get_string(APP_NAME))
-        .map_err(std::io::Error::from)
     {
         Ok(value) => Ok(value == expected),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
-        Err(error) => Err(error.into()),
+        Err(error) if is_not_found(&error) => Ok(false),
+        Err(error) => Err(std::io::Error::from(error).into()),
     }
 }
 
@@ -65,10 +70,10 @@ pub(super) fn set(executable: &Path, root: &Path, enabled: bool) -> Result<(), P
             .open(RUN_KEY)
             .and_then(|key| key.remove_value(APP_NAME))
     };
-    match result.map_err(std::io::Error::from) {
+    match result {
         Ok(()) => Ok(()),
-        Err(error) if !enabled && error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(error) => Err(error.into()),
+        Err(error) if !enabled && is_not_found(&error) => Ok(()),
+        Err(error) => Err(std::io::Error::from(error).into()),
     }
 }
 
@@ -89,5 +94,14 @@ mod tests {
             "\"C:\\Program Files\\DeckWeave\\app.exe\" --background --data-root \"G:\\Мои данные\""
         );
         Ok(())
+    }
+
+    #[test]
+    fn windows_file_not_found_hresult_is_recognized_before_io_conversion() {
+        let missing = Error::from_hresult(HRESULT::from_win32(ERROR_FILE_NOT_FOUND));
+        let access_denied = Error::from_hresult(HRESULT::from_win32(5));
+
+        assert!(is_not_found(&missing));
+        assert!(!is_not_found(&access_denied));
     }
 }

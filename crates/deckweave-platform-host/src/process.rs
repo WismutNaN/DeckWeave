@@ -14,16 +14,19 @@ struct NativeChildProcessGuard {
 #[cfg(not(windows))]
 impl NativeChildProcessGuard {
     fn kill_group(&mut self) -> Result<(), PlatformError> {
+        use nix::{
+            errno::Errno,
+            sys::signal::{Signal, killpg},
+            unistd::Pid,
+        };
+
         if self.terminated {
             return Ok(());
         }
-        // SAFETY: the negative PID addresses only the group created for this plugin.
-        let result = unsafe { libc::kill(-self.process_group_id, libc::SIGKILL) };
-        if result != 0 {
-            let error = std::io::Error::last_os_error();
-            if error.raw_os_error() != Some(libc::ESRCH) {
-                return Err(error.into());
-            }
+
+        match killpg(Pid::from_raw(self.process_group_id), Signal::SIGKILL) {
+            Ok(()) | Err(Errno::ESRCH) => {}
+            Err(error) => return Err(std::io::Error::from(error).into()),
         }
         self.terminated = true;
         Ok(())

@@ -6,6 +6,7 @@ permissions:
 jobs:
   core:
     strategy:
+      fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-24.04]
     runs-on: ${{ matrix.os }}
