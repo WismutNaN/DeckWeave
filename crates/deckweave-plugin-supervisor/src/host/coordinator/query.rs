@@ -3,6 +3,7 @@
 
 use super::ProductionRuntimeCoordinator;
 use crate::host::health::RuntimeHealthSnapshot;
+use deckweave_application::{RuntimeDiagnosticsSource, RuntimeTraceSnapshot};
 use deckweave_host::LiveExecutionOwner;
 use std::sync::Arc;
 
@@ -15,5 +16,11 @@ impl ProductionRuntimeCoordinator {
     #[must_use]
     pub fn live_execution(&self) -> Arc<LiveExecutionOwner> {
         Arc::clone(&self.execution)
+    }
+}
+
+impl RuntimeDiagnosticsSource for ProductionRuntimeCoordinator {
+    fn runtime_trace(&self) -> RuntimeTraceSnapshot {
+        self.execution.runtime_trace()
     }
 }

@@ -4,8 +4,8 @@
 use crate::{
     ApiAuthScope, ApiAuthorizationError, ApiAuthorizer, ApiError, ApiErrorCode, AppCommand,
     AppCommandResult, AppQuery, AppQueryResult, ApplicationService, ApplyUseCase, CommandEnvelope,
-    DraftMutationReceipt, ExecuteApplyRequest, HostSnapshot, OperationReceipt, PlanApplyRequest,
-    RequestContext,
+    DraftMutationReceipt, EmptyRuntimeDiagnostics, ExecuteApplyRequest, HostSnapshot,
+    OperationReceipt, PlanApplyRequest, RequestContext, RuntimeDiagnosticsSource,
 };
 use deckweave_domain::ids::PrincipalId;
 use deckweave_workspace::{CommandClaim, CommandClaimRepository, DraftRepository, MutationKey};
@@ -28,6 +28,7 @@ pub struct ApplicationGateway {
     command_claims: Arc<dyn CommandClaimRepository>,
     authorizer: Arc<dyn ApiAuthorizer>,
     apply: Arc<dyn ApplyUseCase>,
+    diagnostics: Arc<dyn RuntimeDiagnosticsSource>,
 }
 
 impl ApplicationGateway {
@@ -45,7 +46,17 @@ impl ApplicationGateway {
             command_claims,
             authorizer,
             apply,
+            diagnostics: Arc::new(EmptyRuntimeDiagnostics),
         }
+    }
+
+    #[must_use]
+    pub fn with_runtime_diagnostics(
+        mut self,
+        diagnostics: Arc<dyn RuntimeDiagnosticsSource>,
+    ) -> Self {
+        self.diagnostics = diagnostics;
+        self
     }
 
     fn authorize(&self, context: &RequestContext, scope: ApiAuthScope) -> Result<(), ApiError> {
@@ -121,6 +132,12 @@ impl ApplicationService for ApplicationGateway {
                     .operation(&operation_id)
                     .map(|snapshot| AppQueryResult::Operation(Box::new(snapshot)))
                     .map_err(|error| map_apply_error(context, error))
+            }
+            AppQuery::RuntimeTrace => {
+                self.authorize(context, ApiAuthScope::Simulation)?;
+                Ok(AppQueryResult::RuntimeTrace(Box::new(
+                    self.diagnostics.runtime_trace(),
+                )))
             }
         }
     }

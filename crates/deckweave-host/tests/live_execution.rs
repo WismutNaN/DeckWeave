@@ -8,6 +8,10 @@ use deckweave_automation::{
     SourceSubscription,
 };
 use deckweave_domain::{
+    automation::{
+        DataPolicy, DeckWeaveError, ErrorCategory, ExecutionKind, ExecutionPolicy,
+        OperationDescriptor, OperationLimits,
+    },
     capability::{
         AvailabilityDescriptor, PortAvailability, PortDescriptor, PortDirection, PortKind,
         PortLifetime, PortSemantics,
@@ -15,8 +19,8 @@ use deckweave_domain::{
     endpoint::{EndpointTargetRef, PortPath, RuntimeEndpointRef, StableEndpointRef},
     ids::{
         CapabilityId, ContributionId, DescriptorRevision, DeviceIdentity, ElementId, GraphNodeId,
-        HostBootId, NodeId, PackageId, PluginSessionId, PortId, ProviderId, RuntimeGroupId,
-        SessionGeneration,
+        HostBootId, NamespacedKind, NodeId, OperationId, PackageId, PluginSessionId, PortId,
+        ProviderId, RuntimeGroupId, SessionGeneration,
     },
     schema::{SchemaRef, SchemaVersion, SchemaVersionRange},
 };
@@ -46,12 +50,47 @@ impl RuntimeIntentDispatcher for RecordingDispatcher {
     }
 }
 
+#[derive(Default)]
+struct UncertainDispatcher(Mutex<Vec<RuntimeCommand>>);
+
+impl RuntimeIntentDispatcher for UncertainDispatcher {
+    fn dispatch(&self, command: RuntimeCommand) -> Result<(), RuntimeDispatchFailure> {
+        let invocation = matches!(command, RuntimeCommand::Invoke { .. });
+        self.0
+            .lock()
+            .map_err(|_| RuntimeDispatchFailure {
+                error: test_error(),
+                possibly_sent: false,
+            })?
+            .push(command);
+        if invocation {
+            Err(RuntimeDispatchFailure {
+                error: DeckWeaveError {
+                    category: ErrorCategory::UnknownOutcome,
+                    code: "possibly_sent".into(),
+                    message_key: "test.possibly_sent".into(),
+                    details: Default::default(),
+                    diagnostic_attachment_id: None,
+                },
+                possibly_sent: true,
+            })
+        } else {
+            Ok(())
+        }
+    }
+}
+
 #[test]
 fn barrier_closes_effects_and_old_epoch_cannot_reenter() -> Result<(), Box<dyn Error>> {
     let dispatcher = Arc::new(RecordingDispatcher::default());
     let owner = LiveExecutionOwner::new(HostBootId::try_new("boot-live")?, dispatcher.clone());
     let (graph, binding, source) = fixture()?;
-    let first_epoch = owner.activate(Some(&graph), Some(&binding), GraphLimits::default())?;
+    let first_epoch = owner.activate(
+        "plan-1",
+        Some(&graph),
+        Some(&binding),
+        GraphLimits::default(),
+    )?;
     owner.publish(signal(first_epoch, source.clone(), true));
     assert_eq!(feedback_count(&dispatcher), 1);
 
@@ -71,12 +110,75 @@ fn barrier_closes_effects_and_old_epoch_cannot_reenter() -> Result<(), Box<dyn E
     owner.publish(signal(first_epoch, source.clone(), true));
     assert_eq!(feedback_count(&dispatcher), 2);
 
-    let second_epoch = owner.activate(Some(&graph), Some(&binding), GraphLimits::default())?;
+    let second_epoch = owner.activate(
+        "plan-2",
+        Some(&graph),
+        Some(&binding),
+        GraphLimits::default(),
+    )?;
     assert!(second_epoch > first_epoch);
     owner.publish(signal(first_epoch, source.clone(), true));
     assert_eq!(feedback_count(&dispatcher), 2);
     owner.publish(signal(second_epoch, source, true));
     assert_eq!(feedback_count(&dispatcher), 3);
+    Ok(())
+}
+
+#[test]
+fn uncertain_delivery_is_terminal_and_never_auto_retried() -> Result<(), Box<dyn Error>> {
+    let dispatcher = Arc::new(UncertainDispatcher::default());
+    let owner = LiveExecutionOwner::new(HostBootId::try_new("boot-uncertain")?, dispatcher.clone());
+    let (mut graph, binding, source) = fixture()?;
+    let unit = SchemaRef {
+        id: NamespacedKind::try_new("org.deckweave.unit")?,
+        version: SchemaVersion { major: 1, minor: 0 },
+    };
+    let error = SchemaRef {
+        id: NamespacedKind::try_new("org.deckweave.error")?,
+        version: SchemaVersion { major: 1, minor: 0 },
+    };
+    graph.nodes[1].kind = GraphNodeKind::Action {
+        endpoint: graph.endpoint_contracts[1].endpoint.clone(),
+        operation_id: OperationId::try_new("uncertain")?,
+        availability: EndpointAvailabilityPolicy::Required,
+    };
+    graph.nodes[1].inputs = vec![graph_port("input", GraphPortRole::Trigger, unit.clone())?];
+    graph.nodes[1].outputs = vec![graph_port("error", GraphPortRole::Error, error.clone())?];
+    graph.endpoint_contracts[1].port.schema = unit.clone();
+    graph.endpoint_contracts[1].operation =
+        Some(operation(unit.clone(), schema()?, error.clone())?);
+    graph.schema_contracts.push(CompiledSchemaContract {
+        schema: unit,
+        value_kind: SchemaValueKind::Unit,
+    });
+    graph.schema_contracts.push(CompiledSchemaContract {
+        schema: error,
+        value_kind: SchemaValueKind::Json,
+    });
+
+    let epoch = owner.activate(
+        "uncertain-plan",
+        Some(&graph),
+        Some(&binding),
+        GraphLimits::default(),
+    )?;
+    owner.publish(signal(epoch, source, true));
+    let commands = dispatcher.0.lock().map_err(|_| "commands poisoned")?;
+    assert_eq!(
+        commands
+            .iter()
+            .filter(|command| matches!(command, RuntimeCommand::Invoke { .. }))
+            .count(),
+        1
+    );
+    drop(commands);
+    let state = owner.snapshot()?.ok_or("scheduler is missing")?;
+    assert!(state.pending.is_empty());
+    assert_eq!(state.completed.len(), 1);
+    assert!(matches!(
+        state.completed.values().next(),
+        Some(deckweave_domain::automation::CommandOutcome::UnknownOutcome { .. })
+    ));
     Ok(())
 }
 
@@ -302,4 +404,42 @@ fn test_error() -> deckweave_domain::automation::DeckWeaveError {
         details: Default::default(),
         diagnostic_attachment_id: None,
     }
+}
+
+fn operation(
+    input_schema: SchemaRef,
+    result_schema: SchemaRef,
+    error_schema: SchemaRef,
+) -> Result<OperationDescriptor, Box<dyn Error>> {
+    Ok(OperationDescriptor {
+        operation_id: OperationId::try_new("uncertain")?,
+        version: 1,
+        input_schema,
+        result_schema,
+        error_schema,
+        execution: ExecutionPolicy {
+            kind: ExecutionKind::Short,
+            progress: false,
+            cancellation: false,
+            reconciliation: false,
+        },
+        effects: vec![],
+        idempotency: None,
+        limits: OperationLimits {
+            deadline_ms: 100,
+            maximum_input_bytes: 16,
+            maximum_output_bytes: 64,
+            maximum_concurrent_invocations: 1,
+            maximum_queue_depth: 1,
+            maximum_per_minute: 60,
+        },
+        resources: vec![],
+        data_policy: DataPolicy {
+            sensitive_fields: vec![],
+            external_recipients: vec![],
+            trace_allowed: true,
+            retention_seconds: 1,
+        },
+        extensions: Default::default(),
+    })
 }

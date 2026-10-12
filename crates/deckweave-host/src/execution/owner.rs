@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Ordered live owner that connects runtime events to the pure scheduler.
 
+use super::trace::TraceBuffer;
 use super::{
     RuntimeCommand, RuntimeDispatchFailure, RuntimeEvent, RuntimeEventKind, RuntimeEventSink,
     RuntimeIntentDispatcher,
 };
+use deckweave_application::{RuntimeDiagnosticsSource, RuntimeTraceSnapshot};
 mod translate;
 use deckweave_automation::{
     BoundExecutionGraph, ExecutableGraph, GraphLimits, IngressContext, IngressItem, IngressKind,
@@ -59,6 +61,7 @@ pub struct LiveExecutionOwner {
     host_boot_id: HostBootId,
     dispatcher: Arc<dyn RuntimeIntentDispatcher>,
     state: Mutex<OwnerState>,
+    trace: Mutex<TraceBuffer>,
 }
 
 impl LiveExecutionOwner {
@@ -68,11 +71,13 @@ impl LiveExecutionOwner {
             host_boot_id,
             dispatcher,
             state: Mutex::new(OwnerState::default()),
+            trace: Mutex::new(TraceBuffer::default()),
         }
     }
 
     pub fn activate(
         &self,
+        plan_hash: &str,
         graph: Option<&ExecutableGraph>,
         binding: Option<&BoundExecutionGraph>,
         limits: GraphLimits,
@@ -87,6 +92,10 @@ impl LiveExecutionOwner {
             .ok_or(LiveExecutionError::EpochExhausted)?;
         let epoch = ActivationEpoch::try_new(state.next_epoch)
             .map_err(|_| LiveExecutionError::EpochExhausted)?;
+        self.trace
+            .lock()
+            .map_err(|_| LiveExecutionError::Poisoned)?
+            .activate(plan_hash, graph, epoch, limits.maximum_trace_entries);
         let Some(graph) = graph else {
             state.active = None;
             return Ok(epoch);
@@ -196,6 +205,10 @@ impl LiveExecutionOwner {
             if expected_epoch.is_some_and(|epoch| epoch != active.epoch) {
                 return Ok(());
             }
+            self.trace
+                .lock()
+                .map_err(|_| LiveExecutionError::Poisoned)?
+                .ingress(active.epoch, &kind);
             if let IngressKind::Signal { source, .. }
             | IngressKind::TopologyFault { endpoint: source } = &kind
                 && !active
@@ -225,7 +238,11 @@ impl LiveExecutionOwner {
                 kind,
             };
             match active.scheduler.admit(item) {
-                Ok(_) => {}
+                Ok(admission) => self
+                    .trace
+                    .lock()
+                    .map_err(|_| LiveExecutionError::Poisoned)?
+                    .admission(active.epoch, admission),
                 Err(overflow) => {
                     return self
                         .dispatch_commands(vec![translate_cleanup(active, overflow.cleanup)?]);
@@ -237,6 +254,12 @@ impl LiveExecutionOwner {
                 .step(now_ticks)
                 .map_err(|error| LiveExecutionError::Scheduler(error.to_string()))?
             {
+                for fault in &step.faults {
+                    self.trace
+                        .lock()
+                        .map_err(|_| LiveExecutionError::Poisoned)?
+                        .scheduler_fault(active.epoch, fault);
+                }
                 for intent in step.intents {
                     commands.push(translate_intent(active, intent)?);
                 }
@@ -248,14 +271,23 @@ impl LiveExecutionOwner {
 
     fn dispatch_commands(&self, commands: Vec<RuntimeCommand>) -> Result<(), LiveExecutionError> {
         for command in commands {
+            let trace_command = command.clone();
+            self.trace
+                .lock()
+                .map_err(|_| LiveExecutionError::Poisoned)?
+                .command(&trace_command);
             let invocation_id = match &command {
                 RuntimeCommand::Invoke { request, .. } => Some(request.invocation_id.clone()),
                 _ => None,
             };
-            if let Err(failure) = self.dispatcher.dispatch(command)
-                && let Some(invocation_id) = invocation_id
-            {
-                self.publish_dispatch_failure(invocation_id, failure);
+            if let Err(failure) = self.dispatcher.dispatch(command) {
+                self.trace
+                    .lock()
+                    .map_err(|_| LiveExecutionError::Poisoned)?
+                    .dispatch_rejected(&trace_command, &failure.error.code);
+                if let Some(invocation_id) = invocation_id {
+                    self.publish_dispatch_failure(invocation_id, failure);
+                }
             }
         }
         Ok(())
@@ -294,6 +326,22 @@ impl LiveExecutionOwner {
 impl RuntimeEventSink for LiveExecutionOwner {
     fn publish(&self, event: RuntimeEvent) {
         let _ignored = self.ingest(event);
+    }
+}
+
+impl RuntimeDiagnosticsSource for LiveExecutionOwner {
+    fn runtime_trace(&self) -> RuntimeTraceSnapshot {
+        self.trace
+            .lock()
+            .map(|trace| trace.snapshot())
+            .unwrap_or_else(|_| RuntimeTraceSnapshot {
+                format_version: 1,
+                plan_hash: None,
+                schema_hashes: vec![],
+                entries: vec![],
+                dropped_entries: 0,
+                capacity: 0,
+            })
     }
 }
 

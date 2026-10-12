@@ -19,6 +19,8 @@ mod authorization;
 pub use authorization::DenyAllAuthorizationStore;
 mod gateway;
 pub use gateway::{ApplicationGateway, HostStatusSource, InMemoryApiAuthorizer};
+mod diagnostics;
+pub use diagnostics::*;
 // Compatibility export while downstream SDK users migrate to deckweave-platform.
 pub use deckweave_platform::*;
 

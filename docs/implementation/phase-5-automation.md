@@ -1,6 +1,6 @@
 # Фаза 5: минимальный automation engine
 
-Статус: срезы 5.0–5.4 завершены; следующий срез — вертикальная fixture 5.5. Основание и исходные дефекты — [повторная проверка apply](../research/pre-apply-review.md#phase-5-readiness). Фаза 4 создала рабочую основу для apply и восстановления isolated fixture; общий command claim, superseded recovery и отдельный pending budget теперь закрывают найденные P1-переходы.
+Статус: срезы 5.0–5.5 завершены; следующий срез — replay и diagnostics 5.6. Основание и исходные дефекты — [повторная проверка apply](../research/pre-apply-review.md#phase-5-readiness). Фаза 4 создала рабочую основу для apply и восстановления isolated fixture; общий command claim, superseded recovery и отдельный pending budget теперь закрывают найденные P1-переходы.
 
 ## Граница результата
 
@@ -75,10 +75,10 @@ Graph vocabulary принадлежит Automation; shared endpoint/IDs/schema r
 
 ### 5.5 — Вертикальная M1 fixture
 
-- [ ] Один virtual provider публикует button/axis/state; другой contribution/process исполняет action и отдаёт typed result; feedback получает отдельный адресуемый virtual sink. Обратная связь определяется result/state graph, а не особым `echo` в Host.
-- [ ] Fixture содержит два одинаковых устройства и service. Настройки/instance IDs приходят из compiled requirements, а не из выбора первого package/contribution.
-- [ ] Длинная fake operation возвращает accepted job, затем terminal result. Два нажатия не смешивают данные; duplicate/late/invalid completion не порождает второй feedback. Uncertain delivery не повторяется автоматически.
-- [ ] Проверить API plan/apply/query/trace, cold start, смену graph и shutdown при закрытом UI. Runtime permissions остаются fail-closed; тестовая authorization fixture не становится production allow-all default.
+- [x] Isolated virtual provider публикует button/axis/state; отдельный process исполняет action и отдаёт typed result; третий адресуемый process принимает `ValueWrite`. Feedback получается только из `action result → state → feedback` graph, без host-side echo.
+- [x] Fixture публикует два устройства с одинаковой topology и адресует второе по полной stable/runtime identity; action и feedback — отдельные services. Package/group/contribution/instance identities приходят из compiled requirements и binder.
+- [x] Fake job возвращает accepted job, затем terminal result для двух нажатий. Duplicate terminal остаётся одним completion и не создаёт третий feedback; uncertain delivery становится `UnknownOutcome` и проверено не повторяется автоматически.
+- [x] Public Gateway проходит plan/apply/operation/runtime-trace; существующие acceptance покрывают cold recovery без replay, смену graph, bounded shutdown и работу без Tauri window. Desktop composition остаётся fail-closed с `DenyAllAuthorizationStore`; allow fixture живёт только в tests.
 
 Выход: hardware-independent демонстрация M1 с проверяемым trace. Реальный N4 Pro, клавиатурный hook и Handy не нужны для доказательства этого пути.
 

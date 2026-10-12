@@ -48,6 +48,7 @@ pub enum AppQuery {
     Operation {
         operation_id: OperationId,
     },
+    RuntimeTrace,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -57,6 +58,7 @@ pub enum AppQueryResult {
     Draft(DraftView),
     ApplyPlan(crate::ApplyPlanPreview),
     Operation(Box<ApplyOperationSnapshot>),
+    RuntimeTrace(Box<crate::RuntimeTraceSnapshot>),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

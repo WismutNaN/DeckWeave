@@ -3,6 +3,7 @@
 
 mod dispatch;
 mod owner;
+mod trace;
 
 pub use dispatch::*;
 pub use owner::*;

@@ -231,7 +231,7 @@ fn crash_apply(root: &Path, point: CrashPoint) -> Result<(), Box<dyn Error>> {
         point,
     });
     let cutover: Arc<dyn RuntimeCutover> = Arc::new(CrashCutover {
-        inner: runtime,
+        inner: Arc::clone(&runtime),
         point,
     });
     let apply = Arc::new(ApplyCoordinator::new(
@@ -241,7 +241,7 @@ fn crash_apply(root: &Path, point: CrashPoint) -> Result<(), Box<dyn Error>> {
         cutover,
         16,
     )?);
-    let (gateway, context) = gateway(root, repository, apply)?;
+    let (gateway, context) = gateway(root, repository, apply, runtime)?;
     let window = gateway.open_mutation_window(&context)?;
     let plan_hash = match gateway.query(
         &context,

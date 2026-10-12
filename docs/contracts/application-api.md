@@ -56,6 +56,8 @@ Named pipe/Unix socket adapter может быть добавлен без из�
 
 Provisioning и future media/remote operations выделяются отдельными API groups с дополнительным confirmation/grant workflow.
 
+`RuntimeTrace` v1 читается как bounded snapshot под scope `simulation`: он содержит plan/schema hashes, epoch, sequence, correlation/causation slots и redacted machine outcomes. Default query не возвращает signal/result payload, private text, audio или credentials; полная recording fixture является отдельной явно разрешённой диагностической операцией.
+
 Data/result bindings, light scenes и notification view models редактируются тем же draft API, что и обычный graph. Система IDs различает application `OperationId`, root execution/`RunId`, step `InvocationId` и provider `JobId`. Receipt apply/launch не означает завершение workflow. Queries результатов снова проверяют актуальные grants; secret values не сохраняются в durable dedup receipt. [Automation contract](automation.md) определяет job/result/artifact semantics; API не создаёт второй scheduler.
 
 ## Mutation envelope

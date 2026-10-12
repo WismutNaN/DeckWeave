@@ -51,6 +51,8 @@ use std::{
 
 const FIXTURE: &str = env!("CARGO_BIN_EXE_deckweave-virtual-plugin-fixture");
 
+#[path = "support/m1_fixture.rs"]
+mod m1_fixture;
 #[path = "support/production_apply_crash.rs"]
 mod production_apply_crash;
 
@@ -406,6 +408,7 @@ fn gateway(
     root: &Path,
     repository: Arc<JsonProfileStore>,
     apply: Arc<ApplyCoordinator>,
+    runtime: Arc<ProductionRuntimeCoordinator>,
 ) -> Result<(ApplicationGateway, RequestContext), Box<dyn Error>> {
     let principal = PrincipalId::try_new("desktop-user")?;
     let authorizer = Arc::new(InMemoryApiAuthorizer::new());
@@ -425,7 +428,8 @@ fn gateway(
             repository as Arc<dyn CommandClaimRepository>,
             authorizer,
             apply,
-        ),
+        )
+        .with_runtime_diagnostics(runtime),
         RequestContext {
             principal_id: principal,
             trace_id: TraceId::try_new("production-apply-trace")?,
@@ -476,7 +480,12 @@ fn graph_apply_binds_and_activates_two_runtime_groups() -> Result<(), Box<dyn Er
         "multi-boot",
         Arc::new(compiler),
     )?;
-    let (gateway, context) = gateway(directory.path(), Arc::clone(&repository), apply)?;
+    let (gateway, context) = gateway(
+        directory.path(),
+        Arc::clone(&repository),
+        apply,
+        Arc::clone(&runtime),
+    )?;
     let window = gateway.open_mutation_window(&context)?;
     let plan_hash = match gateway.query(
         &context,
@@ -547,6 +556,140 @@ fn graph_apply_binds_and_activates_two_runtime_groups() -> Result<(), Box<dyn Er
 }
 
 #[test]
+fn m1_runs_isolated_source_action_and_feedback_end_to_end() -> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    let (draft, compiler, feedback_marker) = m1_fixture::stage_and_build(directory.path())?;
+    let repository = Arc::new(JsonProfileStore::new(
+        directory.path().join("profiles"),
+        Arc::new(NativeAtomicFileStore),
+        ProfileStoreLimits::default(),
+    ));
+    repository.create_draft(&draft)?;
+    let authorization = Arc::new(MutableAuthorization::new());
+    let (runtime, apply, registry) = build_runtime_with_compiler(
+        directory.path(),
+        Arc::clone(&repository),
+        authorization,
+        "m1-boot",
+        Arc::new(compiler),
+    )?;
+    let (gateway, context) = gateway(
+        directory.path(),
+        Arc::clone(&repository),
+        apply,
+        Arc::clone(&runtime),
+    )?;
+    let window = gateway.open_mutation_window(&context)?;
+    let plan_hash = match gateway.query(
+        &context,
+        AppQuery::PlanApply {
+            draft_id: DraftId::try_new("m1-draft")?,
+            expected_draft_version: DraftVersion::try_new(1)?,
+            expected_active: None,
+            allow_disruption: false,
+        },
+    )? {
+        AppQueryResult::ApplyPlan(plan) => plan.plan_hash,
+        _ => return Err("unexpected M1 plan response".into()),
+    };
+    let operation_id = match gateway.command(
+        &context,
+        CommandEnvelope {
+            request_id: "apply-m1".into(),
+            idempotency_key: IdempotencyKey::try_new("apply-m1-once")?,
+            dedup_epoch: window.dedup_epoch,
+            dry_run: false,
+            command: AppCommand::ApplyDraft {
+                draft_id: DraftId::try_new("m1-draft")?,
+                expected_draft_version: DraftVersion::try_new(1)?,
+                expected_active: None,
+                allow_disruption: false,
+                plan_hash,
+            },
+        },
+    )? {
+        AppCommandResult::OperationAccepted(receipt) => receipt.operation_id,
+        _ => return Err("unexpected M1 apply response".into()),
+    };
+    wait_until(|| {
+        runtime
+            .live_execution()
+            .snapshot()
+            .ok()
+            .flatten()
+            .is_some_and(|state| state.pending.is_empty() && state.completed.len() == 2)
+            && fs::read_to_string(&feedback_marker)
+                .ok()
+                .is_some_and(|value| value.lines().count() == 2)
+    })?;
+    let operation = match gateway.query(&context, AppQuery::Operation { operation_id })? {
+        AppQueryResult::Operation(operation) => operation,
+        _ => return Err("unexpected M1 operation response".into()),
+    };
+    assert_eq!(operation.state, ApplyOperationState::Succeeded);
+    let trace = match gateway.query(&context, AppQuery::RuntimeTrace)? {
+        AppQueryResult::RuntimeTrace(trace) => trace,
+        _ => return Err("unexpected M1 trace response".into()),
+    };
+    assert_eq!(trace.format_version, 1);
+    assert!(trace.plan_hash.is_some());
+    assert!(!trace.schema_hashes.is_empty());
+    assert_eq!(
+        trace
+            .entries
+            .iter()
+            .filter(|entry| entry.kind == deckweave_application::RuntimeTraceEventKind::IntentInvoke)
+            .count(),
+        2
+    );
+    assert_eq!(
+        trace
+            .entries
+            .iter()
+            .filter(
+                |entry| entry.kind == deckweave_application::RuntimeTraceEventKind::IntentFeedback
+            )
+            .count(),
+        2
+    );
+    let scheduler = runtime
+        .live_execution()
+        .snapshot()?
+        .ok_or("M1 scheduler is not active")?;
+    assert_eq!(scheduler.pending.len(), 0);
+    assert_eq!(scheduler.completed.len(), 2);
+    assert!(
+        scheduler
+            .values
+            .get(&GraphNodeId::try_new("result-state")?)
+            .and_then(serde_json::Value::as_str)
+            .is_some_and(|value| value.starts_with("completed:run-"))
+    );
+    let registry = registry
+        .lock()
+        .map_err(|_| "registry poisoned")?
+        .snapshot()?;
+    assert_eq!(registry.nodes.len(), 3);
+    assert!(
+        registry
+            .nodes
+            .iter()
+            .any(|node| node.descriptor.devices.len() == 2)
+    );
+    assert_eq!(
+        runtime
+            .runtime_health()
+            .runtimes
+            .iter()
+            .filter(|entry| entry.status == RuntimeHealthStatus::Active)
+            .count(),
+        3
+    );
+    runtime.shutdown()?;
+    Ok(())
+}
+
+#[test]
 fn public_apply_replays_recovers_and_revokes_without_ui() -> Result<(), Box<dyn Error>> {
     let directory = tempfile::tempdir()?;
     let artifact_sha256 = stage_package(directory.path())?;
@@ -563,7 +706,12 @@ fn public_apply_replays_recovers_and_revokes_without_ui() -> Result<(), Box<dyn 
         Arc::clone(&authorization),
         "boot-1",
     )?;
-    let (gateway, context) = gateway(directory.path(), Arc::clone(&repository), apply)?;
+    let (gateway, context) = gateway(
+        directory.path(),
+        Arc::clone(&repository),
+        apply,
+        Arc::clone(&runtime),
+    )?;
     let window = gateway.open_mutation_window(&context)?;
     let plan_hash = match gateway.query(
         &context,

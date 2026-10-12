@@ -88,7 +88,8 @@ pub(crate) fn compose(
         profiles as Arc<dyn CommandClaimRepository>,
         authorizer,
         apply,
-    );
+    )
+    .with_runtime_diagnostics(runtime.clone());
     Ok(ProductionServices { gateway, runtime })
 }
 

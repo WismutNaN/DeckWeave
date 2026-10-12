@@ -266,6 +266,7 @@ impl ProductionRuntimeCoordinator {
         self.shutdown_workers(active)?;
         let bound_graph = prepared.bound_graph;
         let executable_graph = prepared.executable_graph;
+        let plan_hash = prepared.plan_hash;
         let mut instances = prepared.instances;
         let publish_result = {
             let mut registry = self
@@ -284,6 +285,7 @@ impl ProductionRuntimeCoordinator {
         let epoch = self
             .execution
             .activate(
+                &plan_hash,
                 executable_graph.as_ref(),
                 bound_graph.as_ref(),
                 GraphLimits::default(),
