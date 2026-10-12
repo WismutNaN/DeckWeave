@@ -2,6 +2,7 @@
 //! Ordered live owner that connects runtime events to the pure scheduler.
 
 mod activation;
+mod virtual_control;
 use super::trace::TraceBuffer;
 use super::{ExecutionClock, MonotonicExecutionClock};
 use super::{

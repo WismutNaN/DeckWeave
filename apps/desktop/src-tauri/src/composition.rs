@@ -35,6 +35,7 @@ pub(crate) fn compose(
     root: &Path,
     host: Arc<HostRuntime>,
 ) -> Result<ProductionServices, Box<dyn Error>> {
+    crate::bundled::ensure_virtual(root)?;
     let package_root = root.join("packages");
     std::fs::create_dir_all(&package_root)?;
     let packages = Arc::new(PackageIndex::scan(
@@ -118,6 +119,7 @@ pub(crate) fn compose(
         apply,
     )
     .with_runtime_diagnostics(runtime.clone())
+    .with_virtual_control(runtime.clone())
     .with_plugin_catalog(packages)
     .with_editor_source(editor_source);
     Ok(ProductionServices {

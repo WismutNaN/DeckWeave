@@ -17,6 +17,7 @@ use std::{
 
 mod catalog;
 pub(crate) mod errors;
+mod virtual_control;
 use crate::plugin_catalog::{PluginCatalogSource, UnavailablePluginCatalog};
 use errors::{api_error, map_apply_error, map_store_error};
 
@@ -25,6 +26,7 @@ pub trait HostStatusSource: Send + Sync {
 }
 
 pub struct ApplicationGateway {
+    virtual_control: Arc<dyn crate::virtual_control::VirtualControlPort>,
     host: Arc<dyn HostStatusSource>,
     drafts: Arc<dyn DraftRepository>,
     command_claims: Arc<dyn CommandClaimRepository>,
@@ -45,6 +47,7 @@ impl ApplicationGateway {
         apply: Arc<dyn ApplyUseCase>,
     ) -> Self {
         Self {
+            virtual_control: Arc::new(crate::virtual_control::UnavailableVirtualControl),
             host,
             drafts,
             command_claims,
@@ -104,6 +107,7 @@ impl ApplicationService for ApplicationGateway {
 
     fn query(&self, context: &RequestContext, query: AppQuery) -> Result<AppQueryResult, ApiError> {
         match query {
+            AppQuery::VirtualSurface => self.query_virtual_surface(context),
             AppQuery::ActiveDocument => {
                 self.authorize(context, ApiAuthScope::Read)?;
                 self.editor
@@ -186,7 +190,7 @@ impl ApplicationService for ApplicationGateway {
     ) -> Result<AppCommandResult, ApiError> {
         let required_scope = match &envelope.command {
             AppCommand::PatchDraft { .. } => ApiAuthScope::Draft,
-            AppCommand::ApplyDraft { .. } => ApiAuthScope::Apply,
+            AppCommand::ApplyDraft { .. } | AppCommand::VirtualClick { .. } => ApiAuthScope::Apply,
         };
         self.authorize(context, required_scope)?;
         if envelope.request_id.is_empty() || envelope.request_id.len() > 128 {
@@ -198,7 +202,7 @@ impl ApplicationService for ApplicationGateway {
                 BTreeMap::new(),
             ));
         }
-        if !envelope.dry_run {
+        let replayed = if !envelope.dry_run {
             let payload_fingerprint = serde_json::to_vec(&envelope.command)
                 .map(|bytes| format!("{:x}", Sha256::digest(bytes)))
                 .map_err(|error| {
@@ -219,9 +223,15 @@ impl ApplicationService for ApplicationGateway {
                     },
                     payload_fingerprint,
                 })
-                .map_err(|error| map_store_error(context, error))?;
-        }
+                .map_err(|error| map_store_error(context, error))?
+                .replayed
+        } else {
+            false
+        };
         match envelope.command {
+            AppCommand::VirtualClick { request } => {
+                self.click_virtual(context, &request, envelope.dry_run, replayed)
+            }
             AppCommand::PatchDraft {
                 draft_id,
                 expected_version,

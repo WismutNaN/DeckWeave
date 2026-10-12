@@ -2,6 +2,7 @@
 //! Ownership and lifecycle of prepared and active runtime generations.
 
 mod locale;
+mod virtual_control;
 use super::{
     config::{HostRuntimeConfig, HostRuntimeError},
     dispatch::RuntimeDispatchHub,

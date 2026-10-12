@@ -27,6 +27,7 @@ pub mod locale;
 pub mod plugin_catalog;
 pub mod plugin_data;
 pub mod plugin_services;
+pub mod virtual_control;
 pub use diagnostics::*;
 // Compatibility export while downstream SDK users migrate to deckweave-platform.
 pub use deckweave_platform::*;

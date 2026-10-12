@@ -1,0 +1,3631 @@
+[
+  {
+    "nodeId": "virtual-node",
+    "kind": "local",
+    "label": "Virtual Studio",
+    "descriptorRevision": 1,
+    "devices": [
+      {
+        "providerId": "virtual",
+        "identity": "deck-a",
+        "kind": "virtual",
+        "label": "Virtual Deck A",
+        "elements": [
+          {
+            "elementId": "key-1",
+            "label": "1",
+            "capabilities": [
+              {
+                "capabilityId": "button",
+                "kind": "org.deckweave.input.button",
+                "ports": [
+                  {
+                    "portId": "pressed",
+                    "kind": "EventOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.boolean",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "event",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.press"
+                    ]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "display",
+                "kind": "org.deckweave.display.text",
+                "ports": [
+                  {
+                    "portId": "text",
+                    "kind": "ValueIn",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "input",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": []
+                  },
+                  {
+                    "portId": "displayed",
+                    "kind": "ValueOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.display"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "elementId": "key-2",
+            "label": "2",
+            "capabilities": [
+              {
+                "capabilityId": "button",
+                "kind": "org.deckweave.input.button",
+                "ports": [
+                  {
+                    "portId": "pressed",
+                    "kind": "EventOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.boolean",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "event",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.press"
+                    ]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "display",
+                "kind": "org.deckweave.display.text",
+                "ports": [
+                  {
+                    "portId": "text",
+                    "kind": "ValueIn",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "input",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": []
+                  },
+                  {
+                    "portId": "displayed",
+                    "kind": "ValueOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.display"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "elementId": "key-3",
+            "label": "3",
+            "capabilities": [
+              {
+                "capabilityId": "button",
+                "kind": "org.deckweave.input.button",
+                "ports": [
+                  {
+                    "portId": "pressed",
+                    "kind": "EventOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.boolean",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "event",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.press"
+                    ]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "display",
+                "kind": "org.deckweave.display.text",
+                "ports": [
+                  {
+                    "portId": "text",
+                    "kind": "ValueIn",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "input",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": []
+                  },
+                  {
+                    "portId": "displayed",
+                    "kind": "ValueOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.display"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "elementId": "key-4",
+            "label": "4",
+            "capabilities": [
+              {
+                "capabilityId": "button",
+                "kind": "org.deckweave.input.button",
+                "ports": [
+                  {
+                    "portId": "pressed",
+                    "kind": "EventOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.boolean",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "event",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.press"
+                    ]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "display",
+                "kind": "org.deckweave.display.text",
+                "ports": [
+                  {
+                    "portId": "text",
+                    "kind": "ValueIn",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "input",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": []
+                  },
+                  {
+                    "portId": "displayed",
+                    "kind": "ValueOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.display"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "elementId": "key-5",
+            "label": "5",
+            "capabilities": [
+              {
+                "capabilityId": "button",
+                "kind": "org.deckweave.input.button",
+                "ports": [
+                  {
+                    "portId": "pressed",
+                    "kind": "EventOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.boolean",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "event",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.press"
+                    ]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "display",
+                "kind": "org.deckweave.display.text",
+                "ports": [
+                  {
+                    "portId": "text",
+                    "kind": "ValueIn",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "input",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": []
+                  },
+                  {
+                    "portId": "displayed",
+                    "kind": "ValueOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.display"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "elementId": "key-6",
+            "label": "6",
+            "capabilities": [
+              {
+                "capabilityId": "button",
+                "kind": "org.deckweave.input.button",
+                "ports": [
+                  {
+                    "portId": "pressed",
+                    "kind": "EventOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.boolean",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "event",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.press"
+                    ]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "display",
+                "kind": "org.deckweave.display.text",
+                "ports": [
+                  {
+                    "portId": "text",
+                    "kind": "ValueIn",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "input",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": []
+                  },
+                  {
+                    "portId": "displayed",
+                    "kind": "ValueOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.display"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "elementId": "key-7",
+            "label": "7",
+            "capabilities": [
+              {
+                "capabilityId": "button",
+                "kind": "org.deckweave.input.button",
+                "ports": [
+                  {
+                    "portId": "pressed",
+                    "kind": "EventOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.boolean",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "event",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.press"
+                    ]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "display",
+                "kind": "org.deckweave.display.text",
+                "ports": [
+                  {
+                    "portId": "text",
+                    "kind": "ValueIn",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "input",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": []
+                  },
+                  {
+                    "portId": "displayed",
+                    "kind": "ValueOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.display"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "elementId": "key-8",
+            "label": "8",
+            "capabilities": [
+              {
+                "capabilityId": "button",
+                "kind": "org.deckweave.input.button",
+                "ports": [
+                  {
+                    "portId": "pressed",
+                    "kind": "EventOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.boolean",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "event",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.press"
+                    ]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "display",
+                "kind": "org.deckweave.display.text",
+                "ports": [
+                  {
+                    "portId": "text",
+                    "kind": "ValueIn",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "input",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": []
+                  },
+                  {
+                    "portId": "displayed",
+                    "kind": "ValueOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.display"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "elementId": "key-9",
+            "label": "9",
+            "capabilities": [
+              {
+                "capabilityId": "button",
+                "kind": "org.deckweave.input.button",
+                "ports": [
+                  {
+                    "portId": "pressed",
+                    "kind": "EventOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.boolean",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "event",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.press"
+                    ]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "display",
+                "kind": "org.deckweave.display.text",
+                "ports": [
+                  {
+                    "portId": "text",
+                    "kind": "ValueIn",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "input",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": []
+                  },
+                  {
+                    "portId": "displayed",
+                    "kind": "ValueOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.display"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "elementId": "key-10",
+            "label": "10",
+            "capabilities": [
+              {
+                "capabilityId": "button",
+                "kind": "org.deckweave.input.button",
+                "ports": [
+                  {
+                    "portId": "pressed",
+                    "kind": "EventOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.boolean",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "event",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.press"
+                    ]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "display",
+                "kind": "org.deckweave.display.text",
+                "ports": [
+                  {
+                    "portId": "text",
+                    "kind": "ValueIn",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "input",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": []
+                  },
+                  {
+                    "portId": "displayed",
+                    "kind": "ValueOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.display"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "elementId": "key-11",
+            "label": "11",
+            "capabilities": [
+              {
+                "capabilityId": "button",
+                "kind": "org.deckweave.input.button",
+                "ports": [
+                  {
+                    "portId": "pressed",
+                    "kind": "EventOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.boolean",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "event",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.press"
+                    ]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "display",
+                "kind": "org.deckweave.display.text",
+                "ports": [
+                  {
+                    "portId": "text",
+                    "kind": "ValueIn",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "input",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": []
+                  },
+                  {
+                    "portId": "displayed",
+                    "kind": "ValueOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.display"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "elementId": "key-12",
+            "label": "12",
+            "capabilities": [
+              {
+                "capabilityId": "button",
+                "kind": "org.deckweave.input.button",
+                "ports": [
+                  {
+                    "portId": "pressed",
+                    "kind": "EventOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.boolean",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "event",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.press"
+                    ]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "display",
+                "kind": "org.deckweave.display.text",
+                "ports": [
+                  {
+                    "portId": "text",
+                    "kind": "ValueIn",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "input",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": []
+                  },
+                  {
+                    "portId": "displayed",
+                    "kind": "ValueOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.display"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "elementId": "key-13",
+            "label": "13",
+            "capabilities": [
+              {
+                "capabilityId": "button",
+                "kind": "org.deckweave.input.button",
+                "ports": [
+                  {
+                    "portId": "pressed",
+                    "kind": "EventOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.boolean",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "event",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.press"
+                    ]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "display",
+                "kind": "org.deckweave.display.text",
+                "ports": [
+                  {
+                    "portId": "text",
+                    "kind": "ValueIn",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "input",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": []
+                  },
+                  {
+                    "portId": "displayed",
+                    "kind": "ValueOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.display"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "elementId": "key-14",
+            "label": "14",
+            "capabilities": [
+              {
+                "capabilityId": "button",
+                "kind": "org.deckweave.input.button",
+                "ports": [
+                  {
+                    "portId": "pressed",
+                    "kind": "EventOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.boolean",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "event",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.press"
+                    ]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "display",
+                "kind": "org.deckweave.display.text",
+                "ports": [
+                  {
+                    "portId": "text",
+                    "kind": "ValueIn",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "input",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": []
+                  },
+                  {
+                    "portId": "displayed",
+                    "kind": "ValueOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.display"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "elementId": "key-15",
+            "label": "15",
+            "capabilities": [
+              {
+                "capabilityId": "button",
+                "kind": "org.deckweave.input.button",
+                "ports": [
+                  {
+                    "portId": "pressed",
+                    "kind": "EventOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.boolean",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "event",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.press"
+                    ]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "display",
+                "kind": "org.deckweave.display.text",
+                "ports": [
+                  {
+                    "portId": "text",
+                    "kind": "ValueIn",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "input",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": []
+                  },
+                  {
+                    "portId": "displayed",
+                    "kind": "ValueOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.display"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "org.deckweave.controlLayout": {
+          "version": 1,
+          "width": 5,
+          "height": 3,
+          "elements": {
+            "key-1": {
+              "x": 0,
+              "y": 0,
+              "width": 1,
+              "height": 1
+            },
+            "key-2": {
+              "x": 1,
+              "y": 0,
+              "width": 1,
+              "height": 1
+            },
+            "key-3": {
+              "x": 2,
+              "y": 0,
+              "width": 1,
+              "height": 1
+            },
+            "key-4": {
+              "x": 3,
+              "y": 0,
+              "width": 1,
+              "height": 1
+            },
+            "key-5": {
+              "x": 4,
+              "y": 0,
+              "width": 1,
+              "height": 1
+            },
+            "key-6": {
+              "x": 0,
+              "y": 1,
+              "width": 1,
+              "height": 1
+            },
+            "key-7": {
+              "x": 1,
+              "y": 1,
+              "width": 1,
+              "height": 1
+            },
+            "key-8": {
+              "x": 2,
+              "y": 1,
+              "width": 1,
+              "height": 1
+            },
+            "key-9": {
+              "x": 3,
+              "y": 1,
+              "width": 1,
+              "height": 1
+            },
+            "key-10": {
+              "x": 4,
+              "y": 1,
+              "width": 1,
+              "height": 1
+            },
+            "key-11": {
+              "x": 0,
+              "y": 2,
+              "width": 1,
+              "height": 1
+            },
+            "key-12": {
+              "x": 1,
+              "y": 2,
+              "width": 1,
+              "height": 1
+            },
+            "key-13": {
+              "x": 2,
+              "y": 2,
+              "width": 1,
+              "height": 1
+            },
+            "key-14": {
+              "x": 3,
+              "y": 2,
+              "width": 1,
+              "height": 1
+            },
+            "key-15": {
+              "x": 4,
+              "y": 2,
+              "width": 1,
+              "height": 1
+            }
+          }
+        }
+      },
+      {
+        "providerId": "virtual",
+        "identity": "deck-b",
+        "kind": "virtual",
+        "label": "Virtual Deck B",
+        "elements": [
+          {
+            "elementId": "key-1",
+            "label": "1",
+            "capabilities": [
+              {
+                "capabilityId": "button",
+                "kind": "org.deckweave.input.button",
+                "ports": [
+                  {
+                    "portId": "pressed",
+                    "kind": "EventOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.boolean",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "event",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.press"
+                    ]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "display",
+                "kind": "org.deckweave.display.text",
+                "ports": [
+                  {
+                    "portId": "text",
+                    "kind": "ValueIn",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "input",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": []
+                  },
+                  {
+                    "portId": "displayed",
+                    "kind": "ValueOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.display"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "elementId": "key-2",
+            "label": "2",
+            "capabilities": [
+              {
+                "capabilityId": "button",
+                "kind": "org.deckweave.input.button",
+                "ports": [
+                  {
+                    "portId": "pressed",
+                    "kind": "EventOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.boolean",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "event",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.press"
+                    ]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "display",
+                "kind": "org.deckweave.display.text",
+                "ports": [
+                  {
+                    "portId": "text",
+                    "kind": "ValueIn",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "input",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": []
+                  },
+                  {
+                    "portId": "displayed",
+                    "kind": "ValueOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.display"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "elementId": "key-3",
+            "label": "3",
+            "capabilities": [
+              {
+                "capabilityId": "button",
+                "kind": "org.deckweave.input.button",
+                "ports": [
+                  {
+                    "portId": "pressed",
+                    "kind": "EventOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.boolean",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "event",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.press"
+                    ]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "display",
+                "kind": "org.deckweave.display.text",
+                "ports": [
+                  {
+                    "portId": "text",
+                    "kind": "ValueIn",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "input",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": []
+                  },
+                  {
+                    "portId": "displayed",
+                    "kind": "ValueOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.display"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "elementId": "key-4",
+            "label": "4",
+            "capabilities": [
+              {
+                "capabilityId": "button",
+                "kind": "org.deckweave.input.button",
+                "ports": [
+                  {
+                    "portId": "pressed",
+                    "kind": "EventOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.boolean",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "event",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.press"
+                    ]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "display",
+                "kind": "org.deckweave.display.text",
+                "ports": [
+                  {
+                    "portId": "text",
+                    "kind": "ValueIn",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "input",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": []
+                  },
+                  {
+                    "portId": "displayed",
+                    "kind": "ValueOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.display"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "elementId": "key-5",
+            "label": "5",
+            "capabilities": [
+              {
+                "capabilityId": "button",
+                "kind": "org.deckweave.input.button",
+                "ports": [
+                  {
+                    "portId": "pressed",
+                    "kind": "EventOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.boolean",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "event",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.press"
+                    ]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "display",
+                "kind": "org.deckweave.display.text",
+                "ports": [
+                  {
+                    "portId": "text",
+                    "kind": "ValueIn",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "input",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": []
+                  },
+                  {
+                    "portId": "displayed",
+                    "kind": "ValueOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.display"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "elementId": "key-6",
+            "label": "6",
+            "capabilities": [
+              {
+                "capabilityId": "button",
+                "kind": "org.deckweave.input.button",
+                "ports": [
+                  {
+                    "portId": "pressed",
+                    "kind": "EventOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.boolean",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "event",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.press"
+                    ]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "display",
+                "kind": "org.deckweave.display.text",
+                "ports": [
+                  {
+                    "portId": "text",
+                    "kind": "ValueIn",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "input",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": []
+                  },
+                  {
+                    "portId": "displayed",
+                    "kind": "ValueOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.display"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "elementId": "key-7",
+            "label": "7",
+            "capabilities": [
+              {
+                "capabilityId": "button",
+                "kind": "org.deckweave.input.button",
+                "ports": [
+                  {
+                    "portId": "pressed",
+                    "kind": "EventOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.boolean",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "event",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.press"
+                    ]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "display",
+                "kind": "org.deckweave.display.text",
+                "ports": [
+                  {
+                    "portId": "text",
+                    "kind": "ValueIn",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "input",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": []
+                  },
+                  {
+                    "portId": "displayed",
+                    "kind": "ValueOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.display"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "elementId": "key-8",
+            "label": "8",
+            "capabilities": [
+              {
+                "capabilityId": "button",
+                "kind": "org.deckweave.input.button",
+                "ports": [
+                  {
+                    "portId": "pressed",
+                    "kind": "EventOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.boolean",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "event",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.press"
+                    ]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "display",
+                "kind": "org.deckweave.display.text",
+                "ports": [
+                  {
+                    "portId": "text",
+                    "kind": "ValueIn",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "input",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": []
+                  },
+                  {
+                    "portId": "displayed",
+                    "kind": "ValueOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.display"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "elementId": "key-9",
+            "label": "9",
+            "capabilities": [
+              {
+                "capabilityId": "button",
+                "kind": "org.deckweave.input.button",
+                "ports": [
+                  {
+                    "portId": "pressed",
+                    "kind": "EventOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.boolean",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "event",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.press"
+                    ]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "display",
+                "kind": "org.deckweave.display.text",
+                "ports": [
+                  {
+                    "portId": "text",
+                    "kind": "ValueIn",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "input",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": []
+                  },
+                  {
+                    "portId": "displayed",
+                    "kind": "ValueOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.display"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "elementId": "key-10",
+            "label": "10",
+            "capabilities": [
+              {
+                "capabilityId": "button",
+                "kind": "org.deckweave.input.button",
+                "ports": [
+                  {
+                    "portId": "pressed",
+                    "kind": "EventOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.boolean",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "event",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.press"
+                    ]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "display",
+                "kind": "org.deckweave.display.text",
+                "ports": [
+                  {
+                    "portId": "text",
+                    "kind": "ValueIn",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "input",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": []
+                  },
+                  {
+                    "portId": "displayed",
+                    "kind": "ValueOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.display"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "elementId": "key-11",
+            "label": "11",
+            "capabilities": [
+              {
+                "capabilityId": "button",
+                "kind": "org.deckweave.input.button",
+                "ports": [
+                  {
+                    "portId": "pressed",
+                    "kind": "EventOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.boolean",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "event",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.press"
+                    ]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "display",
+                "kind": "org.deckweave.display.text",
+                "ports": [
+                  {
+                    "portId": "text",
+                    "kind": "ValueIn",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "input",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": []
+                  },
+                  {
+                    "portId": "displayed",
+                    "kind": "ValueOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.display"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "elementId": "key-12",
+            "label": "12",
+            "capabilities": [
+              {
+                "capabilityId": "button",
+                "kind": "org.deckweave.input.button",
+                "ports": [
+                  {
+                    "portId": "pressed",
+                    "kind": "EventOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.boolean",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "event",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.press"
+                    ]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "display",
+                "kind": "org.deckweave.display.text",
+                "ports": [
+                  {
+                    "portId": "text",
+                    "kind": "ValueIn",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "input",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": []
+                  },
+                  {
+                    "portId": "displayed",
+                    "kind": "ValueOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.display"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "elementId": "key-13",
+            "label": "13",
+            "capabilities": [
+              {
+                "capabilityId": "button",
+                "kind": "org.deckweave.input.button",
+                "ports": [
+                  {
+                    "portId": "pressed",
+                    "kind": "EventOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.boolean",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "event",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.press"
+                    ]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "display",
+                "kind": "org.deckweave.display.text",
+                "ports": [
+                  {
+                    "portId": "text",
+                    "kind": "ValueIn",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "input",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": []
+                  },
+                  {
+                    "portId": "displayed",
+                    "kind": "ValueOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.display"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "elementId": "key-14",
+            "label": "14",
+            "capabilities": [
+              {
+                "capabilityId": "button",
+                "kind": "org.deckweave.input.button",
+                "ports": [
+                  {
+                    "portId": "pressed",
+                    "kind": "EventOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.boolean",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "event",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.press"
+                    ]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "display",
+                "kind": "org.deckweave.display.text",
+                "ports": [
+                  {
+                    "portId": "text",
+                    "kind": "ValueIn",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "input",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": []
+                  },
+                  {
+                    "portId": "displayed",
+                    "kind": "ValueOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.display"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "elementId": "key-15",
+            "label": "15",
+            "capabilities": [
+              {
+                "capabilityId": "button",
+                "kind": "org.deckweave.input.button",
+                "ports": [
+                  {
+                    "portId": "pressed",
+                    "kind": "EventOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.boolean",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "event",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.press"
+                    ]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "display",
+                "kind": "org.deckweave.display.text",
+                "ports": [
+                  {
+                    "portId": "text",
+                    "kind": "ValueIn",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "input",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": []
+                  },
+                  {
+                    "portId": "displayed",
+                    "kind": "ValueOut",
+                    "schema": {
+                      "id": "org.deckweave.virtual.text",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "output",
+                    "semantics": "value",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": [
+                      "org.deckweave.virtual.display"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "org.deckweave.controlLayout": {
+          "version": 1,
+          "width": 5,
+          "height": 3,
+          "elements": {
+            "key-1": {
+              "x": 0,
+              "y": 0,
+              "width": 1,
+              "height": 1
+            },
+            "key-2": {
+              "x": 1,
+              "y": 0,
+              "width": 1,
+              "height": 1
+            },
+            "key-3": {
+              "x": 2,
+              "y": 0,
+              "width": 1,
+              "height": 1
+            },
+            "key-4": {
+              "x": 3,
+              "y": 0,
+              "width": 1,
+              "height": 1
+            },
+            "key-5": {
+              "x": 4,
+              "y": 0,
+              "width": 1,
+              "height": 1
+            },
+            "key-6": {
+              "x": 0,
+              "y": 1,
+              "width": 1,
+              "height": 1
+            },
+            "key-7": {
+              "x": 1,
+              "y": 1,
+              "width": 1,
+              "height": 1
+            },
+            "key-8": {
+              "x": 2,
+              "y": 1,
+              "width": 1,
+              "height": 1
+            },
+            "key-9": {
+              "x": 3,
+              "y": 1,
+              "width": 1,
+              "height": 1
+            },
+            "key-10": {
+              "x": 4,
+              "y": 1,
+              "width": 1,
+              "height": 1
+            },
+            "key-11": {
+              "x": 0,
+              "y": 2,
+              "width": 1,
+              "height": 1
+            },
+            "key-12": {
+              "x": 1,
+              "y": 2,
+              "width": 1,
+              "height": 1
+            },
+            "key-13": {
+              "x": 2,
+              "y": 2,
+              "width": 1,
+              "height": 1
+            },
+            "key-14": {
+              "x": 3,
+              "y": 2,
+              "width": 1,
+              "height": 1
+            },
+            "key-15": {
+              "x": 4,
+              "y": 2,
+              "width": 1,
+              "height": 1
+            }
+          }
+        }
+      }
+    ],
+    "services": [
+      {
+        "serviceId": "text",
+        "providerId": "virtual",
+        "label": "Text",
+        "elements": [
+          {
+            "elementId": "echo",
+            "label": "Echo",
+            "capabilities": [
+              {
+                "capabilityId": "action",
+                "kind": "org.deckweave.action.text",
+                "ports": [
+                  {
+                    "portId": "invoke",
+                    "kind": "CommandIn",
+                    "schema": {
+                      "id": "org.deckweave.virtual.message",
+                      "version": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "direction": "input",
+                    "semantics": "command",
+                    "compatibleVersions": {
+                      "minimum": {
+                        "major": 1,
+                        "minor": 0
+                      },
+                      "maximum": {
+                        "major": 1,
+                        "minor": 0
+                      }
+                    },
+                    "requiredPermissions": [],
+                    "availability": {
+                      "status": "available"
+                    },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]

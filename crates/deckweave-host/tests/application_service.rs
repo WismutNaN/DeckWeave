@@ -284,3 +284,5 @@ fn in_process_client_enforces_scopes_dry_run_conflicts_and_dedup() -> Result<(),
     assert!(receipt.replayed);
     Ok(())
 }
+#[path = "support/virtual_control.rs"]
+mod virtual_control;

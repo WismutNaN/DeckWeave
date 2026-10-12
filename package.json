@@ -30,7 +30,8 @@
     "format": "prettier --write ui/desktop apps/desktop/package.json scripts .github package.json",
     "test:ui": "tsx --test ui/desktop/tests/*.test.ts",
     "test:scripts": "node --test scripts/*.test.mjs",
-    "check": "npm run check:ui && npm run test:ui && npm run check:generated && npm run check:contracts && npm run check:docs && npm run check:boundaries && npm run check:format && npm run test:scripts"
+    "check": "npm run check:ui && npm run test:ui && npm run check:generated && npm run check:contracts && npm run check:docs && npm run check:boundaries && npm run check:format && npm run test:scripts",
+    "prepare:desktop": "node scripts/prepare-desktop.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.12.3"

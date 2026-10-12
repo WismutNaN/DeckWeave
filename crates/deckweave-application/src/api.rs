@@ -35,6 +35,7 @@ pub struct RequestContext {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AppQuery {
+    VirtualSurface,
     ActiveDocument,
     EditorSnapshot,
     Host,
@@ -60,6 +61,7 @@ pub enum AppQuery {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AppQueryResult {
+    VirtualSurface(crate::virtual_control::VirtualSurfaceSnapshot),
     ActiveDocument(crate::editor::ActiveDocument),
     EditorSnapshot(Box<crate::editor::EditorSnapshot>),
     Host(HostSnapshot),
@@ -73,6 +75,9 @@ pub enum AppQueryResult {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AppCommand {
+    VirtualClick {
+        request: crate::virtual_control::VirtualClickRequest,
+    },
     PatchDraft {
         draft_id: DraftId,
         expected_version: DraftVersion,
@@ -111,6 +116,10 @@ pub struct DraftMutationReceipt {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AppCommandResult {
+    VirtualClick {
+        accepted: bool,
+        replayed: bool,
+    },
     DraftMutation {
         draft: Box<DraftView>,
         receipt: Option<DraftMutationReceipt>,

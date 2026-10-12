@@ -965,6 +965,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "deckweave-virtual-device"
+version = "0.1.0"
+dependencies = [
+ "deckweave-protocol",
+ "serde_json",
+]
+
+[[package]]
 name = "deckweave-virtual-plugin-example"
 version = "0.1.0"
 dependencies = [

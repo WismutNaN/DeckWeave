@@ -105,6 +105,10 @@
     "deckweave-interaction": {
       "context": "Interaction Runtime",
       "allowedDependencies": ["deckweave-domain"]
+    },
+    "deckweave-virtual-device": {
+      "context": "Bundled virtual device provider",
+      "allowedDependencies": ["deckweave-protocol"]
     }
   },
   "sizeExceptions": {
