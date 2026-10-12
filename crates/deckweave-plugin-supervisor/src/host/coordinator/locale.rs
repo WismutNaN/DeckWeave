@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use super::*;
+impl deckweave_application::locale::LocalePublisher for ProductionRuntimeCoordinator {
+    fn publish_locale(
+        &self,
+        context: deckweave_domain::localization::LocaleContext,
+    ) -> Result<(), String> {
+        self.set_locale(context).map_err(|e| e.to_string())
+    }
+}
 impl ProductionRuntimeCoordinator {
     pub fn set_locale(
         &self,

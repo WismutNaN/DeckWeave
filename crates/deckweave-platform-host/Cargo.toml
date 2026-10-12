@@ -11,6 +11,7 @@ deckweave-domain.workspace = true
 deckweave-platform.workspace = true
 directories = "6"
 fs2 = "0.4"
+serde_json.workspace = true
 
 [target.'cfg(not(windows))'.dependencies]
 auto-launch = "0.6"

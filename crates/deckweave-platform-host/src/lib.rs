@@ -3,6 +3,7 @@
 
 mod launch;
 mod native;
+mod preferences;
 mod process;
 mod storage;
 #[cfg(windows)]
@@ -14,5 +15,6 @@ mod windows_storage;
 
 pub use launch::{LaunchOptions, installed_root};
 pub use native::{FileLease, NativePlatform};
+pub use preferences::JsonLocalePreferenceStore;
 pub use process::NativeChildProcessPolicy;
 pub use storage::NativeAtomicFileStore;

@@ -2,11 +2,14 @@
 //! Desktop production composition. Business invariants remain in their owners.
 
 use deckweave_application::{
-    ApiAuthScope, ApplicationGateway, InMemoryApiAuthorizer, ScopedAuthorizationStore,
+    ApiAuthScope, ApplicationGateway, InMemoryApiAuthorizer, LocalePreferenceStore,
+    ScopedAuthorizationStore, locale::LocalePreferencesService,
 };
 use deckweave_domain::ids::{HostBootId, PrincipalId};
 use deckweave_host::{ApplyCoordinator, ApplyPlanningService, HostRuntime};
-use deckweave_platform_host::{NativeAtomicFileStore, NativeChildProcessPolicy};
+use deckweave_platform_host::{
+    JsonLocalePreferenceStore, NativeAtomicFileStore, NativeChildProcessPolicy,
+};
 use deckweave_plugin_supervisor::{
     host::{HostRuntimeConfig, ProductionRuntimeCoordinator},
     package::{PackageGraphCompiler, PackageIndex, StagingLimits},
@@ -24,6 +27,7 @@ use std::{
 pub(crate) struct ProductionServices {
     pub(crate) gateway: ApplicationGateway,
     pub(crate) runtime: Arc<ProductionRuntimeCoordinator>,
+    pub(crate) locale: LocalePreferencesService,
 }
 
 pub(crate) fn compose(
@@ -44,6 +48,14 @@ pub(crate) fn compose(
     let authorization = Arc::new(ScopedAuthorizationStore::default());
     let registry = Arc::new(Mutex::new(CapabilityRegistry::default()));
     let principal = PrincipalId::try_new("desktop-ui")?;
+    let locale_store = Arc::new(JsonLocalePreferenceStore::new(
+        root.join("host/locale.json"),
+        Arc::new(NativeAtomicFileStore),
+    ));
+    let runtime_config = HostRuntimeConfig {
+        locale: locale_store.load()?,
+        ..Default::default()
+    };
     let compiler = PackageGraphCompiler::new(Arc::clone(&packages))
         .with_authorization(authorization.clone(), principal.clone());
     let runtime = Arc::new(ProductionRuntimeCoordinator::new(
@@ -54,7 +66,7 @@ pub(crate) fn compose(
         Arc::new(NativeChildProcessPolicy),
         principal.clone(),
         host_boot_id()?,
-        HostRuntimeConfig::default(),
+        runtime_config,
     ));
     let planning = ApplyPlanningService::new(
         Arc::clone(&profiles) as Arc<dyn DraftRepository>,
@@ -83,8 +95,10 @@ pub(crate) fn compose(
             ApiAuthScope::Draft,
             ApiAuthScope::Simulation,
             ApiAuthScope::Apply,
+            ApiAuthScope::Preferences,
         ],
     );
+    let locale = LocalePreferencesService::new(locale_store, runtime.clone(), authorizer.clone());
     let gateway = ApplicationGateway::new(
         host as Arc<dyn deckweave_application::HostStatusSource>,
         Arc::clone(&profiles) as Arc<dyn DraftRepository>,
@@ -93,7 +107,11 @@ pub(crate) fn compose(
         apply,
     )
     .with_runtime_diagnostics(runtime.clone());
-    Ok(ProductionServices { gateway, runtime })
+    Ok(ProductionServices {
+        gateway,
+        runtime,
+        locale,
+    })
 }
 
 fn host_boot_id() -> Result<HostBootId, Box<dyn Error>> {

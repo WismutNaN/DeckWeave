@@ -23,6 +23,7 @@ pub enum ApiAuthScope {
     Simulation,
     Apply,
     Admin,
+    Preferences,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

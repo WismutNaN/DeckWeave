@@ -7,6 +7,8 @@ use std::{
     process::{Child, Command},
 };
 use thiserror::Error;
+mod preferences;
+pub use preferences::{LocalePreferenceStore, PreferenceError};
 
 #[derive(Debug, Error)]
 pub enum PlatformError {

@@ -216,6 +216,36 @@ fn recursive_index_keeps_exact_version_and_hash() -> Result<(), Box<dyn Error>> 
     Ok(())
 }
 
+#[test]
+fn static_translations_use_parent_default_and_explicit_fallback_without_running_code()
+-> Result<(), Box<dyn Error>> {
+    let temp = tempfile::tempdir()?;
+    create_package(temp.path())?;
+    mutate_manifest(temp.path(), |manifest| {
+        manifest["org.deckweave.translations"] = json!({"defaultLocale":"en", "messages":{
+            "en":{"title":"Clock", "onlyEnglish":"Time"}, "ru":{"title":"Часы"}
+        }});
+    })?;
+    let index = PackageIndex::scan(temp.path(), &StagingLimits::default())?;
+    let package = index.packages().next().ok_or("package")?;
+    let artifact = package.artifacts.values().next().ok_or("artifact")?;
+    let catalog = index
+        .translation_catalog(&package.package_id, "0.1.0", &artifact.sha256)?
+        .ok_or("catalog")?;
+    assert_eq!(catalog.resolve("ru-RU", "title", "fallback"), "Часы");
+    assert_eq!(catalog.resolve("ru", "onlyEnglish", "fallback"), "Time");
+    assert_eq!(catalog.resolve("zz", "title", "fallback"), "Clock");
+    assert_eq!(catalog.resolve("ru", "missing", "fallback"), "fallback");
+    mutate_manifest(temp.path(), |manifest| {
+        manifest["org.deckweave.translations"]["messages"]["ru"]["title"] = json!("changed");
+    })?;
+    assert!(matches!(
+        index.translation_catalog(&package.package_id, "0.1.0", &artifact.sha256),
+        Err(PackageError::HashMismatch { .. })
+    ));
+    Ok(())
+}
+
 #[cfg(unix)]
 #[test]
 fn symlink_is_rejected_even_when_target_stays_inside_package() -> Result<(), Box<dyn Error>> {

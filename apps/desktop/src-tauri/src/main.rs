@@ -119,6 +119,7 @@ fn run(options: LaunchOptions) -> Result<(), Box<dyn std::error::Error>> {
             app.manage(host);
             app.manage(services.runtime);
             app.manage(services.gateway);
+            app.manage(services.locale);
 
             // WebView cache принадлежит root; portable не пишет его в installed data directory.
             let window = tauri::WebviewWindowBuilder::new(
