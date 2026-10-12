@@ -891,9 +891,13 @@ dependencies = [
  "deckweave-plugin-supervisor",
  "deckweave-protocol",
  "deckweave-registry",
+ "serde",
  "serde_json",
  "sha2",
  "tempfile",
+ "thiserror 2.0.21",
+ "windows",
+ "windows-core",
 ]
 
 [[package]]

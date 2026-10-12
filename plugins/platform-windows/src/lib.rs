@@ -2,8 +2,12 @@
 //! First-party Windows package shell. OS adapters remain controlled until
 //! their corresponding Phase 7 acceptance slice is complete.
 
+pub mod audio;
+mod control_audio;
+mod descriptor;
 mod error;
 mod runtime;
+mod wire;
 
 pub use error::PlatformFailure;
 pub use runtime::{RuntimeGroup, run};

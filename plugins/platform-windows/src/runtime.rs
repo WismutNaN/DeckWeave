@@ -1,18 +1,21 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-use crate::PlatformFailure;
+use crate::{
+    PlatformFailure,
+    audio::EffectKnowledge,
+    control_audio::{ControlAudio, parse_invocation, state_payload},
+    descriptor::runtime_descriptor,
+    wire::WireSender,
+};
 use deckweave_protocol::{
     FEATURE_ACTIVATION_COMMIT, FEATURE_INVOCATION_ENDPOINT_PATH,
-    framing::{read_envelope, write_envelope},
+    framing::read_envelope,
     v1::{
         ActivationReply, FeatureRequirement, Heartbeat, Hello, InvocationReply, OpaquePayload,
-        ProtocolEnvelope, ProtocolLimits, ProtocolVersion, ProtocolVersionRange, SchemaReference,
-        invocation_reply, protocol_envelope,
+        ProtocolLimits, ProtocolVersion, ProtocolVersionRange, SchemaReference, TerminalOutcome,
+        invocation_reply, protocol_envelope, terminal_outcome,
     },
 };
 use std::{error::Error, io};
-
-const CONTROL_DESCRIPTOR: &[u8] = include_bytes!("../assets/control-descriptors.json");
-const INPUT_DESCRIPTOR: &[u8] = include_bytes!("../assets/input-observe-descriptors.json");
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RuntimeGroup {
@@ -34,40 +37,6 @@ impl RuntimeGroup {
             Self::InputObserve => "keyboard-observe",
         }
     }
-
-    fn descriptor(self) -> &'static [u8] {
-        match self {
-            Self::Control => CONTROL_DESCRIPTOR,
-            Self::InputObserve => INPUT_DESCRIPTOR,
-        }
-    }
-}
-
-struct Runtime {
-    generation: u64,
-    maximum_message_bytes: usize,
-    next_message_id: u64,
-}
-
-impl Runtime {
-    fn send(&mut self, body: protocol_envelope::Body) -> Result<(), Box<dyn Error>> {
-        self.next_message_id = self
-            .next_message_id
-            .checked_add(1)
-            .ok_or("message ID exhausted")?;
-        write_envelope(
-            &mut io::stdout().lock(),
-            &ProtocolEnvelope {
-                wire_version: Some(ProtocolVersion { major: 1, minor: 0 }),
-                session_generation: self.generation,
-                message_id: self.next_message_id,
-                trace: None,
-                body: Some(body),
-            },
-            self.maximum_message_bytes,
-        )?;
-        Ok(())
-    }
 }
 
 pub fn run(expected_group: RuntimeGroup) -> Result<(), Box<dyn Error>> {
@@ -82,18 +51,38 @@ pub fn run(expected_group: RuntimeGroup) -> Result<(), Box<dyn Error>> {
     let token = decode_hex(&std::env::var("DECKWEAVE_ONE_TIME_TOKEN")?)?;
     let generation = std::env::var("DECKWEAVE_SESSION_GENERATION")?.parse()?;
     let maximum_message_bytes = std::env::var("DECKWEAVE_MAXIMUM_MESSAGE_BYTES")?.parse()?;
-    let mut runtime = Runtime {
-        generation,
+    let (wire, writer) = WireSender::start(generation, maximum_message_bytes)?;
+    wire.send(protocol_envelope::Body::Hello(hello(
+        expected_group,
+        package_id,
+        token,
         maximum_message_bytes,
-        next_message_id: 0,
-    };
+    )))?;
+    let audio = (expected_group == RuntimeGroup::Control)
+        .then(|| ControlAudio::start(wire.clone(), generation));
+    let result = serve(expected_group, generation, &wire, audio);
+    drop(wire);
+    let writer_result = writer
+        .join()
+        .map_err(|_| "wire writer panicked")?
+        .map_err(|error| -> Box<dyn Error> { error.into() });
+    result?;
+    writer_result
+}
+
+fn hello(
+    group: RuntimeGroup,
+    package_id: String,
+    token: Vec<u8>,
+    maximum_message_bytes: usize,
+) -> Hello {
     let mut features = vec![FeatureRequirement {
         id: FEATURE_ACTIVATION_COMMIT.into(),
         minimum_version: 1,
         maximum_version: 1,
         required: true,
     }];
-    if expected_group == RuntimeGroup::Control {
+    if group == RuntimeGroup::Control {
         features.push(FeatureRequirement {
             id: FEATURE_INVOCATION_ENDPOINT_PATH.into(),
             minimum_version: 1,
@@ -101,44 +90,47 @@ pub fn run(expected_group: RuntimeGroup) -> Result<(), Box<dyn Error>> {
             required: true,
         });
     }
-    runtime.send(protocol_envelope::Body::Hello(Hello {
+    Hello {
         protocol: Some(ProtocolVersionRange {
             minimum: Some(ProtocolVersion { major: 1, minor: 0 }),
             maximum: Some(ProtocolVersion { major: 1, minor: 1 }),
         }),
         package_id,
-        runtime_group,
+        runtime_group: group.id().into(),
         one_time_token: token,
         features,
         schemas: vec![],
         limits: Some(ProtocolLimits {
-            maximum_message_bytes: u64::try_from(maximum_message_bytes)?,
+            maximum_message_bytes: u64::try_from(maximum_message_bytes).unwrap_or(u64::MAX),
             maximum_chunk_bytes: 64 * 1024,
             maximum_concurrent_jobs: 8,
             maximum_artifact_bytes: 1024 * 1024,
             maximum_events_per_second: 512,
         }),
-    }))?;
-
-    serve(&mut runtime, expected_group)
+    }
 }
 
-fn serve(runtime: &mut Runtime, expected_group: RuntimeGroup) -> Result<(), Box<dyn Error>> {
+fn serve(
+    expected_group: RuntimeGroup,
+    generation: u64,
+    wire: &WireSender,
+    audio: Option<ControlAudio>,
+) -> Result<(), Box<dyn Error>> {
     let mut stdin = io::stdin().lock();
-    while let Some(envelope) = read_envelope(&mut stdin, runtime.maximum_message_bytes)? {
+    while let Some(envelope) = read_envelope(&mut stdin, wire.maximum_message_bytes())? {
         match envelope.body {
             Some(protocol_envelope::Body::HelloAck(ack)) => {
                 let maximum = ack
                     .limits
                     .ok_or("HelloAck has no limits")?
                     .maximum_message_bytes;
-                runtime.maximum_message_bytes = usize::try_from(maximum)?;
+                wire.set_maximum_message_bytes(usize::try_from(maximum)?);
             }
             Some(protocol_envelope::Body::Activate(request)) => {
                 if request.contribution_id != expected_group.contribution() {
                     return Err("contribution does not belong to this runtime group".into());
                 }
-                runtime.send(protocol_envelope::Body::Activated(ActivationReply {
+                wire.send(protocol_envelope::Body::Activated(ActivationReply {
                     runtime_lease_id: request.runtime_lease_id,
                     descriptor_revision: 1,
                     descriptor: Some(OpaquePayload {
@@ -147,26 +139,65 @@ fn serve(runtime: &mut Runtime, expected_group: RuntimeGroup) -> Result<(), Box<
                             major: 1,
                             minor: 0,
                         }),
-                        value: expected_group.descriptor().to_vec(),
+                        value: runtime_descriptor(expected_group)?,
                     }),
                 }))?;
-                runtime.send(protocol_envelope::Body::Heartbeat(Heartbeat {
+                wire.send(protocol_envelope::Body::Heartbeat(Heartbeat {
                     host_ticks: 0,
                     active_jobs: 0,
                 }))?;
             }
+            Some(protocol_envelope::Body::ActivationCommitted(_)) => {
+                if let Some(audio) = &audio {
+                    audio.activation_committed(wire, generation)?;
+                }
+            }
             Some(protocol_envelope::Body::Invoke(request)) => {
-                runtime.send(protocol_envelope::Body::InvocationReply(InvocationReply {
-                    invocation_id: request.invocation_id,
-                    reply: Some(invocation_reply::Reply::Rejected(
-                        PlatformFailure::controlled_adapter().structured(),
-                    )),
-                }))?;
+                invoke(wire, audio.as_ref(), request)?;
             }
             Some(protocol_envelope::Body::Deactivate(_)) => return Ok(()),
             _ => {}
         }
     }
+    Ok(())
+}
+
+fn invoke(
+    wire: &WireSender,
+    audio: Option<&ControlAudio>,
+    request: deckweave_protocol::v1::InvocationRequest,
+) -> Result<(), Box<dyn Error>> {
+    let invocation_id = request.invocation_id.clone();
+    let reply = match parse_invocation(&request) {
+        Ok(Some(invocation)) => match audio
+            .ok_or(PlatformFailure::OsApiUnavailable)?
+            .apply(invocation)
+        {
+            Ok(state) => invocation_reply::Reply::Terminal(TerminalOutcome {
+                invocation_id: invocation_id.clone(),
+                result: Some(terminal_outcome::Result::Succeeded(state_payload(&state)?)),
+            }),
+            Err(error) if error.effect == EffectKnowledge::PossiblyApplied => {
+                invocation_reply::Reply::Terminal(TerminalOutcome {
+                    invocation_id: invocation_id.clone(),
+                    result: Some(terminal_outcome::Result::UnknownOutcome(
+                        PlatformFailure::from(error.failure).structured(),
+                    )),
+                })
+            }
+            Err(error) => {
+                invocation_reply::Reply::Rejected(PlatformFailure::from(error.failure).structured())
+            }
+        },
+        Ok(None) => {
+            invocation_reply::Reply::Rejected(PlatformFailure::controlled_adapter().structured())
+        }
+        Err(error) => invocation_reply::Reply::Rejected(error.structured()),
+    };
+    wire.send(protocol_envelope::Body::InvocationReply(InvocationReply {
+        invocation_id,
+        reply: Some(reply),
+    }))?;
     Ok(())
 }
 

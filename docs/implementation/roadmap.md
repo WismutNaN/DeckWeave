@@ -424,7 +424,7 @@ B2 добавил checkpoint/compaction, автоматический maintenanc
 **Цель:** обеспечить полезные системные actions/states без N4-specific logic.
 **Результат:** virtual controls меняют volume/mute/media и active window; штатная клавиатура создаёт triggers через bundled observe/pass-through provider.
 **Трудоёмкость:** M
-**Статус:** [~] Срез 7.1 завершён: package shell двух runtime groups, neutral input contracts, schemas, permission scoping и controlled unavailable adapters проверены через production lifecycle. Следующий срез — Core Audio 7.2.
+**Статус:** [~] Срез 7.1 завершён. В 7.2 реализованы Core Audio worker/callback/rebind, четыре audio actions, подтверждённое state и статический UI catalog; автоматические gates зелёные, ручная Windows 10/11 матрица остаётся открыта. Следующий функциональный срез — windows/catalog/focus/launch 7.3.
 
 ### Контекст для агента
 > Native plugin lifecycle и UI binding готовы. Windows functionality реализуется отдельным first-party control package.
@@ -433,6 +433,7 @@ B2 добавил checkpoint/compaction, автоматический maintenanc
 
 - [x] Зафиксировать Windows API, provenance референсов, границы прямого переиспользования и два независимых runtime groups (→ [план Фазы 7](phase-7-windows.md), [исследование](../research/phase-7-windows.md), [ADR-0020](../decisions/0020-windows-provider-runtime-groups.md)).
 - [x] Реализовать и проверить package shell: два artifacts/runtime groups, нейтральные schemas/input observations, scoped permissions/revoke, полный `EndpointPath` и stable unavailable/error vocabulary. Реальные OS effects остаются недоступными до соответствующего vertical slice (→ [7.1](phase-7-windows.md#71--contracts-schemas-и-package-shell)).
+- [x] Реализовать Core Audio application/worker/FFI path, bounded callbacks, confirmed state и четыре catalog actions; ручную Windows 10/11 матрицу хранить открытой до отдельного evidence (→ [7.2](phase-7-windows.md#72--core-audio-vertical-slice)).
 - [ ] Реализовать Windows ActionProvider: volume/mute/media/app launch/focus (→ [Модуль: Platform Adapters](../architecture/modules/platform-adapters.md)).
 - [ ] Реализовать StateProvider active application/window и audio endpoint state (→ [Capabilities — State](../contracts/capabilities.md#state)).
 - [ ] Разделить platform contributions и scopes для window catalog/icons/activate, input emission и scripts; новые metrics/HTTP providers оценивать отдельными срезами после базового Windows path, не включать все integrations в один package (→ [platform catalog](../plugins/platform.md), [композиция](../contracts/plugin-composition.md)).

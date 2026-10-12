@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://deckweave.dev/schema/windows/volume-scalar/v1",
+  "type": "number",
+  "minimum": 0,
+  "maximum": 1
+}

@@ -10,7 +10,7 @@ use deckweave_domain::{
 use deckweave_platform_host::NativeChildProcessPolicy;
 use deckweave_platform_windows::PlatformFailure;
 use deckweave_plugin_supervisor::{
-    package::{IndexedPackage, PackageStager, StagingLimits},
+    package::{IndexedPackage, PackageIndex, PackageStager, StagingLimits},
     process::{ProcessConfig, ProcessRuntime},
     supervisor::{
         RestartPolicy, RuntimeController, RuntimeLeaseReason, RuntimeStatus, SupervisorAction,
@@ -76,6 +76,13 @@ fn stage(root: &Path) -> Result<IndexedPackage, Box<dyn Error>> {
         manifest["artifacts"][index]["architecture"] = Value::String(std::env::consts::ARCH.into());
         manifest["artifacts"][index]["entrypoint"] = Value::String(relative.clone());
         manifest["artifacts"][index]["sha256"] = Value::String(digest(&bytes));
+    }
+    let control_hash = manifest["artifacts"][0]["sha256"].clone();
+    for endpoint in manifest["org.deckweave.automationCatalog"]["endpoints"]
+        .as_array_mut()
+        .ok_or("catalog endpoints are not an array")?
+    {
+        endpoint["runtimeRequirement"]["artifactSha256"] = control_hash.clone();
     }
     let schemas = manifest["schemas"]
         .as_array_mut()
@@ -283,7 +290,7 @@ fn exercise(
             protocol_envelope::Body::Invoke(InvocationRequest {
                 invocation_id: "controlled-1".into(),
                 run_id: "run-1".into(),
-                operation_id: "set-volume".into(),
+                operation_id: "media-transport".into(),
                 activation_epoch: 1,
                 descriptor_revision: 1,
                 deadline_host_ticks: 100,
@@ -295,17 +302,33 @@ fn exercise(
                     target: Some(deckweave_protocol::v1::endpoint_path::Target::ServiceId(
                         "windows-platform".into(),
                     )),
-                    element_id: "audio".into(),
-                    capability_id: "endpoint-control".into(),
-                    port_id: "set-volume".into(),
+                    element_id: "media".into(),
+                    capability_id: "transport-control".into(),
+                    port_id: "invoke".into(),
                 }),
                 remaining_budget_ms: Some(1000),
             }),
         ))?;
-        let reply = process.receive(Duration::from_secs(2))?;
-        let Some(protocol_envelope::Body::InvocationReply(reply)) = reply.body else {
-            return Err("expected invocation rejection".into());
-        };
+        let mut reply = None;
+        let mut state_seen = false;
+        while reply.is_none() || !state_seen {
+            let envelope = process.receive(Duration::from_secs(2))?;
+            match envelope.body {
+                Some(protocol_envelope::Body::InvocationReply(value)) => reply = Some(value),
+                Some(protocol_envelope::Body::Signal(signal)) => {
+                    let source = signal.source.ok_or("audio state source")?;
+                    let schema = signal
+                        .payload
+                        .and_then(|payload| payload.schema)
+                        .ok_or("audio state schema")?;
+                    assert_eq!(source.port_id, "state");
+                    assert_eq!(schema.id, "org.deckweave.windows.audio_state");
+                    state_seen = true;
+                }
+                _ => {}
+            }
+        }
+        let reply = reply.ok_or("expected invocation rejection")?;
         let Some(deckweave_protocol::v1::invocation_reply::Reply::Rejected(error)) = reply.reply
         else {
             return Err("controlled adapter must reject invocation".into());
@@ -356,6 +379,17 @@ fn package_indexes_two_permission_scoped_runtime_groups() -> Result<(), Box<dyn 
         BTreeSet::from(["input.observe".into()])
     );
     assert!(!by_group["control"].contains("input.observe"));
+    let mut index = PackageIndex::default();
+    index.insert(package);
+    let catalog = index.descriptor_catalog()?;
+    assert_eq!(
+        catalog
+            .endpoints()
+            .iter()
+            .filter(|endpoint| endpoint.operation.is_some())
+            .count(),
+        4
+    );
     Ok(())
 }
 
@@ -461,6 +495,16 @@ fn descriptor_paths_scope_repeated_local_port_ids() -> Result<(), Box<dyn Error>
 fn platform_failures_have_stable_wire_categories_and_codes() {
     let cases = [
         (
+            PlatformFailure::InvalidInput,
+            ErrorCategory::InvalidInput,
+            "invalid_input",
+        ),
+        (
+            PlatformFailure::DeadlineExceeded,
+            ErrorCategory::DeadlineExceeded,
+            "deadline_exceeded",
+        ),
+        (
             PlatformFailure::UnsupportedOperatingSystem,
             ErrorCategory::Unsupported,
             "unsupported_operating_system",
@@ -474,6 +518,11 @@ fn platform_failures_have_stable_wire_categories_and_codes() {
             PlatformFailure::PermissionDenied,
             ErrorCategory::PermissionDenied,
             "permission_denied",
+        ),
+        (
+            PlatformFailure::ResourceBusy,
+            ErrorCategory::ResourceBusy,
+            "resource_busy",
         ),
         (
             PlatformFailure::NoDefaultEndpoint,

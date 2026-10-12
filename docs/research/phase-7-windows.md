@@ -1,7 +1,7 @@
 # Исследование Фазы 7: Windows provider и Platform Input
 
-**Статус:** решение перед реализацией
-**Дата проверки:** 2026-10-12
+**Статус:** решение применено в 7.1 и автоматической части Core Audio 7.2; manual evidence открыто
+**Дата проверки:** 2026-10-13
 **Область:** Windows 10/11, first-party control package, штатная клавиатура в observe/pass-through mode
 
 Этот документ определяет, что DeckWeave заимствует из референсов, а что реализует как собственный узкий adapter. Он не является доказательством работы реального Windows runtime: каждый выбранный API проходит отдельный contract, integration и manual gate в [плане Фазы 7](../implementation/phase-7-windows.md).

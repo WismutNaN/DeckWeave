@@ -4,7 +4,7 @@
 
 ## Состояние
 
-Фаза начата. Срезы 7.0 и 7.1 завершены: source audit, neutral input contracts, schemas, manifest template и исполняемые shells двух runtime groups проходят production process/supervisor boundary. Все endpoint-ы package пока честно объявлены `unavailable`: реальных Windows effects до среза 7.2 нет. Каждый следующий срез должен оставлять `npm run check` и workspace tests зелёными и не объявлять fake/manual result production capability.
+Фаза начата. Срезы 7.0 и 7.1 завершены: source audit, neutral input contracts, schemas, manifest template и исполняемые shells двух runtime groups проходят production process/supervisor boundary. В 7.2 реализован автоматизированный Core Audio path; четыре audio actions и state объявляются доступными только Windows artifact, остальные endpoint-ы остаются `unavailable`. Ручная матрица Windows 10/11 и реальные default-device switches ещё не закрыты. Каждый следующий срез должен оставлять `npm run check` и workspace tests зелёными и не объявлять fake/manual result production capability.
 
 Phase 6 может сохранять отдельные открытые UI/E2E acceptance items: они не разрешают Windows package обходить Application Gateway или plugin lifecycle. Phase 7 использует существующий production composition и добавляет capabilities через общий package/runtime contract.
 
@@ -57,18 +57,23 @@ Evidence: `plugins/platform-windows/tests/package_shell.rs` собирает в�
 
 ## 7.2 — Core Audio vertical slice
 
-- Выделить COM MTA worker, который владеет `IMMDeviceEnumerator`, текущим render/multimedia endpoint и `IAudioEndpointVolume`.
-- Реализовать `set_volume`, `change_volume`, `set_mute`, `toggle_mute`; значения clamp/validate выполняются в package application layer до FFI.
-- Подключить `IAudioEndpointVolumeCallback` и `IMMNotificationClient`. Callback складывает минимальное событие в bounded channel; rebind/default-device resolution выполняет worker.
-- Публиковать snapshot `{endpointRef, scalar, muted, availability, revision}`. EndpointRef не раскрывает raw COM identity и меняется при default-device switch.
-- Собственный context GUID помечает изменения DeckWeave там, где Core Audio API его поддерживает; callback всё равно публикует подтверждённое состояние, а не предполагаемый результат команды.
+**Статус:** [~] Реализация и автоматические tests готовы; ручная Windows 10/11 матрица и hardware default-switch evidence остаются открыты.
+
+- [x] Выделить COM MTA worker, который владеет `IMMDeviceEnumerator`, текущим render/multimedia endpoint и `IAudioEndpointVolume`.
+- [x] Реализовать `set_volume`, `change_volume`, `set_mute`, `toggle_mute`; значения clamp/validate выполняются в package application layer до FFI.
+- [x] Подключить `IAudioEndpointVolumeCallback` и `IMMNotificationClient`. Callback складывает минимальное событие в bounded channel; rebind/default-device resolution выполняет worker.
+- [x] Публиковать snapshot `{endpointRef, scalar, muted, availability, revision}` после activation commit. EndpointRef содержит SHA-256 от endpoint ID, не раскрывает raw COM identity и меняется при default-device switch.
+- [x] Собственный context GUID помечает изменения DeckWeave; command success возвращается только после повторного чтения подтверждённого состояния. Успешный set с неудавшимся подтверждением возвращает `unknown_outcome`.
+- [x] Добавить четыре простых action forms и RU/EN labels в статический automation catalog; UI не требует ручного ввода tagged JSON command.
 
 Acceptance:
 
-- unit: HRESULT/Win32 result → domain/plugin outcome mapping;
-- adapter: no endpoint, endpoint removed during command, callback burst, default switch, revoke during rebind;
-- manual Windows 10/11: set/read round-trip и external volume/mute change;
-- действие не объявляется успешным только потому, что command был поставлен в очередь.
+- [x] unit: command validation/clamp, HRESULT → stable failure, подтверждение после set и `unknown_outcome` при потере подтверждения;
+- [~] adapter: bounded callback burst и default-switch rebind intent проверены; no-endpoint state проходит production process path. Endpoint removal во время команды и revoke во время фактического rebind требуют fault-injection/manual evidence;
+- [ ] manual Windows 10/11: set/read round-trip, external volume/mute change и реальная смена default endpoint;
+- [x] действие не объявляется успешным только потому, что command был поставлен в очередь.
+
+Автоматический process test намеренно только читает текущее Core Audio state и не меняет громкость машины разработчика. Запись проверяется fake backend-ом; ручной round-trip должен восстановить исходное состояние и фиксироваться отдельно, а не запускаться неявно в CI.
 
 ## 7.3 — Active window, catalog, focus и launch
 
