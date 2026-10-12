@@ -149,6 +149,7 @@ impl RuntimeInstance {
             }),
         )?)?;
         let activated = process.receive(config.handshake_timeout)?;
+        controller.accept_envelope(&activated, now)?;
         let Some(protocol_envelope::Body::Activated(activated)) = activated.body else {
             return Err(HostRuntimeError::Protocol(
                 "expected plugin activation reply".into(),

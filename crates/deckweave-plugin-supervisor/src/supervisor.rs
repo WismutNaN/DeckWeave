@@ -11,7 +11,7 @@ use deckweave_domain::{
 };
 use deckweave_protocol::{
     HostProtocolSupport, NegotiationError, negotiate_hello,
-    v1::{Hello, HelloAck, ProtocolEnvelope, ProtocolLimits},
+    v1::{Hello, HelloAck, ProtocolEnvelope, ProtocolLimits, ProtocolVersion},
 };
 use deckweave_registry::{CapabilityRegistry, RegistryError, SessionIdentity};
 use std::{
@@ -20,6 +20,7 @@ use std::{
 };
 use thiserror::Error;
 
+mod envelopes;
 mod factory;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -100,6 +101,7 @@ pub enum SupervisorAction {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PluginSession {
     pub identity: SessionIdentity,
+    pub negotiated_protocol: Option<ProtocolVersion>,
     pub negotiated_limits: ProtocolLimits,
     pub negotiated_features: BTreeMap<String, u32>,
     pub last_heartbeat_host_ticks: u64,
@@ -134,6 +136,8 @@ pub enum SupervisorError {
     InvalidHelloIdentity,
     #[error("сообщение принадлежит старой session generation")]
     LateSessionMessage,
+    #[error("wire version is missing or incompatible with negotiated protocol")]
+    InvalidWireVersion,
     #[error("session ещё не создана")]
     MissingSession,
     #[error("lease не найдена")]
@@ -371,6 +375,7 @@ impl RuntimeController {
         };
         self.session = Some(PluginSession {
             identity,
+            negotiated_protocol: None,
             negotiated_limits: ProtocolLimits::default(),
             negotiated_features: BTreeMap::new(),
             last_heartbeat_host_ticks: now_host_ticks,
@@ -411,6 +416,7 @@ impl RuntimeController {
             session.identity.plugin_session_id.to_string(),
         )?;
         session.negotiated_limits = ack.limits.unwrap_or_default();
+        session.negotiated_protocol = ack.selected_protocol;
         session.negotiated_features = ack
             .features
             .iter()
@@ -439,22 +445,6 @@ impl RuntimeController {
         self.registered = true;
         self.status = RuntimeStatus::Active;
         self.transition_deadline = None;
-        Ok(())
-    }
-
-    pub fn accept_envelope(
-        &mut self,
-        envelope: &ProtocolEnvelope,
-        now_host_ticks: u64,
-    ) -> Result<(), SupervisorError> {
-        let session = self
-            .session
-            .as_mut()
-            .ok_or(SupervisorError::MissingSession)?;
-        if envelope.session_generation != session.identity.generation.get() {
-            return Err(SupervisorError::LateSessionMessage);
-        }
-        session.last_heartbeat_host_ticks = now_host_ticks;
         Ok(())
     }
 

@@ -11,12 +11,25 @@ pub(super) fn receive(
 ) -> bool {
     match instance.process.receive(config.monitor_interval) {
         Ok(envelope) => {
-            if instance
+            if let Err(error) = instance
                 .controller
                 .accept_envelope(&envelope, elapsed_millis(clock))
-                .is_err()
             {
-                return false;
+                if matches!(
+                    error,
+                    crate::supervisor::SupervisorError::LateSessionMessage
+                ) {
+                    return false;
+                }
+                instance
+                    .failed_release
+                    .store(true, std::sync::atomic::Ordering::SeqCst);
+                health.update(
+                    instance
+                        .health_entry(RuntimeHealthStatus::Unavailable, Some(error.to_string())),
+                );
+                topology_faults(instance, activation_epoch, sink);
+                return true;
             }
             let session = instance
                 .controller

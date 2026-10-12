@@ -196,6 +196,81 @@ fn activate(
 }
 
 #[test]
+fn wire_version_cannot_refresh_liveness_before_or_outside_negotiation() -> Result<(), Box<dyn Error>>
+{
+    let mut controller = RuntimeController::new(
+        indexed_package()?,
+        RuntimeGroupId::try_new("control")?,
+        RestartPolicy::default(),
+    )?;
+    let mut registry = CapabilityRegistry::default();
+    activate(&mut controller, &mut registry, 100)?;
+    let generation = controller
+        .session()
+        .ok_or("session")?
+        .identity
+        .generation
+        .get();
+    for wire_version in [
+        None,
+        Some(ProtocolVersion { major: 2, minor: 0 }),
+        Some(ProtocolVersion {
+            major: 1,
+            minor: 99,
+        }),
+    ] {
+        let message = ProtocolEnvelope {
+            wire_version,
+            session_generation: generation,
+            ..Default::default()
+        };
+        assert!(matches!(
+            controller.accept_envelope(&message, 500),
+            Err(SupervisorError::InvalidWireVersion)
+        ));
+        assert_eq!(
+            controller
+                .session()
+                .ok_or("session")?
+                .last_heartbeat_host_ticks,
+            100
+        );
+    }
+    let mut message = ProtocolEnvelope {
+        wire_version: Some(ProtocolVersion { major: 1, minor: 0 }),
+        session_generation: generation,
+        ..Default::default()
+    };
+    controller.accept_envelope(&message, 501)?;
+    assert_eq!(
+        controller
+            .session()
+            .ok_or("session")?
+            .last_heartbeat_host_ticks,
+        501
+    );
+    // Starting a replacement does not inherit the previous handshake.
+    controller.process_exited(&mut registry, 502, false)?;
+    assert_eq!(controller.tick(1000)?, SupervisorAction::CheckPermissions);
+    controller.check_permissions(
+        &PrincipalId::try_new("local-user")?,
+        &AuthorizationFixture { denied_scope: None },
+    )?;
+    controller.process_started(PluginSessionId::try_new("next")?, vec![4; 32], 1000)?;
+    message.session_generation = controller
+        .session()
+        .ok_or("session")?
+        .identity
+        .generation
+        .get();
+    assert!(matches!(
+        controller.accept_envelope(&message, 1001),
+        Err(SupervisorError::InvalidWireVersion)
+    ));
+    Ok(())
+}
+
+#[test]
 fn lease_drives_permission_handshake_activation_and_idle_stop() -> Result<(), Box<dyn Error>> {
     let mut controller = RuntimeController::new(
         indexed_package()?,

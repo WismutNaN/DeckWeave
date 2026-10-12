@@ -27,6 +27,8 @@ Pressure, travel и force — разные величины. Binary keyboard с�
 
 ## Совместимость и преобразования
 
+После Hello/HelloAck каждое activation/live сообщение проверяет session generation и wire version. Для согласованного v1 допустим базовый envelope той же major с minor не выше выбранной; additive возможности по-прежнему требуют negotiated feature. Отсутствующая версия, другая major и неизвестная minor не обновляют heartbeat. Ошибка версии активного provider закрывает его routes с fault; запоздавшая старая generation игнорируется. Это не проверка монотонности device sequence и не синхронизация часов устройств.
+
 `SchemaRef` включает namespace и major/minor. Incoming signal и terminal result проверяются относительно descriptor/ожидаемого operation result; чужой schema ID, отсутствующая schema или неверный JSON не попадают в graph. `PayloadSchema` — ограниченный structural vocabulary: bounded records/arrays/strings, enum choices, optional fields и nullable. Unknown constraints отклоняются; opaque `Json` не доказывает структуру для field binding. Числа и numeric ranges должны быть finite.
 
 Action arguments задаются отдельной таблицей: один explicit trigger port и named fields из constants, trigger, state или результата узла в текущем run. Compiler проверяет поля и доступный тип проекции; scheduler повторно проверяет фактический record. Flow trigger несёт только token (`null`); данные source/result выбираются через `RunResult`, а value trigger — через `Trigger`. Missing field не вызывает действие. Результаты двух concurrent runs не пересекаются и освобождаются при завершении/cleanup. Квоты общего payload действуют и на сохранённые run results.

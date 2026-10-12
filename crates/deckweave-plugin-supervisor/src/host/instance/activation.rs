@@ -148,11 +148,7 @@ impl RuntimeInstance {
                 return Err(HostRuntimeError::Protocol("activation timeout".into()));
             }
             let message = self.process.receive(deadline - now)?;
-            if message.session_generation != self.generation {
-                return Err(HostRuntimeError::Protocol(
-                    "activation generation mismatch".into(),
-                ));
-            }
+            self.controller.validate_envelope(&message)?;
             match message.body {
                 Some(protocol_envelope::Body::Activated(reply)) => break reply,
                 Some(protocol_envelope::Body::Heartbeat(_)) => continue,
