@@ -6,7 +6,7 @@
 
 | Область | Реализация и evidence | Что ещё нужно проверить или подключить |
 |---|---|---|
-| Storage | Checkpoint, cached quota accounting, retired claim GC с защитой pending apply, terminal apply archive вне startup scan. Три tests в `profiles/tests/support/compaction.rs`: два fault points, rollback wall clock, restart/replay и pending/history | Автоматический budget/schedule checkpoint для длительной editor session, growth/IO benchmark и policy размера terminal archive; power-loss не доказан fault injection |
+| Storage | Checkpoint, cached quota accounting, retired claim GC с защитой pending apply, terminal apply archive вне startup scan. `compaction` проверяет faults, rollback clock, replay и pending/history; `growth` — 256 mutations/4 restarts, автоматический checkpoint, receipt quota и постоянный write budget | B2 закрыт. Power-loss и физическая latency не доказаны этими тестами; archive quota сохраняет историю и ограничивает новые apply при заполнении hot store |
 | Instances | Settings/schema/revision/CredentialRefs, required features, несколько leases одной group, endpoint ownership по instance. `configured_instances` запускает два аккаунта в одном процессе и восстанавливает настройки после restart | Разные contributions с held effects и unresolved/revoked credentials; secret lease/use/renew не заменяется передачей CredentialRef |
 | Bindings | Structural schemas, wire SchemaRef, finite ranges, single-trigger named arguments, compiler field/type checks, run-local results. `argument_compiler` проверяет compiler → scheduler; `structured_arguments` — concurrent/malformed data | Полные collection/join/parallel operators остаются Фазой 11; implicit unit conversion запрещён |
 | Live execution | Общий monotonic clock, timer pump, provider budget, ordered scheduler/dispatch, activation commit после routes, cleanup receipt/deadline и stop drain | Negative/missing ACK при shutdown доказаны новым real-process test. Остаются held-output fixture с другим живым owner, apply/revoke/crash и mixed ingress/overflow в настоящем bridge; descriptor QoS проверен отдельно |
@@ -14,7 +14,7 @@
 | Composition | Desktop: PackageGraphCompiler, static catalog по package lock, ScopedAuthorizationStore. Credential preflight подключён; default unresolved блокирует activation до запуска процесса | End-to-end credential-resolution/revoke fixture, persistent locale preference/catalog loading application use case |
 | Services | Typed role bindings, transitive resolver, cycle/optional/missing/artifact conflicts; delegation intersection/deadline/fence и subscription gap rules с tests | Live broker ещё не подключён: serviceBindings сохраняются, но compiler явно блокирует execution; нужна fake nested call/subscription lifecycle acceptance |
 
-Следующие обязательные срезы: (1) cleanup/ingress conformance; (2) presentation/data/collection fakes; (3) credential + locale application use cases; (4) storage growth/maintenance acceptance и integrated gate. Реальные hardware, DSP, renderer и внешние services имеют собственные более поздние этапы. Наличие DTO и успешный M1 не закрывают перечисленные проверки.
+Следующие обязательные срезы: (1) cleanup/ingress conformance; (2) presentation/data/collection fakes; (3) credential + locale application use cases; (4) integrated gate. Реальные hardware, DSP, renderer и внешние services имеют собственные более поздние этапы. Наличие DTO и успешный M1 не закрывают перечисленные проверки.
 
 ## Порядок
 
@@ -22,7 +22,7 @@
 
 ### 6G.0 — Хранение перед нагрузкой editor
 
-- [ ] Закрыть B2 checkpoint/compaction/quota accounting с recovery/retention tests; не смешивать plugin data с workspace history (→ [Profile Store](../architecture/modules/profile-store.md), [plugin data](../contracts/plugin-composition.md#plugin-data)).
+- [x] Закрыть B2 checkpoint/compaction/quota accounting с recovery/retention tests; не смешивать plugin data с workspace history (→ [Profile Store](../architecture/modules/profile-store.md), [plugin data](../contracts/plugin-composition.md#plugin-data)).
 
 Выход: растущая история не превращает обычную mutation в scan всех receipts; crash при compaction сохраняет pending/claims/receipts и выбранные revisions.
 

@@ -16,12 +16,13 @@ fn retired_claims_and_terminal_apply_are_collected_without_losing_pending_or_his
         Arc::new(NativeAtomicFileStore),
         ProfileStoreLimits {
             dedup_window_seconds: 10,
+            maximum_archived_apply_operations: 1,
             ..Default::default()
         },
         clock.clone(),
     );
     let mut ids = Vec::new();
-    for name in ["terminal", "pending"] {
+    for name in ["terminal", "terminal-other", "pending"] {
         let key = mutation_key(&store, name)?;
         store.claim_command(&CommandClaim {
             key: key.clone(),
@@ -48,7 +49,7 @@ fn retired_claims_and_terminal_apply_are_collected_without_losing_pending_or_his
             extensions: BTreeMap::new(),
         };
         store.begin_apply(&intent)?;
-        if name == "terminal" {
+        if name.starts_with("terminal") {
             store.finish_apply(
                 &operation_id,
                 ApplyOperationState::Failed,
@@ -63,8 +64,10 @@ fn retired_claims_and_terminal_apply_are_collected_without_losing_pending_or_his
     clock.set(110);
     store.open_mutation_window(&PrincipalId::try_new("local-user")?)?;
     assert_eq!(store.archive_terminal_operations()?, 1);
-    assert_eq!(store.compact_command_claims()?, 1);
+    assert_eq!(store.archive_terminal_operations()?, 0);
+    assert_eq!(store.compact_command_claims()?, 2);
     assert_eq!(store.operation(&ids[0])?.state, ApplyOperationState::Failed);
+    assert_eq!(store.operation(&ids[1])?.state, ApplyOperationState::Failed);
     assert_eq!(store.recoverable_operations(4)?.len(), 1);
     let reopened = native_store(directory.path());
     assert_eq!(
@@ -73,7 +76,7 @@ fn retired_claims_and_terminal_apply_are_collected_without_losing_pending_or_his
     );
     assert_eq!(
         reopened.recoverable_operations(4)?[0].intent.operation_id,
-        ids[1]
+        ids[2]
     );
     Ok(())
 }

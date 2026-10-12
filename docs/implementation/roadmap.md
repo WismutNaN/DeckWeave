@@ -6,7 +6,7 @@
 
 До реализации editor Фазы 6 действует дополнительный [gate расширяемости 6G.0–6G.5](pre-phase-6.md), основанный на [проверке кода `2d99c88`](../research/plugin-feasibility.md) и [каталоге плагинов](../plugins/README.md). Повторный backend-аудит добавил instances/settings, structural arguments, live clock/cleanup и static catalog desktop compiler. Gate остаётся открытым до перечисленных в нём conformance/application/maintenance proofs; наличие новых types не разрешает автоматически production editor.
 
-Нормативные failure/ordering contracts: [Lifecycle](../contracts/lifecycle.md). При расхождении module summary с контрактом сначала исправляется документация. Production fixture подтверждает отдельные process-crash apply/recovery переходы; повторный аудит обнаружил ещё три dedup/recovery случая для [среза 5.0](phase-5-automation.md). Power-loss durability остаётся отдельным ограничением; B2 получил checkpoint/claim GC/terminal archive и fault tests, но автоматический maintenance budget и growth acceptance ещё не закрыты. [Аудит после DDD migration](../research/pre-apply-review.md#phase-5-readiness) отделяет доказанные свойства от незавершённых способностей.
+Нормативные failure/ordering contracts: [Lifecycle](../contracts/lifecycle.md). При расхождении module summary с контрактом сначала исправляется документация. Production fixture подтверждает отдельные process-crash apply/recovery переходы; повторный аудит обнаружил ещё три dedup/recovery случая для [среза 5.0](phase-5-automation.md). Power-loss durability остаётся отдельным ограничением; B2 закрыт checkpoint/claim GC/terminal archive, автоматическим maintenance и growth/fault acceptance. [Аудит после DDD migration](../research/pre-apply-review.md#phase-5-readiness) отделяет доказанные свойства от незавершённых способностей.
 
 Расширяемость проверяется до SDK freeze на [сценариях](../product/scenarios.md): независимые keyboard/analog/RGB/surface/job/media descriptors, typed results, geometry и dynamic ports. [Исследование реализаций](../research/implementation-review.md) определяет reuse-кандидатов и ограничения evidence; существующий upstream метод не закрывает hardware acceptance.
 
@@ -138,7 +138,7 @@
 - [x] E0 — publication outcomes и disk reconciliation для неоднозначного replace.
 - [x] E1 — durable apply/operation tracking и recovery acceptance.
 - [x] E2 — out-of-process kill matrix candidate/intent/prepare/barrier/commit/activation, disk-full, grant revoke и отказ explicit disruptive handoff.
-- [ ] B2 — checkpoint/compaction до начала editor-heavy Фазы 6; не блокирует первый bounded virtual apply после B1.
+- [x] B2 — checkpoint/compaction, cached quota accounting, automatic maintenance и growth/restart/fault acceptance закрыты перед editor-heavy Фазой 6.
 
 Выход gate — demonstration `application command → prepare → commit → virtual activation → restart/recovery`. Перенос реализации в отдельные crates и зелёные unit tests сами по себе этот gate не закрывают. Реальные actions/hardware не подключаются, пока owner/cleanup/recovery не доказаны.
 
@@ -274,7 +274,7 @@ Executable C1 spike остаётся обязательным условием �
 **Цель:** создать безопасный путь read → draft → validate → plan → apply → rollback.
 **Результат:** CLI/test client редактирует virtual workspace, получает conflict и возвращается к snapshot.
 **Трудоёмкость:** L
-**Статус:** [~] Основной apply path и dedup/recovery срез 5.0 реализованы. До editor остаётся B2 compaction; Фаза 5 продолжает graph/compiler/scheduler и live dispatch.
+**Статус:** [~] Основной apply path и dedup/recovery срез 5.0 реализованы. B2 compaction и bounded maintenance реализованы; переход к editor зависит от общего pre-6 gate.
 
 ### Контекст для агента
 > Plugin lifecycle и production coordinator проходят public application path с isolated virtual fixture. Active automation пока пуст; фаза строит источник истины и command/query boundary.
@@ -294,7 +294,7 @@ Export переносит выбранные revision contents как portable t
 Dry-run использует тот же command vocabulary, но не пишет draft и не резервирует idempotency key;
 повтор mutation после restart читает durable receipt и согласованный исторический document. B1 добавил
 авторизованную выдачу persisted dedup windows, global receipt index, expiry/quota и recovery pending commit;
-checkpoint/compaction B2 пока отсутствует. Durable apply и production runtime coordination реализованы; E2 подтверждает kill matrix, а срез 5.0 закрыл cross-command dedup, superseded commit и terminal-history budget. Power-loss гарантии не обещаны [gate A–E](#pre-apply-gate).
+B2 добавил checkpoint/compaction, автоматический maintenance и bounded quota accounting. Durable apply и production runtime coordination реализованы; E2 подтверждает kill matrix, а срез 5.0 закрыл cross-command dedup, superseded commit и terminal-history budget. Power-loss гарантии не обещаны [gate A–E](#pre-apply-gate).
 
 ### Задачи
 
@@ -305,7 +305,7 @@ checkpoint/compaction B2 пока отсутствует. Durable apply и produ
 - [x] Реализовать OperationId, durable operation tracking и status queries через Application Gateway (→ [Модуль: Local API](../architecture/modules/local-api.md)).
 - [x] Реализовать Host apply skeleton с durable commit record, barrier, disruption/degraded policy, package lock и operation receipts (→ [ADR-0012](../decisions/0012-apply-and-execution-lifecycle.md), [Модуль: Host Runtime](../architecture/modules/host-runtime.md)).
 - [x] Principals/scopes, общий durable command claim для draft/apply, expiry до replay и dry-run без reservation реализованы (→ [API](../contracts/application-api.md#идемпотентность-и-dry-run), [ревью](../research/pre-apply-review.md#phase-5-readiness)).
-- [~] Identity/ownership и runtime coordination реализованы; superseded recovery и отдельный pending budget закрыты, B2 checkpoint/compaction остаётся до editor Фазы 6 по [gate A–E](#pre-apply-gate).
+- [~] Identity/ownership и runtime coordination реализованы; superseded recovery и отдельный pending budget закрыты, B2 checkpoint/compaction и growth acceptance закрыты перед editor Фазы 6 по [gate A–E](#pre-apply-gate).
 - [x] Добавить in-process test client; HTTP/WS transport отложить до Фазы 16 (→ [Application API](../contracts/application-api.md)).
 
 ### Тесты
@@ -328,7 +328,7 @@ checkpoint/compaction B2 пока отсутствует. Durable apply и produ
 **Цель:** выполнить deterministic source → action → feedback path.
 **Результат:** virtual button вызывает virtual action, меняет state и feedback; replay повторяет результат.
 **Трудоёмкость:** L
-**Статус:** [x] Срезы 5.0–5.6 завершены; M1 и deterministic replay проходят hardware-independent acceptance. Перед Фазой 6 остаётся межфазовый долг B2 Profile Store checkpoint/compaction.
+**Статус:** [x] Срезы 5.0–5.6 завершены; M1 и deterministic replay проходят hardware-independent acceptance. B2 Profile Store checkpoint/compaction закрыт; перед Фазой 6 остаются проверки общего [gate расширяемости](pre-phase-6.md).
 
 ### Контекст для агента
 > Profile/API и isolated virtual apply дают основу интеграции. Три обнаруженных dedup/recovery дефекта закрываются в 5.0 до live effects; pure compiler/scheduler можно делать независимо. Реализуется узкий graph subset без schedules и complex UI.
@@ -392,7 +392,7 @@ checkpoint/compaction B2 пока отсутствует. Durable apply и produ
 
 ### Задачи
 
-- [ ] Закрыть B2 checkpoint/compaction и bounded quota accounting перед editor-heavy нагрузкой; сохранить receipts/pending operations при GC/restart (→ [gate B2](#pre-apply-gate), [Profile Store](../architecture/modules/profile-store.md)).
+- [x] Закрыть B2 checkpoint/compaction и bounded quota accounting перед editor-heavy нагрузкой; сохранить receipts/pending operations при GC/restart (→ [gate B2](#pre-apply-gate), [Profile Store](../architecture/modules/profile-store.md)).
 - [ ] Закрыть остальные срезы 6G.1–6G.5 и сквозные fake plugin scenarios до фиксации inspector/binding model; документация сама не закрывает gate (→ [pre-6 plan](pre-phase-6.md), [каталог](../plugins/README.md)).
 - [ ] До canvas подключить Tauri adapter к Application Gateway с host-derived principal и общими DTO; проверить parity command/query/error с in-process client, receipt replay и snapshot reconnect (→ [Application API](../contracts/application-api.md)).
 

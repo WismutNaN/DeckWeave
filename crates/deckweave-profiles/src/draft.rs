@@ -158,7 +158,7 @@ impl JsonProfileStore {
         if let Some(outcome) = self.lookup_mutation(&key, &fingerprint)? {
             return Ok(outcome);
         }
-        let chain = self.load_draft_chain(draft_id)?;
+        let mut chain = self.load_draft_chain(draft_id)?;
         if chain.recovered_from_backup {
             self.repair_draft_head(&chain.head)?;
         }
@@ -169,6 +169,16 @@ impl JsonProfileStore {
             });
         }
 
+        let completed = expected_version.get().saturating_sub(1);
+        if (completed > 0 && completed.is_multiple_of(self.limits.draft_checkpoint_interval.max(1)))
+            || self.counted_entries(&self.mutation_receipts_directory())?
+                >= self.limits.maximum_mutation_receipts
+        {
+            // Perform maintenance before accepting the new command: a failed
+            // checkpoint can never turn a committed mutation into an error reply.
+            self.compact_draft_locked(draft_id)?;
+            chain = self.load_draft_chain(draft_id)?;
+        }
         let next = edit_draft(&chain.transaction.draft, expected_version, command)
             .map_err(map_edit_error)?;
         let receipt = MutationReceipt {

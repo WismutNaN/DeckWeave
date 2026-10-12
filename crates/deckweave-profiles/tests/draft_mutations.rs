@@ -10,6 +10,8 @@ use deckweave_workspace::{DraftRepository, DraftRepositoryError};
 
 #[path = "support/compaction.rs"]
 mod compaction;
+#[path = "support/growth.rs"]
+mod growth;
 use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,

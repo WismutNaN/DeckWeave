@@ -32,6 +32,10 @@ Desktop выполняет archive/claim maintenance после recovery; quota 
 | Workspace Configuration | Repository ports и persisted DTO |
 | Storage adapter port | Atomic replace/flush/lock contract, без зависимости от OS keychain |
 
+Maintenance перед новой mutation выполняется каждые 256 подтверждённых изменений draft (настраиваемо), а также при receipt quota. Он завершается до нового commit, поэтому его сбой не маскирует уже принятую mutation. Внутри действующей dedup epoch receipts сохраняются; quota исчерпания сообщает backpressure. GC допускается только после выдачи новой persisted epoch, а не по wall clock. В тесте `growth` 256 mutations и четыре открытия store сохраняют постоянный write budget (4 обычные atomic writes, до 6 при checkpoint), действующий replay и ограниченный размер transaction/receipt set при ротации epoch. Это проверка алгоритма и process restart, не benchmark latency физических накопителей.
+
+Terminal archive ограничен `maximum_archived_apply_operations` (по умолчанию 100 000). При заполнении старые записи остаются в hot store; после его quota новые apply отклоняются с capacity error. Автоматическое удаление истории запрещено; явный export/purge с проверкой выбранных revisions — отдельный административный use case. Cached directory accounting восстанавливается при открытии store и предполагает один host writer под существующим data-root lock.
+
 ## Инварианты
 
 - Applied revision не изменяется in place.

@@ -6,9 +6,11 @@ pub struct ProfileStoreLimits {
     pub maximum_revision_bytes: u64,
     pub maximum_asset_bytes: u64,
     pub maximum_draft_transactions: usize,
+    pub draft_checkpoint_interval: u64,
     pub maximum_mutation_receipts: usize,
     pub maximum_pending_mutations: usize,
     pub maximum_apply_operations: usize,
+    pub maximum_archived_apply_operations: usize,
     pub dedup_window_seconds: u64,
     pub maximum_export_bytes: u64,
 }
@@ -19,9 +21,11 @@ impl Default for ProfileStoreLimits {
             maximum_revision_bytes: 16 * 1024 * 1024,
             maximum_asset_bytes: 128 * 1024 * 1024,
             maximum_draft_transactions: 10_000,
+            draft_checkpoint_interval: 256,
             maximum_mutation_receipts: 100_000,
             maximum_pending_mutations: 128,
             maximum_apply_operations: 10_000,
+            maximum_archived_apply_operations: 100_000,
             dedup_window_seconds: 7 * 24 * 60 * 60,
             maximum_export_bytes: 512 * 1024 * 1024,
         }

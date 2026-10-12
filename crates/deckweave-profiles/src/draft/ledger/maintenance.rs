@@ -4,7 +4,7 @@ use super::*;
 use std::collections::BTreeSet;
 
 impl JsonProfileStore {
-    /// Maintenance вызывается отдельно от обычной mutation. Revisions/assets/apply
+    /// Maintenance runs explicitly or at a bounded mutation interval. Revisions/assets/apply
     /// records и claims не удаляются; действующие receipts сохраняют свои snapshots.
     pub fn compact_draft(&self, draft_id: &DraftId) -> Result<usize, DraftMutationError> {
         let _guard = self
@@ -12,6 +12,13 @@ impl JsonProfileStore {
             .lock()
             .map_err(|_| ProfileStoreError::LockPoisoned)?;
         self.recover_pending_mutations()?;
+        self.compact_draft_locked(draft_id)
+    }
+
+    pub(in crate::draft) fn compact_draft_locked(
+        &self,
+        draft_id: &DraftId,
+    ) -> Result<usize, DraftMutationError> {
         let chain = self.load_draft_chain(draft_id)?;
         if chain.recovered_from_backup {
             self.repair_draft_head(&chain.head)?;
@@ -39,16 +46,13 @@ impl JsonProfileStore {
                 )
                 .into());
             }
-            if record.receipt.draft_id != *draft_id {
-                continue;
-            }
             if self.mutation_epoch_retired(&record.key)? {
                 fs::remove_file(&path).map_err(|source| ProfileStoreError::Io {
                     path: path.clone(),
                     source,
                 })?;
                 self.account_entry(&path, -1)?;
-            } else {
+            } else if record.receipt.draft_id == *draft_id {
                 let transaction = self.read_transaction(draft_id, &record.transaction_sha256)?;
                 self.validate_record_transaction(&record, &transaction)?;
                 retained.insert(record.transaction_sha256);

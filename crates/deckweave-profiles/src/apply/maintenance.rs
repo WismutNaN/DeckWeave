@@ -45,6 +45,13 @@ impl JsonProfileStore {
             .map_err(|e| ApplyRepositoryError::Unavailable(e.to_string()))?;
         let mut archived = 0;
         for entry in entries {
+            // Retain history when its quota is full. The hot-store quota then
+            // applies backpressure; neither pending work nor old evidence is deleted.
+            if self.counted_entries(&archive).map_err(map_profile_error)?
+                >= self.limits.maximum_archived_apply_operations
+            {
+                break;
+            }
             let entry = entry.map_err(|e| ApplyRepositoryError::Unavailable(e.to_string()))?;
             let kind = entry
                 .file_type()
@@ -91,6 +98,8 @@ impl JsonProfileStore {
             }
             fs::rename(&source, &target)
                 .map_err(|e| ApplyRepositoryError::Unavailable(e.to_string()))?;
+            self.account_entry(&archive.join(entry.file_name()), 1)
+                .map_err(map_profile_error)?;
             self.account_entry(&entry.path(), -1)
                 .map_err(map_profile_error)?;
             archived += 1;

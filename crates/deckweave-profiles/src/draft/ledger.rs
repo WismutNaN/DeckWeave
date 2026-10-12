@@ -246,7 +246,7 @@ impl JsonProfileStore {
         Ok(())
     }
 
-    fn mutation_receipts_directory(&self) -> PathBuf {
+    pub(in crate::draft) fn mutation_receipts_directory(&self) -> PathBuf {
         self.root.join("mutations/receipts")
     }
 
