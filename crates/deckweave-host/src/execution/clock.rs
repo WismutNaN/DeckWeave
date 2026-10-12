@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Единая монотонная шкала host; ticks всегда означают миллисекунды.
 
-use super::LiveExecutionOwner;
+use super::{LiveExecutionError, LiveExecutionOwner};
 use std::{
     sync::{Arc, Weak, mpsc},
     thread,
@@ -39,8 +39,11 @@ impl ExecutionTimerPump {
                 let Some(owner) = owner.upgrade() else {
                     break;
                 };
-                if owner.poll_deadlines().is_err() {
-                    break;
+                match owner.poll_deadlines() {
+                    // Failed cleanup is already traced. Other owners still need deadlines;
+                    // never retry a possibly delivered release as a new invocation.
+                    Ok(()) | Err(LiveExecutionError::Cleanup(_)) => {}
+                    Err(_) => break,
                 }
             }
         });

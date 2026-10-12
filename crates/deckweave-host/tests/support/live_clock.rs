@@ -11,6 +11,71 @@ impl ExecutionClock for Clock {
     }
 }
 
+#[derive(Default)]
+struct FailedReleases(AtomicU64);
+impl RuntimeIntentDispatcher for FailedReleases {
+    fn dispatch(&self, command: RuntimeCommand) -> Result<(), RuntimeDispatchFailure> {
+        if matches!(
+            command,
+            RuntimeCommand::Cancel { .. } | RuntimeCommand::CleanupRun { .. }
+        ) {
+            self.0.fetch_add(1, Ordering::SeqCst);
+            return Err(RuntimeDispatchFailure {
+                error: test_error(),
+                possibly_sent: false,
+            });
+        }
+        Ok(())
+    }
+}
+
+#[test]
+fn failed_release_does_not_starve_other_or_future_deadlines() -> Result<(), Box<dyn Error>> {
+    let clock = Arc::new(Clock(AtomicU64::new(0)));
+    let dispatcher = Arc::new(FailedReleases::default());
+    let owner = Arc::new(LiveExecutionOwner::with_clock(
+        HostBootId::try_new("failed-release-clock")?,
+        dispatcher.clone(),
+        clock.clone(),
+    ));
+    let (mut graph, binding, source) = fixture()?;
+    graph.nodes[1].kind = GraphNodeKind::Action {
+        endpoint: graph.endpoint_contracts[1].endpoint.clone(),
+        operation_id: OperationId::try_new("uncertain")?,
+        availability: EndpointAvailabilityPolicy::Required,
+    };
+    graph.nodes[1].inputs[0].role = GraphPortRole::Input;
+    graph.nodes[1].outputs = vec![graph_port("result", GraphPortRole::Result, schema()?)?];
+    let mut operation = operation(schema()?, schema()?, schema()?)?;
+    operation.limits.deadline_ms = 100;
+    operation.limits.maximum_concurrent_invocations = 2;
+    graph.endpoint_contracts[1].operation = Some(operation);
+    let epoch = owner.activate("plan", Some(&graph), Some(&binding), GraphLimits::default())?;
+    owner.publish(signal(epoch, source.clone(), true));
+    owner.publish(signal(epoch, source.clone(), true));
+    assert_eq!(owner.snapshot()?.ok_or("scheduler")?.pending.len(), 2);
+    clock.0.store(101, Ordering::SeqCst);
+    assert!(matches!(
+        owner.poll_deadlines(),
+        Err(deckweave_host::LiveExecutionError::Cleanup(_))
+    ));
+    assert!(owner.snapshot()?.ok_or("scheduler")?.pending.is_empty());
+    let _pump = ExecutionTimerPump::start(&owner, Duration::from_millis(2));
+    for now in [202, 303] {
+        owner.publish(signal(epoch, source.clone(), true));
+        assert_eq!(owner.snapshot()?.ok_or("scheduler")?.pending.len(), 1);
+        clock.0.store(now, Ordering::SeqCst);
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while !owner.snapshot()?.ok_or("scheduler")?.pending.is_empty() && Instant::now() < deadline
+        {
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        assert!(owner.snapshot()?.ok_or("scheduler")?.pending.is_empty());
+    }
+    assert!(dispatcher.0.load(Ordering::SeqCst) >= 4);
+    Ok(())
+}
+
 #[test]
 fn idle_live_job_expires_after_long_host_uptime_without_input_events() -> Result<(), Box<dyn Error>>
 {
