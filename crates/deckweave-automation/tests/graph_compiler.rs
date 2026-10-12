@@ -27,6 +27,8 @@ use deckweave_domain::{
 };
 use deckweave_workspace::PackageLockEntry;
 use std::{collections::BTreeMap, error::Error};
+#[path = "support/action_results.rs"]
+mod action_results;
 #[path = "support/argument_compiler.rs"]
 mod argument_compiler;
 

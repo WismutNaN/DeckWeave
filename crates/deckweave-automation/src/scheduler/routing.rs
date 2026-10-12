@@ -13,7 +13,7 @@ use serde_json::Value;
 use std::collections::VecDeque;
 mod values;
 pub(super) use values::{node_value_matches, value_matches_schema};
-use values::{numeric, serialized_size};
+use values::{numeric, remember_result, serialized_size};
 
 struct Arrival {
     node_id: GraphNodeId,
@@ -136,7 +136,14 @@ fn route_arrivals(
                         .run_results
                         .get(context.run_id)
                         .unwrap_or(&empty);
-                    match arguments.assemble(&arrival.value, &context.state.values, results) {
+                    let trigger = if graph_node.inputs.iter().any(|p| {
+                        p.id == arguments.trigger_port && p.kind == crate::GraphPortKind::Flow
+                    }) {
+                        &Value::Null
+                    } else {
+                        &arrival.value
+                    };
+                    match arguments.assemble(trigger, &context.state.values, results) {
                         Some(input) => invoke_action(context, graph_node, input)?,
                         None => {
                             context.faults.push(SchedulerFault::MalformedInput);
@@ -313,34 +320,6 @@ fn abort_run(context: &mut RouteContext<'_>, reason: &str) {
         run_id: context.run_id.clone(),
         reason: reason.into(),
     });
-}
-
-fn remember_result(
-    context: &mut RouteContext<'_>,
-    node_id: &GraphNodeId,
-    value: &Value,
-) -> Result<bool, SchedulerTransitionError> {
-    let referenced = context.plan.action_arguments.values().any(|arguments| arguments.fields.values().any(|binding| matches!(binding, crate::ValueBinding::RunResult { node_id: source, .. } if source == node_id)));
-    if !referenced {
-        return Ok(true);
-    }
-    let results = context
-        .state
-        .run_results
-        .entry(context.run_id.clone())
-        .or_default();
-    results.insert(node_id.clone(), value.clone());
-    let size = serde_json::to_vec(results)
-        .map_err(|e| SchedulerTransitionError::InvalidPlan(e.to_string()))?
-        .len();
-    if size > context.limits.maximum_payload_bytes {
-        context
-            .faults
-            .push(SchedulerFault::BudgetExceeded(GraphLimitKind::PayloadBytes));
-        abort_run(context, "retained run values exceed budget");
-        return Ok(false);
-    }
-    Ok(true)
 }
 
 fn enqueue_role(

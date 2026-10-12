@@ -10,9 +10,7 @@ use deckweave_domain::{
 };
 use serde_json::json;
 
-#[test]
-fn named_arguments_are_compiled_and_concurrent_run_results_remain_separate()
--> Result<(), Box<dyn Error>> {
+pub(super) fn binding_fixture() -> Result<(GraphDocument, GraphPlanCompiler), Box<dyn Error>> {
     let original = catalog(PortAvailability::Available, false)?;
     let mut schemas = original.schemas().to_vec();
     let mut endpoints = original.endpoints().to_vec();
@@ -70,6 +68,14 @@ fn named_arguments_are_compiled_and_concurrent_run_results_remain_separate()
             ]),
         },
     );
+    Ok((graph, compiler))
+}
+
+#[test]
+fn named_arguments_are_compiled_and_concurrent_run_results_remain_separate()
+-> Result<(), Box<dyn Error>> {
+    let (mut graph, compiler) = binding_fixture()?;
+    let action = GraphNodeId::try_new("action")?;
     let plan = compiler.compile_document(
         &serde_json::to_value(&graph)?,
         &package_lock()?,

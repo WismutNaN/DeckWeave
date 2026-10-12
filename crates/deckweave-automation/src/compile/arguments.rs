@@ -62,34 +62,34 @@ pub(super) fn validate(
             &node.outputs.first().ok_or_else(invalid)?.schema
         };
         let source = catalog.schema(reference).ok_or_else(invalid)?;
-        // Nested physical quantities must use explicit records/converters. Never discard units.
-        if source.unit.is_some() {
-            return Err(invalid());
-        }
-        let mut shape = match &source.value_kind {
-            SchemaValueKind::Structured(shape) => shape.clone(),
-            SchemaValueKind::Unit => PayloadSchema::Null,
-            SchemaValueKind::Boolean => PayloadSchema::Boolean,
-            SchemaValueKind::String => PayloadSchema::String {
-                maximum_bytes: 1024 * 1024,
-                choices: vec![],
-            },
-            SchemaValueKind::Number => PayloadSchema::Number {
-                minimum: source.range.as_ref().map_or(f64::MIN, |r| r.minimum),
-                maximum: source.range.as_ref().map_or(f64::MAX, |r| r.maximum),
-            },
-            SchemaValueKind::Json => return Err(invalid()),
-        };
-        // Flow edges carry a scheduling token; their declared schema does not
-        // turn that token into the source's payload. Read that via RunResult.
-        if matches!(value, ValueBinding::Trigger { .. })
+        let flow_trigger = matches!(value, ValueBinding::Trigger { .. })
             && node
                 .inputs
                 .iter()
-                .any(|port| port.id == binding.trigger_port && port.kind == GraphPortKind::Flow)
-        {
-            shape = PayloadSchema::Null;
+                .any(|port| port.id == binding.trigger_port && port.kind == GraphPortKind::Flow);
+        // Flow is only a scheduling token, even when it follows a value condition.
+        // Nested physical quantities must use explicit records/converters. Never discard units.
+        if !flow_trigger && source.unit.is_some() {
+            return Err(invalid());
         }
+        let mut shape = if flow_trigger {
+            PayloadSchema::Null
+        } else {
+            match &source.value_kind {
+                SchemaValueKind::Structured(shape) => shape.clone(),
+                SchemaValueKind::Unit => PayloadSchema::Null,
+                SchemaValueKind::Boolean => PayloadSchema::Boolean,
+                SchemaValueKind::String => PayloadSchema::String {
+                    maximum_bytes: 1024 * 1024,
+                    choices: vec![],
+                },
+                SchemaValueKind::Number => PayloadSchema::Number {
+                    minimum: source.range.as_ref().map_or(f64::MIN, |r| r.minimum),
+                    maximum: source.range.as_ref().map_or(f64::MAX, |r| r.maximum),
+                },
+                SchemaValueKind::Json => return Err(invalid()),
+            }
+        };
         if !pointer.is_empty() {
             for segment in pointer.strip_prefix('/').ok_or_else(invalid)?.split('/') {
                 let field = segment.replace("~1", "/").replace("~0", "~");
@@ -101,10 +101,12 @@ pub(super) fn validate(
                         items,
                         maximum_items,
                     } => {
-                        if field
-                            .parse::<usize>()
-                            .ok()
-                            .is_none_or(|i| i >= maximum_items)
+                        if (field.len() > 1 && field.starts_with('0'))
+                            || !field.bytes().all(|b| b.is_ascii_digit())
+                            || field
+                                .parse::<usize>()
+                                .ok()
+                                .is_none_or(|i| i >= maximum_items)
                         {
                             return Err(invalid());
                         }
