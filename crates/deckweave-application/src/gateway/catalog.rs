@@ -4,6 +4,11 @@ use crate::plugin_catalog::{PluginCatalogError, PluginCatalogRequest};
 
 impl ApplicationGateway {
     #[must_use]
+    pub fn with_editor_source(mut self, editor: Arc<dyn crate::editor::EditorReadSource>) -> Self {
+        self.editor = editor;
+        self
+    }
+    #[must_use]
     pub fn with_plugin_catalog(mut self, catalog: Arc<dyn PluginCatalogSource>) -> Self {
         self.catalog = catalog;
         self

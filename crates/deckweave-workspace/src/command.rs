@@ -25,6 +25,9 @@ pub fn preview_draft_mutation(
         });
     }
     let mut next = draft.clone();
+    if let DraftCommand::ReplaceConfiguration { package_lock, .. } = command {
+        next.package_lock = package_lock.clone();
+    }
     apply_draft_command(&mut next.document, command)?;
     let next_version = next
         .version
@@ -42,7 +45,8 @@ pub fn apply_draft_command(
     command: &DraftCommand,
 ) -> Result<(), DraftEditError> {
     match command {
-        DraftCommand::ReplaceDocument { document: next } => {
+        DraftCommand::ReplaceDocument { document: next }
+        | DraftCommand::ReplaceConfiguration { document: next, .. } => {
             *document = next.clone();
             Ok(())
         }

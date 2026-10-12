@@ -8,6 +8,10 @@ use std::collections::BTreeMap;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum DraftCommand {
+    ReplaceConfiguration {
+        document: serde_json::Value,
+        package_lock: Vec<PackageLockEntry>,
+    },
     Set {
         pointer: String,
         value: serde_json::Value,

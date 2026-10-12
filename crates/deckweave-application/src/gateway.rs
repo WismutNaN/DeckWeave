@@ -32,6 +32,7 @@ pub struct ApplicationGateway {
     apply: Arc<dyn ApplyUseCase>,
     diagnostics: Arc<dyn RuntimeDiagnosticsSource>,
     catalog: Arc<dyn PluginCatalogSource>,
+    editor: Arc<dyn crate::editor::EditorReadSource>,
 }
 
 impl ApplicationGateway {
@@ -51,6 +52,7 @@ impl ApplicationGateway {
             apply,
             diagnostics: Arc::new(EmptyRuntimeDiagnostics),
             catalog: Arc::new(UnavailablePluginCatalog),
+            editor: Arc::new(crate::editor::UnavailableEditorSource),
         }
     }
 
@@ -102,6 +104,21 @@ impl ApplicationService for ApplicationGateway {
 
     fn query(&self, context: &RequestContext, query: AppQuery) -> Result<AppQueryResult, ApiError> {
         match query {
+            AppQuery::EditorSnapshot => {
+                self.authorize(context, ApiAuthScope::Read)?;
+                self.editor
+                    .editor_snapshot()
+                    .map(|snapshot| AppQueryResult::EditorSnapshot(Box::new(snapshot)))
+                    .map_err(|_| {
+                        api_error(
+                            context,
+                            ApiErrorCode::Unavailable,
+                            "api.error.editor_unavailable",
+                            true,
+                            BTreeMap::new(),
+                        )
+                    })
+            }
             AppQuery::PluginCatalog { package } => self.query_plugin_catalog(context, &package),
             AppQuery::Host => {
                 self.authorize(context, ApiAuthScope::Read)?;

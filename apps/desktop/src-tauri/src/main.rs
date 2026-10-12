@@ -1,106 +1,48 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use deckweave_application::HostSnapshot;
 use deckweave_host::HostRuntime;
-use deckweave_platform_host::{LaunchOptions, NativePlatform, installed_root};
-use std::{path::Path, sync::Arc};
+use deckweave_platform_host::{LaunchOptions, NativePlatform};
+use std::sync::Arc;
 use tauri::{
-    Emitter, Manager,
+    Manager,
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
 };
 
 mod composition;
+mod editor_seed;
+mod ipc;
 
-#[tauri::command]
-fn host_snapshot(host: tauri::State<'_, Arc<HostRuntime>>) -> HostSnapshot {
-    host.snapshot()
-}
-
-#[tauri::command]
-fn autostart_enabled(host: tauri::State<'_, Arc<HostRuntime>>) -> Result<bool, String> {
-    host.autostart_enabled().map_err(|error| error.to_string())
-}
-
-#[tauri::command]
-fn set_autostart(enabled: bool, host: tauri::State<'_, Arc<HostRuntime>>) -> Result<(), String> {
-    host.set_autostart(enabled)
-        .map_err(|error| error.to_string())
-}
-
-fn show_main(app: &tauri::AppHandle) -> tauri::Result<()> {
-    if let Some(window) = app.get_webview_window("main") {
-        window.unminimize()?;
-        window.show()?;
-        window.set_focus()?;
-    }
-    Ok(())
-}
-
-fn quit(app: &tauri::AppHandle) {
-    if let Some(runtime) =
-        app.try_state::<Arc<deckweave_plugin_supervisor::host::ProductionRuntimeCoordinator>>()
-        && let Err(error) = runtime.shutdown()
-    {
-        eprintln!("Не удалось завершить plugin runtime: {error}");
-    }
-    app.state::<Arc<HostRuntime>>().stop();
-    app.exit(0);
-}
-
-#[tauri::command]
-fn quit_app(app: tauri::AppHandle) {
-    quit(&app);
-}
-
-fn second_instance(app: &tauri::AppHandle, args: Vec<String>, cwd: String) {
-    let result = (|| -> Result<Option<String>, Box<dyn std::error::Error>> {
-        let host = app
-            .try_state::<Arc<HostRuntime>>()
-            .ok_or("Host ещё запускается")?;
-        let options = LaunchOptions::parse(args.iter().skip(1).map(Into::into))?;
-        let executable = args.first().ok_or("Нет пути приложения")?;
-        let requested =
-            options.requested_root(Path::new(executable), Path::new(&cwd), &installed_root()?)?;
-        let active = host.snapshot().data_root;
-        // Несуществующий root не создаётся вторым запуском.
-        let same_root = requested.canonicalize().is_ok_and(|root| root == active);
-        Ok(if same_root {
-            None
-        } else {
-            Some(format!(
-                "Уже работает DeckWeave с данными в {}. Завершите его через «Выход», чтобы открыть {}.",
-                active.display(),
-                requested.display()
-            ))
-        })
-    })();
-    let notice = match result {
-        Ok(notice) => notice,
-        Err(error) => Some(error.to_string()),
-    };
-    if let Some(host) = app.try_state::<Arc<HostRuntime>>() {
-        host.set_notice(notice);
-        if let Err(error) = app.emit("host-changed", ()) {
-            eprintln!("{error}");
-        }
-    }
-    if let Err(error) = show_main(app) {
-        eprintln!("Не удалось открыть окно: {error}");
-    }
-}
+mod lifecycle;
+use lifecycle::*;
 
 fn run(options: LaunchOptions) -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(not(feature = "smoke-test"))]
-    let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool =
-        tauri::generate_handler![host_snapshot, autostart_enabled, set_autostart, quit_app];
+    let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool = tauri::generate_handler![
+        host_snapshot,
+        autostart_enabled,
+        set_autostart,
+        quit_app,
+        ipc::app_query,
+        ipc::app_command,
+        ipc::mutation_window,
+        ipc::open_workspace,
+        ipc::locale_get,
+        ipc::locale_change
+    ];
     #[cfg(feature = "smoke-test")]
     let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool = tauri::generate_handler![
         host_snapshot,
         autostart_enabled,
         set_autostart,
         quit_app,
+        ipc::app_query,
+        ipc::app_command,
+        ipc::mutation_window,
+        ipc::open_workspace,
+        ipc::locale_get,
+        ipc::locale_change,
         smoke::ready
     ];
     let builder = tauri::Builder::default()
@@ -120,6 +62,7 @@ fn run(options: LaunchOptions) -> Result<(), Box<dyn std::error::Error>> {
             app.manage(services.runtime);
             app.manage(services.gateway);
             app.manage(services.locale);
+            app.manage(services.editor);
 
             // WebView cache принадлежит root; portable не пишет его в installed data directory.
             let window = tauri::WebviewWindowBuilder::new(

@@ -44,6 +44,7 @@ pub struct CommandClaimOutcome {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DraftView {
+    pub package_lock: Vec<crate::PackageLockEntry>,
     pub draft_id: DraftId,
     pub workspace_id: WorkspaceId,
     pub base_revision_id: Option<WorkspaceRevisionId>,
@@ -83,6 +84,14 @@ pub struct StoredDraftMutation {
 }
 
 pub trait DraftRepository: Send + Sync {
+    fn ensure_draft(
+        &self,
+        _initial: &crate::WorkspaceDraft,
+    ) -> Result<DraftView, DraftRepositoryError> {
+        Err(DraftRepositoryError::Unavailable(
+            "draft creation is unavailable".into(),
+        ))
+    }
     fn open_mutation_window(
         &self,
         principal_id: &PrincipalId,

@@ -2,6 +2,8 @@
 //! Production bridge from Host apply ports to isolated plugin processes.
 
 mod config;
+mod editor;
+pub use editor::ProductionEditorSource;
 mod coordinator;
 mod dispatch;
 mod health;

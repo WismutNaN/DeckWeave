@@ -25,9 +25,10 @@ use std::{
 };
 
 pub(crate) struct ProductionServices {
-    pub(crate) gateway: ApplicationGateway,
+    pub(crate) gateway: Arc<ApplicationGateway>,
     pub(crate) runtime: Arc<ProductionRuntimeCoordinator>,
-    pub(crate) locale: LocalePreferencesService,
+    pub(crate) locale: Arc<LocalePreferencesService>,
+    pub(crate) editor: Arc<deckweave_application::editor::EditorWorkspaceService>,
 }
 
 pub(crate) fn compose(
@@ -99,6 +100,16 @@ pub(crate) fn compose(
         ],
     );
     let locale = LocalePreferencesService::new(locale_store, runtime.clone(), authorizer.clone());
+    let editor = Arc::new(deckweave_application::editor::EditorWorkspaceService::new(
+        profiles.clone(),
+        authorizer.clone(),
+        crate::editor_seed::initial(&profiles)?,
+    ));
+    let editor_source = Arc::new(deckweave_plugin_supervisor::host::ProductionEditorSource {
+        runtime: runtime.clone(),
+        packages: packages.clone(),
+        profiles: profiles.clone(),
+    });
     let gateway = ApplicationGateway::new(
         host as Arc<dyn deckweave_application::HostStatusSource>,
         Arc::clone(&profiles) as Arc<dyn DraftRepository>,
@@ -107,11 +118,13 @@ pub(crate) fn compose(
         apply,
     )
     .with_runtime_diagnostics(runtime.clone())
-    .with_plugin_catalog(packages);
+    .with_plugin_catalog(packages)
+    .with_editor_source(editor_source);
     Ok(ProductionServices {
-        gateway,
+        gateway: Arc::new(gateway),
         runtime,
-        locale,
+        locale: Arc::new(locale),
+        editor,
     })
 }
 

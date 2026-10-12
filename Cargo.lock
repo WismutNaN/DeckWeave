@@ -791,6 +791,7 @@ dependencies = [
  "deckweave-profiles",
  "deckweave-registry",
  "deckweave-workspace",
+ "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-single-instance",

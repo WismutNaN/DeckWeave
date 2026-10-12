@@ -35,6 +35,7 @@ pub struct RequestContext {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AppQuery {
+    EditorSnapshot,
     Host,
     Draft {
         draft_id: DraftId,
@@ -58,6 +59,7 @@ pub enum AppQuery {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AppQueryResult {
+    EditorSnapshot(Box<crate::editor::EditorSnapshot>),
     Host(HostSnapshot),
     Draft(DraftView),
     ApplyPlan(crate::ApplyPlanPreview),

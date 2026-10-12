@@ -22,6 +22,7 @@ pub use scoped_authorization::ScopedAuthorizationStore;
 mod gateway;
 pub use gateway::{ApplicationGateway, HostStatusSource, InMemoryApiAuthorizer};
 mod diagnostics;
+pub mod editor;
 pub mod locale;
 pub mod plugin_catalog;
 pub mod plugin_data;

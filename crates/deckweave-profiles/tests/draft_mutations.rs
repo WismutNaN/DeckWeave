@@ -66,6 +66,37 @@ fn native_store(root: &Path) -> JsonProfileStore {
 }
 
 #[test]
+fn editor_reopens_current_draft_and_replays_configuration_with_its_lock()
+-> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    let store = native_store(directory.path());
+    let initial = draft()?;
+    assert_eq!(store.ensure_draft(&initial)?.version, initial.version);
+    let lock = deckweave_workspace::PackageLockEntry {
+        package_id: deckweave_domain::ids::PackageId::try_new("org.example.editor")?,
+        version: "1.0.0".into(),
+        artifact_sha256: "a".repeat(64),
+        source: None,
+        extensions: Default::default(),
+    };
+    let command = DraftCommand::ReplaceConfiguration {
+        document: serde_json::json!({"bound":true}),
+        package_lock: vec![lock.clone()],
+    };
+    let key = mutation_key(&store, "editor-config")?;
+    let result = store.mutate_draft(&initial.draft_id, key.clone(), initial.version, &command)?;
+    let reopened = store.ensure_draft(&initial)?;
+    assert_eq!(reopened.document, result.draft.document);
+    assert_eq!(reopened.package_lock, vec![lock]);
+    let store = native_store(directory.path());
+    let replay =
+        DraftRepository::mutate_draft(&store, &initial.draft_id, key, initial.version, &command)?;
+    assert!(replay.replayed);
+    assert_eq!(replay.draft, reopened);
+    Ok(())
+}
+
+#[test]
 fn mutation_is_durable_and_deduplication_precedes_version_check() -> Result<(), Box<dyn Error>> {
     let directory = tempfile::tempdir()?;
     let store = native_store(directory.path());

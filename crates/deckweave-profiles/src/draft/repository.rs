@@ -8,6 +8,15 @@ use deckweave_workspace::{
 };
 
 impl DraftRepository for JsonProfileStore {
+    fn ensure_draft(&self, initial: &WorkspaceDraft) -> Result<DraftView, DraftRepositoryError> {
+        match self.create_draft(initial) {
+            Ok(loaded) => Ok(draft_view(loaded.draft)),
+            Err(DraftMutationError::Store(ProfileStoreError::ImmutableRevisionConflict)) => {
+                self.get_draft(&initial.draft_id)
+            }
+            Err(error) => Err(map_application_store_error(error)),
+        }
+    }
     fn open_mutation_window(
         &self,
         principal_id: &PrincipalId,
@@ -88,6 +97,7 @@ impl DraftRepository for JsonProfileStore {
 
 fn draft_view(draft: WorkspaceDraft) -> DraftView {
     DraftView {
+        package_lock: draft.package_lock,
         draft_id: draft.draft_id,
         workspace_id: draft.workspace_id,
         base_revision_id: draft.base_revision_id,
