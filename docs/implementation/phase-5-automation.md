@@ -1,6 +1,6 @@
 # Фаза 5: минимальный automation engine
 
-Статус: срезы 5.0–5.1 завершены, runtime manifest 5.2 начат. Основание и исходные дефекты — [повторная проверка apply](../research/pre-apply-review.md#phase-5-readiness). Фаза 4 создала рабочую основу для apply и восстановления isolated fixture; общий command claim, superseded recovery и отдельный pending budget теперь закрывают найденные P1-переходы.
+Статус: срезы 5.0–5.2 завершены; следующий срез — pure scheduler 5.3. Основание и исходные дефекты — [повторная проверка apply](../research/pre-apply-review.md#phase-5-readiness). Фаза 4 создала рабочую основу для apply и восстановления isolated fixture; общий command claim, superseded recovery и отдельный pending budget теперь закрывают найденные P1-переходы.
 
 ## Граница результата
 
@@ -47,10 +47,10 @@ Graph vocabulary принадлежит Automation; shared endpoint/IDs/schema r
 
 ### 5.2 — Чистый compiler и исполняемое представление
 
-- [~] `ExecutionPlanKind::{EmptyFixture, VirtualEchoFixture}` удалён: compiler уже выдаёт точные `RuntimeRequirement` с package/version/hash/group/contribution, а checksum-версия compiled plan сохраняется в apply intent/commit. Полный IR с source subscriptions, typed instructions, indexes и state slots ещё не реализован.
-- [ ] Дать compiler immutable schema/descriptor catalog, а не только номера `CompileFence`. Проверять direction, schema version, unit/range, availability policy, missing references и resource requirements. Никаких неявных string/number conversions.
-- [ ] Разделить semantic compile и runtime binding. Validate/plan не запускает plugin; schema/template metadata берётся из static catalog или ранее полученного descriptor evidence. Если её нет, plan сообщает unresolved/needs-discovery. Prepare получает фактические descriptors и связывает stable references с новыми sessions, проверяя совместимость до commit.
-- [ ] Initial graph subset — DAG. Cycles отклоняются; delay/schedule cycles появятся вместе с их budgets и semantics в Фазе 11. Condition читает state snapshot текущего ingress transition.
+- [x] `ExecutionPlanKind::{EmptyFixture, VirtualEchoFixture}` удалён: graph compiler выдаёт точные `RuntimeRequirement`, source subscriptions, canonical nodes/edges, topological order, endpoint contracts и state slots. Checksum-версия полного plan сохраняется без UI layout.
+- [x] Compiler получает immutable schema/descriptor catalog и compile access snapshot, а не только номера `CompileFence`. Проверяются direction, точный `SchemaRef`, unit/range, availability policy, missing references, permissions, resource requirements и package lock. Неявных string/number conversions нет.
+- [x] Semantic compile и runtime binding разделены. Validate/plan не запускает plugin; отсутствие metadata даёт unresolved, deferred availability — diagnostic. Чистый `RuntimeBinder` связывает stable references с session/generation/revision и повторно проверяет descriptor/operation contract; включение binder в production prepare относится к 5.4.
+- [x] Initial graph subset — DAG: deterministic topological order входит в IR, cycles отклоняются с node IDs. Delay/schedule cycles появятся вместе с budgets и semantics в Фазе 11. Condition остаётся pure typed instruction; чтение snapshot реализует scheduler 5.3.
 
 Выход: валидный graph компилируется независимо от JSON object order, некорректные edges имеют diagnostics с node/edge IDs. Cold-start apply нового package не требует уже активной session и не подменяет отсутствующую metadata догадкой. Ни Host, ни Plugin Runtime не знают названия graph nodes или `fixture.kind`.
 

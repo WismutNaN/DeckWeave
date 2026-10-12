@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use deckweave_domain::{
+    capability::NumericRange,
     endpoint::StableEndpointRef,
     ids::{GraphNodeId, NamespacedKind, OperationId},
     schema::{ExtensionMap, SchemaRef},
@@ -54,10 +55,14 @@ pub struct GraphNode {
 pub enum GraphNodeKind {
     Source {
         endpoint: StableEndpointRef,
+        #[serde(default)]
+        availability: EndpointAvailabilityPolicy,
     },
     Action {
         endpoint: StableEndpointRef,
         operation_id: OperationId,
+        #[serde(default)]
+        availability: EndpointAvailabilityPolicy,
     },
     State {
         state_key: NamespacedKind,
@@ -69,7 +74,17 @@ pub enum GraphNodeKind {
     },
     Feedback {
         endpoint: StableEndpointRef,
+        #[serde(default)]
+        availability: EndpointAvailabilityPolicy,
     },
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EndpointAvailabilityPolicy {
+    Required,
+    #[default]
+    Deferred,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -82,12 +97,15 @@ pub enum ConditionOperator {
     LessThan,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct GraphPort {
     pub id: GraphPortId,
     pub kind: GraphPortKind,
+    pub role: GraphPortRole,
     pub schema: SchemaRef,
+    pub unit: Option<String>,
+    pub range: Option<NumericRange>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -95,6 +113,18 @@ pub struct GraphPort {
 pub enum GraphPortKind {
     Flow,
     Value,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GraphPortRole {
+    Trigger,
+    Input,
+    Result,
+    Error,
+    Value,
+    True,
+    False,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

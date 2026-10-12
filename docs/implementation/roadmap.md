@@ -326,7 +326,7 @@ checkpoint/compaction B2 пока отсутствует. Durable apply и produ
 **Цель:** выполнить deterministic source → action → feedback path.
 **Результат:** virtual button вызывает virtual action, меняет state и feedback; replay повторяет результат.
 **Трудоёмкость:** L
-**Статус:** [~] В процессе: 5.0–5.1 завершены; 5.2 начат
+**Статус:** [~] В процессе: 5.0–5.2 завершены; следующий срез 5.3
 
 ### Контекст для агента
 > Profile/API и isolated virtual apply дают основу интеграции. Три обнаруженных dedup/recovery дефекта закрываются в 5.0 до live effects; pure compiler/scheduler можно делать независимо. Реализуется узкий graph subset без schedules и complex UI.
@@ -349,8 +349,8 @@ checkpoint/compaction B2 пока отсутствует. Durable apply и produ
 
 - [x] Закрыть F5-R1–R3 до подключения effects (→ [срез 5.0](phase-5-automation.md#50--закрыть-обнаруженные-переходы-фазы-4)).
 - [x] Versioned typed graph, полный invocation target, required-feature ID, delivery vocabulary, limits и Rust/TS/domain fixtures реализованы; применение limits и feature fence живым dispatcher относится к 5.3–5.4 (→ [срез 5.1](phase-5-automation.md#51--graph-contract-и-адресуемый-invocation-protocol), [Capabilities](../contracts/capabilities.md)).
-- [ ] Реализовать graph compiler для source/action/state/condition/feedback (→ [Модуль: Automation Engine](../architecture/modules/automation-engine.md)).
-- [~] Runtime/recovery JSON branches удалены: оба пути используют checksum-версию compiled requirements с точными package/group/contribution. Настоящий graph IR, cold-start catalog/binding и несколько required runtime groups остаются (→ [срезы 5.2–5.5](phase-5-automation.md)).
+- [x] Реализовать graph compiler для source/action/state/condition/feedback с immutable schema/descriptor catalog, DAG IR и structured diagnostics (→ [Модуль: Automation Engine](../architecture/modules/automation-engine.md)).
+- [~] Runtime/recovery JSON branches удалены: оба пути используют checksum-версию compiled requirements с точными package/group/contribution. Graph IR и чистый runtime binder готовы; подключение scheduler/binder к нескольким живым runtime groups остаётся в 5.3–5.5 (→ [срезы 5.2–5.5](phase-5-automation.md)).
 - [ ] Реализовать immutable ExecutionPlan и serialized workspace scheduler (→ [ADR-0010](../decisions/0010-compiled-automation-plan.md)).
 - [ ] Разделить edge queue и coalescing value lane (→ [Архитектура — Конкурентность и QoS](../architecture/overview.md#конкурентность-и-qos)).
 - [ ] Реализовать trace/correlation/causation и basic loop guard (→ [Модуль: Diagnostics & Test Lab](../architecture/modules/diagnostics-test-lab.md)).

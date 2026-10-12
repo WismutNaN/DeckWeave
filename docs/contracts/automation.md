@@ -57,6 +57,8 @@ Cancel — запрос остановить работу. `cancelled` озна�
 
 Host policy задаёт ненулевые limits document bytes, nodes, edges, ports per node, reliable queued events, pending runs/invocations, timers и trace entries. Документ не может увеличивать эти значения. Превышение возвращает structured limit kind, maximum и actual; executable/data payload не усекается для продолжения работы.
 
+Semantic compiler использует immutable catalog schemas, static/cached endpoint descriptors, operation descriptors и package runtime requirements. Он не запускает plugin и не выбирает transient session. Результат — canonical DAG IR: порядок nodes/edges нормализован по stable IDs, source subscriptions и state slots индексированы, UI layout исключён. Runtime binding является отдельной операцией над фактическим descriptor snapshot; missing session возвращает `needs_discovery`, а schema/direction/unit/range/permission/resource/revision drift блокирует activation. Динамические grants и leases повторно проверяются непосредственно перед dispatch независимо от успешного compile.
+
 | Узел или политика | Нормативное поведение |
 |---|---|
 | Sequence | Следующий шаг получает validated result предыдущего terminal success; ожидание acceptance недостаточно |

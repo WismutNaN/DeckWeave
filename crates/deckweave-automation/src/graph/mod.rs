@@ -5,8 +5,9 @@ mod model;
 mod validation;
 
 pub use model::{
-    ConditionOperator, GraphDefinition, GraphDocument, GraphEdge, GraphEdgeId, GraphEdgeKind,
-    GraphFormatVersion, GraphIdentityError, GraphLayout, GraphNode, GraphNodeKind,
-    GraphNodePlacement, GraphPort, GraphPortId, GraphPortKind, GraphPortRef,
+    ConditionOperator, EndpointAvailabilityPolicy, GraphDefinition, GraphDocument, GraphEdge,
+    GraphEdgeId, GraphEdgeKind, GraphFormatVersion, GraphIdentityError, GraphLayout, GraphNode,
+    GraphNodeKind, GraphNodePlacement, GraphPort, GraphPortId, GraphPortKind, GraphPortRef,
+    GraphPortRole,
 };
 pub use validation::{GraphLimitKind, GraphLimits, GraphValidationError};

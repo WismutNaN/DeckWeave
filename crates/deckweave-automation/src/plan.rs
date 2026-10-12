@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+use crate::{CompileDiagnostic, ExecutableGraph};
 use deckweave_domain::ids::{
     ContributionId, GrantRevision, PackageId, RegistryRevision, RuntimeGroupId,
 };
@@ -9,7 +10,7 @@ use thiserror::Error;
 
 pub const COMPILED_PLAN_EXTENSION_ID: &str = "org.deckweave.automation.compiled-plan.v1";
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompileFence {
     pub registry_revision: RegistryRevision,
@@ -36,7 +37,7 @@ pub struct RuntimeRequirement {
     pub contribution_id: ContributionId,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompiledExecutionPlan {
     compiler_id: String,
@@ -44,9 +45,13 @@ pub struct CompiledExecutionPlan {
     semantic_sha256: String,
     runtime_requirements: Vec<RuntimeRequirement>,
     requires_disruption: bool,
+    #[serde(default)]
+    executable_graph: Option<ExecutableGraph>,
+    #[serde(default)]
+    diagnostics: Vec<CompileDiagnostic>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DurableExecutionPlan {
     document_sha256: String,
@@ -67,6 +72,27 @@ impl CompiledExecutionPlan {
             semantic_sha256,
             runtime_requirements,
             requires_disruption,
+            executable_graph: None,
+            diagnostics: vec![],
+        }
+    }
+
+    pub(crate) fn new_graph(
+        compiler_id: String,
+        compiler_version: String,
+        semantic_sha256: String,
+        runtime_requirements: Vec<RuntimeRequirement>,
+        executable_graph: ExecutableGraph,
+        diagnostics: Vec<CompileDiagnostic>,
+    ) -> Self {
+        Self {
+            compiler_id,
+            compiler_version,
+            semantic_sha256,
+            runtime_requirements,
+            requires_disruption: false,
+            executable_graph: Some(executable_graph),
+            diagnostics,
         }
     }
 
@@ -93,6 +119,16 @@ impl CompiledExecutionPlan {
     #[must_use]
     pub fn requires_disruption(&self) -> bool {
         self.requires_disruption
+    }
+
+    #[must_use]
+    pub fn executable_graph(&self) -> Option<&ExecutableGraph> {
+        self.executable_graph.as_ref()
+    }
+
+    #[must_use]
+    pub fn diagnostics(&self) -> &[CompileDiagnostic] {
+        &self.diagnostics
     }
 
     pub fn seal(&self) -> Result<DurableExecutionPlan, PlanCompileError> {

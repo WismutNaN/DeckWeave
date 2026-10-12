@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use deckweave_automation::{
-    ConditionOperator, GraphDefinition, GraphDocument, GraphEdge, GraphEdgeId, GraphEdgeKind,
-    GraphFormatVersion, GraphLayout, GraphLimitKind, GraphLimits, GraphNode, GraphNodeKind,
-    GraphNodePlacement, GraphPort, GraphPortId, GraphPortKind, GraphPortRef, GraphValidationError,
+    ConditionOperator, EndpointAvailabilityPolicy, GraphDefinition, GraphDocument, GraphEdge,
+    GraphEdgeId, GraphEdgeKind, GraphFormatVersion, GraphLayout, GraphLimitKind, GraphLimits,
+    GraphNode, GraphNodeKind, GraphNodePlacement, GraphPort, GraphPortId, GraphPortKind,
+    GraphPortRef, GraphPortRole, GraphValidationError,
 };
 use deckweave_domain::{
     endpoint::{EndpointTargetRef, PortPath, StableEndpointRef},
@@ -38,11 +39,19 @@ fn endpoint(element: &str, port: &str) -> Result<StableEndpointRef, Box<dyn Erro
     })
 }
 
-fn port(id: &str, kind: GraphPortKind, schema: SchemaRef) -> Result<GraphPort, Box<dyn Error>> {
+fn port(
+    id: &str,
+    kind: GraphPortKind,
+    role: GraphPortRole,
+    schema: SchemaRef,
+) -> Result<GraphPort, Box<dyn Error>> {
     Ok(GraphPort {
         id: GraphPortId::try_new(id)?,
         kind,
+        role,
         schema,
+        unit: None,
+        range: None,
     })
 }
 
@@ -78,9 +87,15 @@ fn document() -> Result<GraphDocument, Box<dyn Error>> {
             id: GraphNodeId::try_new("source")?,
             kind: GraphNodeKind::Source {
                 endpoint: endpoint("button", "pressed")?,
+                availability: EndpointAvailabilityPolicy::Deferred,
             },
             inputs: vec![],
-            outputs: vec![port("event", GraphPortKind::Flow, event.clone())?],
+            outputs: vec![port(
+                "event",
+                GraphPortKind::Flow,
+                GraphPortRole::Trigger,
+                event.clone(),
+            )?],
             extensions: BTreeMap::new(),
         },
         GraphNode {
@@ -89,8 +104,18 @@ fn document() -> Result<GraphDocument, Box<dyn Error>> {
                 operator: ConditionOperator::IsTrue,
                 operand: None,
             },
-            inputs: vec![port("in", GraphPortKind::Flow, event.clone())?],
-            outputs: vec![port("true", GraphPortKind::Flow, event.clone())?],
+            inputs: vec![port(
+                "in",
+                GraphPortKind::Flow,
+                GraphPortRole::Input,
+                event.clone(),
+            )?],
+            outputs: vec![port(
+                "true",
+                GraphPortKind::Flow,
+                GraphPortRole::True,
+                event.clone(),
+            )?],
             extensions: BTreeMap::new(),
         },
         GraphNode {
@@ -98,9 +123,20 @@ fn document() -> Result<GraphDocument, Box<dyn Error>> {
             kind: GraphNodeKind::Action {
                 endpoint: endpoint("service", "invoke")?,
                 operation_id: OperationId::try_new("echo")?,
+                availability: EndpointAvailabilityPolicy::Deferred,
             },
-            inputs: vec![port("invoke", GraphPortKind::Flow, event)?],
-            outputs: vec![port("result", GraphPortKind::Value, text.clone())?],
+            inputs: vec![port(
+                "invoke",
+                GraphPortKind::Flow,
+                GraphPortRole::Trigger,
+                event,
+            )?],
+            outputs: vec![port(
+                "result",
+                GraphPortKind::Value,
+                GraphPortRole::Result,
+                text.clone(),
+            )?],
             extensions: BTreeMap::new(),
         },
         GraphNode {
@@ -109,16 +145,32 @@ fn document() -> Result<GraphDocument, Box<dyn Error>> {
                 state_key: NamespacedKind::try_new("org.deckweave.state.last_result")?,
                 initial_value: None,
             },
-            inputs: vec![port("write", GraphPortKind::Value, text.clone())?],
-            outputs: vec![port("value", GraphPortKind::Value, text.clone())?],
+            inputs: vec![port(
+                "write",
+                GraphPortKind::Value,
+                GraphPortRole::Input,
+                text.clone(),
+            )?],
+            outputs: vec![port(
+                "value",
+                GraphPortKind::Value,
+                GraphPortRole::Value,
+                text.clone(),
+            )?],
             extensions: BTreeMap::new(),
         },
         GraphNode {
             id: GraphNodeId::try_new("feedback")?,
             kind: GraphNodeKind::Feedback {
                 endpoint: endpoint("display", "text")?,
+                availability: EndpointAvailabilityPolicy::Deferred,
             },
-            inputs: vec![port("value", GraphPortKind::Value, text)?],
+            inputs: vec![port(
+                "value",
+                GraphPortKind::Value,
+                GraphPortRole::Input,
+                text,
+            )?],
             outputs: vec![],
             extensions: BTreeMap::new(),
         },

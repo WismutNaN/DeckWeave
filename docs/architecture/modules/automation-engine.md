@@ -9,7 +9,9 @@
 |---|---|---|
 | `GraphDocument`, `GraphDefinition` | document model | Versioned editable graph; semantic nodes/edges отделены от layout и extensions |
 | `GraphLimits`, `GraphValidationError` | policy/value | Bounded document/runtime budgets и адресные diagnostics без усечения |
-| `GraphCompiler` | service | Validation и compile |
+| `DescriptorCatalog`, `GraphPlanCompiler` | immutable input/service | Static schema/endpoint/operation evidence, semantic validation и canonical DAG compile без запуска plugin |
+| `ExecutableGraph` | immutable IR | Sorted nodes/edges, topological order, source index, state slots и endpoint contracts; layout исключён |
+| `RuntimeBinder` | pure service | Связывает stable endpoints с session/generation/revision и повторно проверяет runtime descriptors |
 | `PlanCompiler` | port | Компилирует immutable `WorkspaceCandidate` при зафиксированных registry/grant revisions |
 | `ExecutionPlan` | immutable struct | Resolved runtime plan |
 | `RuntimeRequirement`, `DurableExecutionPlan` | immutable structs | Точная package/version/hash/group/contribution потребность и checksum envelope для recovery |
@@ -60,6 +62,8 @@
 > Фаза 5: source/action/state/condition/feedback; sequence/parallel/layer добавляются в Фазе 11. Следовать [execution lifecycle](../../contracts/lifecycle.md#executions-cancellation-и-смена-плана) и [ordering/replay](../../contracts/lifecycle.md#порядок-сигналов-и-время). Plugin conditions — async boundaries с deadline, не callbacks внутри scheduler.
 
 `GraphDocument` v1 уже задаёт source/action/state/condition/feedback, typed flow/data ports, stable node/edge/port IDs и отдельный layout. Валидация проверяет version, shape, references, direction, exact schema и limits; cycles и descriptor catalog относятся к compiler среза 5.2. Неизвестный `GraphNodeKind` не сохраняется как extension и не пропускается. Runtime limits для queues/runs/invocations/timers/trace определены той же policy, но расходуются scheduler в 5.3.
+
+`GraphPlanCompiler` использует immutable `DescriptorCatalog` со schema value kind/unit/range, static port/operation descriptors и точными runtime requirements. Он строит одинаковый semantic hash независимо от порядка JSON nodes/edges и UI layout, отклоняет cycles, missing metadata, несовпадающие directions/schemas/package lock и отсутствующие compile permissions/resources. Deferred availability остаётся diagnostic; required availability — compile error. `RuntimeBinder` не компилирует повторно: он принимает IR и фактический snapshot, проверяет stable identity, session generation, descriptor revision, permissions и operation contract. Production-вызов binder на prepare/barrier подключается в 5.4.
 
 Временный `RestrictedFixtureCompiler` не является урезанной реализацией произвольного graph: он принимает пустой workspace без packages/assets либо точную virtual fixture с kind `virtual_echo`/`virtual_disruptive_echo` и одним pinned `org.deckweave.example.virtual`. Любой другой document/lock возвращает `UnsupportedGraph`. Результат уже не содержит fixture enum: compiler выдаёт точный `RuntimeRequirement`, а checksum-версия `DurableExecutionPlan` входит в apply intent/commit и используется prepare/recovery. Для commit, созданного до появления этого extension, `PlanCompiler::compile_recovery` принимает immutable revision и сохранённые candidate/package hashes; это migration seam владельца graph vocabulary, а не разрешение Host/runtime разбирать graph. Присутствующий повреждённый extension всегда отклоняется. Текущий `PlanCompiler` получает revision fence; настоящий compiler также потребует immutable descriptor/schema catalog и полный executable IR. Graph vocabulary остаётся внутри Automation; Host и Plugin Runtime не интерпретируют JSON nodes.
 

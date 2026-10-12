@@ -2,7 +2,7 @@
 
 use super::{
     GraphDocument, GraphEdgeId, GraphEdgeKind, GraphNode, GraphNodeKind, GraphPort, GraphPortId,
-    GraphPortKind,
+    GraphPortKind, GraphPortRole,
 };
 use deckweave_domain::{ids::GraphNodeId, schema::SchemaRef};
 use std::collections::{BTreeMap, BTreeSet};
@@ -246,13 +246,58 @@ fn validate_node(node: &GraphNode, limits: &GraphLimits) -> Result<(), GraphVali
         limits.maximum_ports_per_node,
         node.inputs.len().saturating_add(node.outputs.len()),
     )?;
-    let valid_shape = match node.kind {
-        GraphNodeKind::Source { .. } => node.inputs.is_empty() && !node.outputs.is_empty(),
-        GraphNodeKind::Feedback { .. } => !node.inputs.is_empty() && node.outputs.is_empty(),
-        GraphNodeKind::Action { .. }
-        | GraphNodeKind::State { .. }
-        | GraphNodeKind::Condition { .. } => !node.inputs.is_empty() && !node.outputs.is_empty(),
-    };
+    let valid_shape =
+        match node.kind {
+            GraphNodeKind::Source { .. } => {
+                node.inputs.is_empty()
+                    && !node.outputs.is_empty()
+                    && node.outputs.iter().all(|port| {
+                        matches!(port.role, GraphPortRole::Trigger | GraphPortRole::Value)
+                    })
+            }
+            GraphNodeKind::Feedback { .. } => {
+                !node.inputs.is_empty()
+                    && node.outputs.is_empty()
+                    && node
+                        .inputs
+                        .iter()
+                        .all(|port| port.role == GraphPortRole::Input)
+            }
+            GraphNodeKind::Action { .. } => {
+                !node.inputs.is_empty()
+                    && !node.outputs.is_empty()
+                    && node.inputs.iter().all(|port| {
+                        matches!(port.role, GraphPortRole::Trigger | GraphPortRole::Input)
+                    })
+                    && node.outputs.iter().all(|port| {
+                        matches!(port.role, GraphPortRole::Result | GraphPortRole::Error)
+                    })
+            }
+            GraphNodeKind::State { .. } => {
+                !node.inputs.is_empty()
+                    && !node.outputs.is_empty()
+                    && node
+                        .inputs
+                        .iter()
+                        .all(|port| port.role == GraphPortRole::Input)
+                    && node
+                        .outputs
+                        .iter()
+                        .all(|port| port.role == GraphPortRole::Value)
+            }
+            GraphNodeKind::Condition { .. } => {
+                !node.inputs.is_empty()
+                    && !node.outputs.is_empty()
+                    && node
+                        .inputs
+                        .iter()
+                        .all(|port| port.role == GraphPortRole::Input)
+                    && node
+                        .outputs
+                        .iter()
+                        .all(|port| matches!(port.role, GraphPortRole::True | GraphPortRole::False))
+            }
+        };
     if !valid_shape {
         return Err(GraphValidationError::InvalidNodeShape {
             node_id: node.id.clone(),
@@ -261,6 +306,21 @@ fn validate_node(node: &GraphNode, limits: &GraphLimits) -> Result<(), GraphVali
     }
     let mut ports = BTreeSet::new();
     for port in node.inputs.iter().chain(&node.outputs) {
+        let valid_port_kind = match port.role {
+            GraphPortRole::Trigger | GraphPortRole::True | GraphPortRole::False => {
+                port.kind == GraphPortKind::Flow
+            }
+            GraphPortRole::Result | GraphPortRole::Error | GraphPortRole::Value => {
+                port.kind == GraphPortKind::Value
+            }
+            GraphPortRole::Input => true,
+        };
+        if !valid_port_kind {
+            return Err(GraphValidationError::InvalidNodeShape {
+                node_id: node.id.clone(),
+                node_kind: node_kind_name(&node.kind),
+            });
+        }
         if !ports.insert(port.id.clone()) {
             return Err(GraphValidationError::DuplicatePort {
                 node_id: node.id.clone(),
