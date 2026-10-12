@@ -4,12 +4,12 @@ use deckweave_application::{
     ApplicationService, CommandEnvelope, HostSnapshot, HostStatusSource, InMemoryApiAuthorizer,
     RequestContext,
 };
-use deckweave_automation::RestrictedFixtureCompiler;
+use deckweave_automation::{RestrictedFixtureCompiler, VIRTUAL_FIXTURE_PACKAGE_ID};
 use deckweave_domain::{
     DeploymentMode, LifecycleState,
     ids::{
-        DraftId, DraftVersion, GrantRevision, HostBootId, IdempotencyKey, OperationId, PrincipalId,
-        RegistryRevision, TraceId, WorkspaceId,
+        DraftId, DraftVersion, GrantRevision, HostBootId, IdempotencyKey, OperationId, PackageId,
+        PrincipalId, RegistryRevision, TraceId, WorkspaceId,
     },
 };
 use deckweave_host::{
@@ -18,16 +18,17 @@ use deckweave_host::{
     RuntimeActivation, RuntimeActivationError, RuntimeCommitOutcome, RuntimeCutover,
     RuntimeCutoverError,
 };
+use deckweave_platform::{AtomicFileStore, PublicationError, StorageError};
 use deckweave_platform_host::NativeAtomicFileStore;
 use deckweave_profiles::{JsonProfileStore, ProfileStoreLimits};
 use deckweave_workspace::{
     ActiveSelection, ApplyCommitRecord, ApplyCommitStatus, ApplyOperationRepository,
-    ApplyOperationState, DraftRepository, WorkspaceDraft, WorkspaceRevision,
+    ApplyOperationState, DraftRepository, PackageLockEntry, WorkspaceDraft, WorkspaceRevision,
 };
 use std::{
     collections::BTreeMap,
     error::Error,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{
         Arc, Mutex,
         atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
@@ -81,9 +82,42 @@ impl PlanningClock for Clock {
     }
 }
 
+struct DiskFullRevisionStore {
+    enabled: AtomicBool,
+}
+
+impl DiskFullRevisionStore {
+    fn new() -> Self {
+        Self {
+            enabled: AtomicBool::new(false),
+        }
+    }
+}
+
+impl AtomicFileStore for DiskFullRevisionStore {
+    fn write_atomic(
+        &self,
+        target: &Path,
+        bytes: &[u8],
+        backup: Option<&Path>,
+    ) -> Result<(), PublicationError> {
+        if self.enabled.load(Ordering::SeqCst)
+            && target
+                .components()
+                .any(|part| part.as_os_str() == "revisions")
+        {
+            return Err(PublicationError::not_published(StorageError::Io(
+                std::io::Error::new(std::io::ErrorKind::StorageFull, "injected disk full"),
+            )));
+        }
+        NativeAtomicFileStore.write_atomic(target, bytes, backup)
+    }
+}
+
 struct Runtime {
     evidence: Arc<Evidence>,
     change_grants_at_barrier: AtomicBool,
+    fail_disruptive_handoff: AtomicBool,
     dispatcher_closed: AtomicBool,
     activations: AtomicUsize,
     recoveries: AtomicUsize,
@@ -94,6 +128,7 @@ impl Runtime {
         Self {
             evidence,
             change_grants_at_barrier: AtomicBool::new(false),
+            fail_disruptive_handoff: AtomicBool::new(false),
             dispatcher_closed: AtomicBool::new(false),
             activations: AtomicUsize::new(0),
             recoveries: AtomicUsize::new(0),
@@ -115,8 +150,20 @@ impl RuntimeActivation for Runtime {
 }
 
 impl RuntimeCutover for Runtime {
-    fn enter_barrier(&self, _operation_id: &OperationId) -> Result<(), RuntimeCutoverError> {
+    fn enter_barrier(
+        &self,
+        _operation_id: &OperationId,
+        plan: &ApplyPlan,
+        _prepared: &PreparedActivation,
+    ) -> Result<(), RuntimeCutoverError> {
         self.dispatcher_closed.store(true, Ordering::SeqCst);
+        if plan.compiled().requires_disruption()
+            && self.fail_disruptive_handoff.load(Ordering::SeqCst)
+        {
+            return Err(RuntimeCutoverError::Handoff(
+                "injected exclusive resource transfer failure".into(),
+            ));
+        }
         if self.change_grants_at_barrier.load(Ordering::SeqCst) {
             self.evidence
                 .bump_grants()
@@ -171,6 +218,21 @@ fn draft() -> Result<WorkspaceDraft, Box<dyn Error>> {
     })
 }
 
+fn disruptive_draft() -> Result<WorkspaceDraft, Box<dyn Error>> {
+    let mut value = draft()?;
+    value.document = serde_json::json!({
+        "fixture": {"kind": "virtual_disruptive_echo"}
+    });
+    value.package_lock.push(PackageLockEntry {
+        package_id: PackageId::try_new(VIRTUAL_FIXTURE_PACKAGE_ID)?,
+        version: "0.1.0".into(),
+        artifact_sha256: "a".repeat(64),
+        source: None,
+        extensions: BTreeMap::new(),
+    });
+    Ok(value)
+}
+
 fn coordinator(
     repository: Arc<JsonProfileStore>,
     evidence: Arc<Evidence>,
@@ -202,16 +264,33 @@ type Fixture = (
 );
 
 fn fixture(root: PathBuf, active: Option<ActiveSelection>) -> Result<Fixture, Box<dyn Error>> {
+    fixture_with_draft(root, active, draft()?)
+}
+
+fn fixture_with_draft(
+    root: PathBuf,
+    active: Option<ActiveSelection>,
+    initial_draft: WorkspaceDraft,
+) -> Result<Fixture, Box<dyn Error>> {
+    fixture_with_store(root, active, initial_draft, Arc::new(NativeAtomicFileStore))
+}
+
+fn fixture_with_store(
+    root: PathBuf,
+    active: Option<ActiveSelection>,
+    initial_draft: WorkspaceDraft,
+    files: Arc<dyn AtomicFileStore>,
+) -> Result<Fixture, Box<dyn Error>> {
     let repository = Arc::new(JsonProfileStore::new(
         root,
-        Arc::new(NativeAtomicFileStore),
+        files,
         ProfileStoreLimits::default(),
     ));
     if repository
         .get_draft(&DraftId::try_new("apply-draft")?)
         .is_err()
     {
-        repository.create_draft(&draft()?)?;
+        repository.create_draft(&initial_draft)?;
     }
     let evidence = Arc::new(Evidence {
         value: Mutex::new(PlanningEvidence {
@@ -260,12 +339,21 @@ fn plan_hash(
     gateway: &ApplicationGateway,
     context: &RequestContext,
 ) -> Result<String, Box<dyn Error>> {
+    plan_hash_with_policy(gateway, context, false)
+}
+
+fn plan_hash_with_policy(
+    gateway: &ApplicationGateway,
+    context: &RequestContext,
+    allow_disruption: bool,
+) -> Result<String, Box<dyn Error>> {
     match gateway.query(
         context,
         AppQuery::PlanApply {
             draft_id: DraftId::try_new("apply-draft")?,
             expected_draft_version: DraftVersion::try_new(1)?,
             expected_active: None,
+            allow_disruption,
         },
     )? {
         AppQueryResult::ApplyPlan(plan) => Ok(plan.plan_hash),
@@ -289,6 +377,7 @@ fn public_gateway_applies_queries_and_replays_one_durable_operation() -> Result<
             draft_id: DraftId::try_new("apply-draft")?,
             expected_draft_version: DraftVersion::try_new(1)?,
             expected_active: None,
+            allow_disruption: false,
             plan_hash,
         },
     };
@@ -334,6 +423,7 @@ fn grant_change_at_barrier_aborts_without_switching_selection() -> Result<(), Bo
                 draft_id: DraftId::try_new("apply-draft")?,
                 expected_draft_version: DraftVersion::try_new(1)?,
                 expected_active: None,
+                allow_disruption: false,
                 plan_hash: plan_hash(&gateway, &context)?,
             },
         },
@@ -348,6 +438,131 @@ fn grant_change_at_barrier_aborts_without_switching_selection() -> Result<(), Bo
         repository.operation(&operation_id)?.state,
         ApplyOperationState::Failed
     );
+    Ok(())
+}
+
+#[test]
+fn grant_revoke_before_prepare_fails_without_switching_selection() -> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    let (gateway, repository, evidence, runtime, context) =
+        fixture(directory.path().to_path_buf(), None)?;
+    let plan_hash = plan_hash(&gateway, &context)?;
+    evidence.bump_grants()?;
+    let window = gateway.open_mutation_window(&context)?;
+    let operation_id = match gateway.command(
+        &context,
+        CommandEnvelope {
+            request_id: "request-revoke-before-prepare".into(),
+            idempotency_key: IdempotencyKey::try_new("revoke-before-prepare")?,
+            dedup_epoch: window.dedup_epoch,
+            dry_run: false,
+            command: AppCommand::ApplyDraft {
+                draft_id: DraftId::try_new("apply-draft")?,
+                expected_draft_version: DraftVersion::try_new(1)?,
+                expected_active: None,
+                allow_disruption: false,
+                plan_hash,
+            },
+        },
+    )? {
+        AppCommandResult::OperationAccepted(receipt) => receipt.operation_id,
+        _ => return Err(std::io::Error::other("unexpected apply response").into()),
+    };
+    assert!(repository.active_commit()?.is_none());
+    assert_eq!(
+        repository.operation(&operation_id)?.state,
+        ApplyOperationState::Failed
+    );
+    assert_eq!(runtime.activations.load(Ordering::SeqCst), 0);
+    Ok(())
+}
+
+#[test]
+fn disk_full_while_saving_candidate_leaves_no_intent_or_commit() -> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    let files = Arc::new(DiskFullRevisionStore::new());
+    let (gateway, repository, _, runtime, context) = fixture_with_store(
+        directory.path().to_path_buf(),
+        None,
+        draft()?,
+        Arc::clone(&files) as Arc<dyn AtomicFileStore>,
+    )?;
+    let plan_hash = plan_hash(&gateway, &context)?;
+    let window = gateway.open_mutation_window(&context)?;
+    files.enabled.store(true, Ordering::SeqCst);
+
+    let result = gateway.command(
+        &context,
+        CommandEnvelope {
+            request_id: "request-disk-full".into(),
+            idempotency_key: IdempotencyKey::try_new("disk-full")?,
+            dedup_epoch: window.dedup_epoch,
+            dry_run: false,
+            command: AppCommand::ApplyDraft {
+                draft_id: DraftId::try_new("apply-draft")?,
+                expected_draft_version: DraftVersion::try_new(1)?,
+                expected_active: None,
+                allow_disruption: false,
+                plan_hash,
+            },
+        },
+    );
+    assert!(result.is_err());
+    assert!(repository.active_commit()?.is_none());
+    assert!(repository.recoverable_operations(16)?.is_empty());
+    assert_eq!(runtime.activations.load(Ordering::SeqCst), 0);
+    Ok(())
+}
+
+#[test]
+fn failed_exclusive_handoff_reopens_dispatch_without_committing() -> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    let (gateway, repository, _, runtime, context) =
+        fixture_with_draft(directory.path().to_path_buf(), None, disruptive_draft()?)?;
+    assert!(
+        gateway
+            .query(
+                &context,
+                AppQuery::PlanApply {
+                    draft_id: DraftId::try_new("apply-draft")?,
+                    expected_draft_version: DraftVersion::try_new(1)?,
+                    expected_active: None,
+                    allow_disruption: false,
+                },
+            )
+            .is_err()
+    );
+    let plan_hash = plan_hash_with_policy(&gateway, &context, true)?;
+    runtime
+        .fail_disruptive_handoff
+        .store(true, Ordering::SeqCst);
+    let window = gateway.open_mutation_window(&context)?;
+    let operation_id = match gateway.command(
+        &context,
+        CommandEnvelope {
+            request_id: "request-handoff-failure".into(),
+            idempotency_key: IdempotencyKey::try_new("handoff-failure")?,
+            dedup_epoch: window.dedup_epoch,
+            dry_run: false,
+            command: AppCommand::ApplyDraft {
+                draft_id: DraftId::try_new("apply-draft")?,
+                expected_draft_version: DraftVersion::try_new(1)?,
+                expected_active: None,
+                allow_disruption: true,
+                plan_hash,
+            },
+        },
+    )? {
+        AppCommandResult::OperationAccepted(receipt) => receipt.operation_id,
+        _ => return Err(std::io::Error::other("unexpected apply response").into()),
+    };
+
+    let snapshot = repository.operation(&operation_id)?;
+    assert!(snapshot.intent.allow_disruption);
+    assert_eq!(snapshot.state, ApplyOperationState::Failed);
+    assert!(repository.active_commit()?.is_none());
+    assert!(!runtime.dispatcher_closed.load(Ordering::SeqCst));
+    assert_eq!(runtime.activations.load(Ordering::SeqCst), 0);
     Ok(())
 }
 
@@ -368,6 +583,7 @@ fn startup_reactivates_the_committed_revision_without_replaying_an_input()
                 draft_id: DraftId::try_new("apply-draft")?,
                 expected_draft_version: DraftVersion::try_new(1)?,
                 expected_active: None,
+                allow_disruption: false,
                 plan_hash: plan_hash(&gateway, &context)?,
             },
         },

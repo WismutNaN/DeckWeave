@@ -98,6 +98,7 @@ impl ApplicationService for ApplicationGateway {
                 draft_id,
                 expected_draft_version,
                 expected_active,
+                allow_disruption,
             } => {
                 self.authorize(context, ApiAuthScope::Simulation)?;
                 self.apply
@@ -105,6 +106,7 @@ impl ApplicationService for ApplicationGateway {
                         draft_id,
                         expected_draft_version,
                         expected_active,
+                        allow_disruption,
                     })
                     .map(AppQueryResult::ApplyPlan)
                     .map_err(|error| map_apply_error(context, error))
@@ -184,6 +186,7 @@ impl ApplicationService for ApplicationGateway {
                 draft_id,
                 expected_draft_version,
                 expected_active,
+                allow_disruption,
                 plan_hash,
             } => {
                 if envelope.dry_run {
@@ -203,6 +206,7 @@ impl ApplicationService for ApplicationGateway {
                         draft_id,
                         expected_draft_version,
                         expected_active,
+                        allow_disruption,
                         plan_hash,
                     })
                     .map(|snapshot| {

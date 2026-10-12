@@ -128,7 +128,9 @@ dry-run и durable dedup через injected ports. Через тот же пу�
 Host сохраняет operation intent, повторяет fenced checks на barrier, публикует active commit и активирует
 isolated `virtual_echo`. Startup восстанавливает committed revision без replay входного события. Произвольный
 automation graph и UI bindings ещё не поддержаны: restricted compiler принимает только подтверждённый fixture
-до реализации Фазы 5.
+до реализации Фазы 5. Out-of-process fault matrix завершает host после candidate/intent/prepare/barrier/commit/
+activation; restart подтверждает границу commit. Disk-full, grant revoke и explicit disruptive-handoff failure
+также проверены. Это process-level evidence, а не обещание power-loss durability.
 
 Permissive reference plugin находится в `examples/virtual-plugin`; он зависит только от
 `deckweave-protocol`. OpenAction C0 scanner и pinned fixture находятся в `runtimes/openaction-host`

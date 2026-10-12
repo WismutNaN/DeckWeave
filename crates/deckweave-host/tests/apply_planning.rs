@@ -185,6 +185,7 @@ fn fixture() -> Result<Fixture, Box<dyn Error>> {
         draft_id,
         expected_draft_version: DraftVersion::try_new(1)?,
         expected_active: None,
+        allow_disruption: false,
     };
     Ok((service, repository, evidence, clock, activation, request))
 }
@@ -246,6 +247,11 @@ fn prepare_uses_a_fenced_plan_and_barrier_rechecks_grants() -> Result<(), Box<dy
     let plan = service.plan(&request)?;
     assert_eq!(plan.compiled().kind(), ExecutionPlanKind::EmptyFixture);
     assert_eq!(plan.token().plan_hash().len(), 64);
+    let mut disruption_allowed = request.clone();
+    disruption_allowed.allow_disruption = true;
+    let allowed_plan = service.plan(&disruption_allowed)?;
+    assert!(allowed_plan.token().allow_disruption());
+    assert_ne!(allowed_plan.token().plan_hash(), plan.token().plan_hash());
     let operation_id = OperationId::try_new("apply-1")?;
     let prepared = service.prepare(&operation_id, &plan)?;
     assert_eq!(prepared.operation_id(), &operation_id);

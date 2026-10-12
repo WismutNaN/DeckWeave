@@ -4,7 +4,7 @@
 
 ## Обязательные зависимости и срезы
 
-Нормативные failure/ordering contracts: [Lifecycle](../contracts/lifecycle.md). При расхождении module summary с контрактом сначала исправляется документация. Реализованные foundations имеют tests, но общий apply/recovery protocol ещё не подтверждён; [аудит после DDD migration](../research/pre-apply-review.md) отделяет дефекты от незавершённых способностей.
+Нормативные failure/ordering contracts: [Lifecycle](../contracts/lifecycle.md). При расхождении module summary с контрактом сначала исправляется документация. Process-crash apply/recovery подтверждён production fixture; power-loss durability и B2 compaction остаются отдельными ограничениями. [Аудит после DDD migration](../research/pre-apply-review.md) отделяет доказанные свойства от незавершённых способностей.
 
 Расширяемость проверяется до SDK freeze на [сценариях](../product/scenarios.md): независимые keyboard/analog/RGB/surface/job/media descriptors, typed results, geometry и dynamic ports. [Исследование реализаций](../research/implementation-review.md) определяет reuse-кандидатов и ограничения evidence; существующий upstream метод не закрывает hardware acceptance.
 
@@ -120,7 +120,7 @@
 - [ ] B завершён; API dedup contract реализован целиком, а не только в одном draft.
 - [x] C завершён; интеграция использует production composition и внешний watchdog для hang tests.
 - [x] D завершён; Фаза 4 использует ограниченный fake compiler для empty/virtual fixtures. Он не принимает произвольный graph как пустой plan; Фаза 5 заменяет adapter настоящим compiler на том же acceptance.
-- [ ] E завершён; process-crash evidence отделено от power-loss/filesystem assumptions.
+- [x] E завершён на process-crash уровне; evidence отделено от power-loss/filesystem assumptions.
 
 Порядок малых обратимых срезов:
 
@@ -135,6 +135,7 @@
 - [x] C2 — production runtime coordinator через public application path.
 - [x] E0 — publication outcomes и disk reconciliation для неоднозначного replace.
 - [x] E1 — durable apply/operation tracking и recovery acceptance.
+- [x] E2 — out-of-process kill matrix candidate/intent/prepare/barrier/commit/activation, disk-full, grant revoke и отказ explicit disruptive handoff.
 - [ ] B2 — checkpoint/compaction до начала editor-heavy Фазы 6; не блокирует первый bounded virtual apply после B1.
 
 Выход gate — demonstration `application command → prepare → commit → virtual activation → restart/recovery`. Перенос реализации в отдельные crates и зелёные unit tests сами по себе этот gate не закрывают. Реальные actions/hardware не подключаются, пока owner/cleanup/recovery не доказаны.
@@ -271,7 +272,7 @@ Executable C1 spike остаётся обязательным условием �
 **Цель:** создать безопасный путь read → draft → validate → plan → apply → rollback.
 **Результат:** CLI/test client редактирует virtual workspace, получает conflict и возвращается к snapshot.
 **Трудоёмкость:** L
-**Статус:** [~] В процессе: готовы Profile Store, Workspace Configuration и отделённый Application Gateway; DDD migration R1–R4 завершена. Следующая работа — срезы A–E [pre-apply gate](#pre-apply-gate).
+**Статус:** [~] В процессе: готовы Profile Store, Workspace Configuration, Application Gateway и process-crash apply/recovery; до editor остаётся B2 compaction.
 
 ### Контекст для агента
 > Plugin lifecycle и production coordinator проходят public application path с isolated virtual fixture. Active automation пока пуст; фаза строит источник истины и command/query boundary.
@@ -291,7 +292,7 @@ Export переносит выбранные revision contents как portable t
 Dry-run использует тот же command vocabulary, но не пишет draft и не резервирует idempotency key;
 повтор mutation после restart читает durable receipt и согласованный исторический document. B1 добавил
 авторизованную выдачу persisted dedup windows, global receipt index, expiry/quota и recovery pending commit;
-checkpoint/compaction B2 пока отсутствует. Durable apply и production runtime coordination реализованы; оставшиеся fault/power-loss допущения и весь gate задаёт [gate A–E](#pre-apply-gate).
+checkpoint/compaction B2 пока отсутствует. Durable apply и production runtime coordination реализованы; process-crash gate E закрыт, а power-loss допущения явно не обещаны [gate A–E](#pre-apply-gate).
 
 ### Задачи
 
@@ -302,7 +303,7 @@ checkpoint/compaction B2 пока отсутствует. Durable apply и produ
 - [x] Реализовать OperationId, durable operation tracking и status queries через Application Gateway (→ [Модуль: Local API](../architecture/modules/local-api.md)).
 - [x] Реализовать Host apply skeleton с durable commit record, barrier, disruption/degraded policy, package lock и operation receipts (→ [ADR-0012](../decisions/0012-apply-and-execution-lifecycle.md), [Модуль: Host Runtime](../architecture/modules/host-runtime.md)).
 - [x] Проверять principals/scopes внутри ApplicationService, global durable dedup/expiry до revision check, dry-run без effects (→ [API](../contracts/application-api.md#идемпотентность-и-dry-run)).
-- [ ] Завершить identity/ownership, runtime coordination, storage reconciliation и позднюю compaction по [gate A–E](#pre-apply-gate) до объявления apply готовым.
+- [~] Identity/ownership, runtime coordination и process-crash storage reconciliation закрыты; B2 checkpoint/compaction остаётся до editor Фазы 6 по [gate A–E](#pre-apply-gate).
 - [x] Добавить in-process test client; HTTP/WS transport отложить до Фазы 16 (→ [Application API](../contracts/application-api.md)).
 
 ### Тесты
@@ -310,7 +311,7 @@ checkpoint/compaction B2 пока отсутствует. Durable apply и produ
 - [x] Юнит: draft commands, undo/redo, revision conflicts.
 - [x] Integration: crash-safe atomic write и recovery corrupted temp.
 - [x] Scenario: failure до commit оставляет прежнюю выбранную revision; после commit восстанавливается новая без replay actions.
-- [ ] Fault: kill на каждой стадии записи/apply, disk full, grant revoke во время prepare, exclusive handoff failure, concurrent draft edits, повтор key после restart.
+- [x] Fault: kill на каждой стадии записи/apply, disk full, grant revoke во время prepare/barrier, exclusive handoff failure, concurrent draft edits, повтор key после restart.
 - [x] Import/export: secrets/grants отсутствуют, unknown fields сохраняются, snapshot rollback использует прежний package hash.
 
 ### Ссылки

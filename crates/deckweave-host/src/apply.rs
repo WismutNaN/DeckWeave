@@ -34,6 +34,8 @@ pub enum RuntimeCommitOutcome {
 pub enum RuntimeCutoverError {
     #[error("runtime barrier failed: {0}")]
     Barrier(String),
+    #[error("exclusive runtime handoff failed: {0}")]
+    Handoff(String),
     #[error("runtime abort failed: {0}")]
     Abort(String),
     #[error("runtime activation failed: {0}")]
@@ -45,7 +47,12 @@ pub enum RuntimeCutoverError {
 /// Runtime side of the commit barrier. Implementations keep dispatch closed
 /// after `enter_barrier` until either abort or committed activation completes.
 pub trait RuntimeCutover: Send + Sync {
-    fn enter_barrier(&self, operation_id: &OperationId) -> Result<(), RuntimeCutoverError>;
+    fn enter_barrier(
+        &self,
+        operation_id: &OperationId,
+        plan: &ApplyPlan,
+        prepared: &PreparedActivation,
+    ) -> Result<(), RuntimeCutoverError>;
     fn abort_before_commit(&self, operation_id: &OperationId) -> Result<(), RuntimeCutoverError>;
     fn activate_committed(
         &self,
@@ -175,6 +182,7 @@ impl ApplyCoordinator {
                 revision_id,
             },
             previous_active: request.expected_active.clone(),
+            allow_disruption: request.allow_disruption,
             candidate_sha256: plan.token().candidate_sha256().into(),
             package_lock_sha256: plan.token().package_lock_sha256().into(),
             extensions: BTreeMap::new(),
@@ -193,7 +201,7 @@ impl ApplyCoordinator {
         if let Err(error) = self.operations.mark_prepared(&operation_id) {
             return self.fail_before_commit(&operation_id, error.to_string());
         }
-        if let Err(error) = self.runtime.enter_barrier(&operation_id) {
+        if let Err(error) = self.runtime.enter_barrier(&operation_id, &plan, &prepared) {
             return self.fail_before_commit(&operation_id, error.to_string());
         }
         if let Err(error) = self.planning.revalidate_for_barrier(&plan, &prepared) {
@@ -220,6 +228,7 @@ impl ApplyCoordinator {
         if plan.token().draft_id() != &request.draft_id
             || plan.token().draft_version() != request.expected_draft_version
             || plan.token().expected_active() != request.expected_active.as_ref()
+            || plan.token().allow_disruption() != request.allow_disruption
         {
             return Err(ApplyUseCaseError::InvalidPlan(
                 "plan does not match apply preconditions".into(),
@@ -307,6 +316,7 @@ impl ApplyUseCase for ApplyCoordinator {
                 draft_id: request.draft_id.clone(),
                 expected_draft_version: request.expected_draft_version,
                 expected_active: request.expected_active.clone(),
+                allow_disruption: request.allow_disruption,
             })
             .map_err(map_planning_error)?;
         let preview = ApplyPlanPreview {
@@ -314,6 +324,8 @@ impl ApplyUseCase for ApplyCoordinator {
             expires_at_monotonic_millis: plan.token().expires_at_monotonic_millis(),
             draft_id: plan.token().draft_id().clone(),
             draft_version: plan.token().draft_version(),
+            requires_disruption: plan.compiled().requires_disruption(),
+            disruption_allowed: plan.token().allow_disruption(),
         };
         self.plans
             .lock()

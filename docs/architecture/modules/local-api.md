@@ -50,6 +50,6 @@
 
 > Сначала реализовать in-process test adapter, затем loopback HTTP/WS и CLI. OpenAPI/JSON Schema генерируется из того же command vocabulary. Не делать Tauri-only methods.
 
-In-process contract уже поддерживает `PlanApply`, `ApplyDraft` и `Operation`: plan авторизуется scope `simulation`, commit — `apply`, status — `read`. `OperationId` выводится Host из server-issued dedup window/key, поэтому lost reply повторно адресует тот же durable intent. Desktop production composition подключается отдельно с runtime coordinator, а не через особый Tauri-only путь.
+In-process contract уже поддерживает `PlanApply`, `ApplyDraft` и `Operation`: plan авторизуется scope `simulation`, commit — `apply`, status — `read`. Explicit `allow_disruption` связан plan hash и durable intent, поэтому consent к downtime нельзя подставить после plan. `OperationId` выводится Host из server-issued dedup window/key, поэтому lost reply повторно адресует тот же durable intent. Desktop production composition подключается отдельно с runtime coordinator, а не через особый Tauri-only путь.
 
 Нормативный контракт: [Application API](../../contracts/application-api.md), включая scopes с первого service adapter и [идемпотентность](../../contracts/application-api.md#идемпотентность-и-dry-run).

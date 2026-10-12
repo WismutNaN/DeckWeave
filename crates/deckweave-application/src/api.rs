@@ -41,6 +41,8 @@ pub enum AppQuery {
         draft_id: DraftId,
         expected_draft_version: DraftVersion,
         expected_active: Option<ActiveSelection>,
+        #[serde(default)]
+        allow_disruption: bool,
     },
     Operation {
         operation_id: OperationId,
@@ -68,6 +70,8 @@ pub enum AppCommand {
         draft_id: DraftId,
         expected_draft_version: DraftVersion,
         expected_active: Option<ActiveSelection>,
+        #[serde(default)]
+        allow_disruption: bool,
         plan_hash: String,
     },
 }

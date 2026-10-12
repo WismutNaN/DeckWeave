@@ -67,6 +67,17 @@ fn only_empty_and_exact_virtual_echo_fixtures_compile() -> Result<(), Box<dyn Er
     let compiled = compiler.compile(&virtual_draft, &fence()?)?;
     assert_eq!(compiled.kind(), ExecutionPlanKind::VirtualEchoFixture);
     assert_eq!(compiled.required_packages().len(), 1);
+    assert!(!compiled.requires_disruption());
+
+    source.document = serde_json::json!({
+        "fixture": {"kind": "virtual_disruptive_echo"}
+    });
+    let disruptive = WorkspaceCandidate::from_draft(source.clone())?;
+    assert!(
+        compiler
+            .compile(&disruptive, &fence()?)?
+            .requires_disruption()
+    );
 
     source.document = serde_json::json!({
         "fixture": {"kind": "virtual_echo"},

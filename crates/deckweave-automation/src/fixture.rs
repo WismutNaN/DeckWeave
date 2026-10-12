@@ -42,6 +42,7 @@ struct VirtualFixture {
 #[serde(rename_all = "snake_case")]
 enum VirtualFixtureKind {
     VirtualEcho,
+    VirtualDisruptiveEcho,
 }
 
 impl PlanCompiler for RestrictedFixtureCompiler {
@@ -50,20 +51,21 @@ impl PlanCompiler for RestrictedFixtureCompiler {
         candidate: &WorkspaceCandidate,
         fence: &CompileFence,
     ) -> Result<CompiledExecutionPlan, PlanCompileError> {
-        let (kind, required_packages) = if candidate
+        let (kind, required_packages, requires_disruption) = if candidate
             .document()
             .as_object()
             .is_some_and(serde_json::Map::is_empty)
             && candidate.package_lock().is_empty()
             && candidate.assets().is_empty()
         {
-            (ExecutionPlanKind::EmptyFixture, vec![])
+            (ExecutionPlanKind::EmptyFixture, vec![], false)
         } else {
             let document: VirtualDocument = serde_json::from_value(candidate.document().clone())
                 .map_err(|_| PlanCompileError::UnsupportedGraph)?;
-            match document.fixture.kind {
-                VirtualFixtureKind::VirtualEcho => {}
-            }
+            let requires_disruption = matches!(
+                document.fixture.kind,
+                VirtualFixtureKind::VirtualDisruptiveEcho
+            );
             if !candidate.assets().is_empty() || candidate.package_lock().len() != 1 {
                 return Err(PlanCompileError::UnsupportedGraph);
             }
@@ -74,6 +76,7 @@ impl PlanCompiler for RestrictedFixtureCompiler {
             (
                 ExecutionPlanKind::VirtualEchoFixture,
                 vec![package.package_id.clone()],
+                requires_disruption,
             )
         };
         let semantic = SemanticInput {
@@ -92,7 +95,7 @@ impl PlanCompiler for RestrictedFixtureCompiler {
             kind,
             format!("{:x}", Sha256::digest(bytes)),
             required_packages,
-            false,
+            requires_disruption,
         ))
     }
 }

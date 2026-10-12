@@ -110,6 +110,8 @@ Drafts, revisions и transaction chain, созданные до global ledger, �
 
 `dry_run`, `validate`, `plan` и default `simulate/replay` не запускают packages, network requests, process actions и hardware output. Они используют static manifests, snapshots и fake targets; отсутствие live evidence показывается как `requires_probe`. Probe, preview и live test — отдельные commands с grants/deadline. Dry-run не резервирует mutation key: apply использует новый key и утверждённый plan hash, который повторно проверяется перед commit.
 
+`PlanApply` и `ApplyDraft` передают одинаковый `allow_disruption`. Значение входит в plan hash, idempotency payload, durable operation intent и commit record. Если compiler объявил disruptive handoff, default `false` отклоняет plan; consent к одному plan нельзя перенести на другой hash или добавить только в момент commit.
+
 ## Optimistic concurrency
 
 Каждый mutable resource имеет revision. При mismatch API возвращает:

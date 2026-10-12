@@ -43,6 +43,9 @@ use std::{
 
 const FIXTURE: &str = env!("CARGO_BIN_EXE_deckweave-virtual-plugin-fixture");
 
+#[path = "support/production_apply_crash.rs"]
+mod production_apply_crash;
+
 struct Status(PathBuf);
 
 impl HostStatusSource for Status {
@@ -301,6 +304,7 @@ fn public_apply_replays_recovers_and_revokes_without_ui() -> Result<(), Box<dyn 
             draft_id: DraftId::try_new("virtual-draft")?,
             expected_draft_version: DraftVersion::try_new(1)?,
             expected_active: None,
+            allow_disruption: false,
         },
     )? {
         AppQueryResult::ApplyPlan(plan) => plan.plan_hash,
@@ -315,6 +319,7 @@ fn public_apply_replays_recovers_and_revokes_without_ui() -> Result<(), Box<dyn 
             draft_id: DraftId::try_new("virtual-draft")?,
             expected_draft_version: DraftVersion::try_new(1)?,
             expected_active: None,
+            allow_disruption: false,
             plan_hash,
         },
     };

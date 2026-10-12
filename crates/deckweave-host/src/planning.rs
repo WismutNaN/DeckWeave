@@ -29,6 +29,7 @@ pub struct ApplyPlanRequest {
     pub draft_id: DraftId,
     pub expected_draft_version: DraftVersion,
     pub expected_active: Option<ActiveSelection>,
+    pub allow_disruption: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -45,6 +46,7 @@ pub struct PlanToken {
     registry_revision: RegistryRevision,
     grant_revision: GrantRevision,
     expected_active: Option<ActiveSelection>,
+    allow_disruption: bool,
     expires_at_monotonic_millis: u64,
     plan_hash: String,
 }
@@ -88,6 +90,11 @@ impl PlanToken {
     #[must_use]
     pub fn expected_active(&self) -> Option<&ActiveSelection> {
         self.expected_active.as_ref()
+    }
+
+    #[must_use]
+    pub fn allow_disruption(&self) -> bool {
+        self.allow_disruption
     }
 }
 
@@ -178,6 +185,8 @@ pub enum ApplyPlanningError {
     CounterExhausted,
     #[error("apply precondition changed: {0:?}")]
     PreconditionChanged(PlanPrecondition),
+    #[error("apply plan requires an explicitly allowed disruptive handoff")]
+    DisruptionNotAllowed,
 }
 
 pub trait PlanningEvidenceSource: Send + Sync {
@@ -251,10 +260,14 @@ impl ApplyPlanningService {
                 grant_revision: evidence.grant_revision,
             },
         )?;
+        if compiled.requires_disruption() && !request.allow_disruption {
+            return Err(ApplyPlanningError::DisruptionNotAllowed);
+        }
         let token = build_token(
             &candidate,
             &compiled,
             &evidence,
+            request.allow_disruption,
             expires_at_monotonic_millis,
         )?;
         Ok(ApplyPlan { token, compiled })

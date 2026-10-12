@@ -61,6 +61,8 @@ pub struct ApplyOperationIntent {
     pub plan_hash: String,
     pub candidate: ActiveSelection,
     pub previous_active: Option<ActiveSelection>,
+    #[serde(default)]
+    pub allow_disruption: bool,
     pub candidate_sha256: String,
     pub package_lock_sha256: String,
     #[serde(default)]
@@ -73,6 +75,8 @@ pub struct ApplyCommitRecord {
     pub operation_id: OperationId,
     pub candidate: ActiveSelection,
     pub previous_active: Option<ActiveSelection>,
+    #[serde(default)]
+    pub allow_disruption: bool,
     pub plan_hash: String,
     pub candidate_sha256: String,
     pub package_lock_sha256: String,
@@ -87,6 +91,7 @@ impl ApplyCommitRecord {
             operation_id: intent.operation_id.clone(),
             candidate: intent.candidate.clone(),
             previous_active: intent.previous_active.clone(),
+            allow_disruption: intent.allow_disruption,
             plan_hash: intent.plan_hash.clone(),
             candidate_sha256: intent.candidate_sha256.clone(),
             package_lock_sha256: intent.package_lock_sha256.clone(),

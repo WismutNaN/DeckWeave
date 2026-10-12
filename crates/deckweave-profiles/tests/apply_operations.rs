@@ -58,6 +58,7 @@ fn intent(operation: &str, revision: &str) -> Result<ApplyOperationIntent, Box<d
         plan_hash: "b".repeat(64),
         candidate: selection(revision)?,
         previous_active: None,
+        allow_disruption: false,
         candidate_sha256: "c".repeat(64),
         package_lock_sha256: "d".repeat(64),
         extensions: BTreeMap::new(),
@@ -119,6 +120,36 @@ enum CommitFault {
 struct FaultingStore {
     fault: CommitFault,
     commit_written: AtomicBool,
+}
+
+struct DiskFullCommitStore {
+    fail_commit: AtomicBool,
+}
+
+impl DiskFullCommitStore {
+    fn new() -> Self {
+        Self {
+            fail_commit: AtomicBool::new(false),
+        }
+    }
+}
+
+impl AtomicFileStore for DiskFullCommitStore {
+    fn write_atomic(
+        &self,
+        target: &Path,
+        bytes: &[u8],
+        backup: Option<&Path>,
+    ) -> Result<(), PublicationError> {
+        if self.fail_commit.load(Ordering::SeqCst)
+            && target.ends_with(Path::new("active/commit.json"))
+        {
+            return Err(PublicationError::not_published(StorageError::Io(
+                std::io::Error::new(std::io::ErrorKind::StorageFull, "injected disk full"),
+            )));
+        }
+        NativeAtomicFileStore.write_atomic(target, bytes, backup)
+    }
 }
 
 impl FaultingStore {
@@ -230,5 +261,47 @@ fn committed_head_survives_lost_status_write_for_startup_recovery() -> Result<()
         reopened.operation(&intent.operation_id)?.state,
         ApplyOperationState::Committed
     );
+    Ok(())
+}
+
+#[test]
+fn disk_full_during_commit_keeps_the_previous_selection() -> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    let files = Arc::new(DiskFullCommitStore::new());
+    let repository = store(
+        directory.path(),
+        Arc::clone(&files) as Arc<dyn AtomicFileStore>,
+    );
+
+    let first = intent("apply-first", "revision-first")?;
+    repository.save_candidate_revision(&revision("revision-first")?)?;
+    repository.begin_apply(&first)?;
+    repository.mark_prepared(&first.operation_id)?;
+    repository.publish_commit(&ApplyCommitRecord::from_intent(&first))?;
+    repository.finish_apply(
+        &first.operation_id,
+        ApplyOperationState::Succeeded,
+        ApplyRuntimeHealth::Applied,
+        None,
+    )?;
+
+    let mut second = intent("apply-second", "revision-second")?;
+    second.previous_active = Some(first.candidate.clone());
+    repository.save_candidate_revision(&revision("revision-second")?)?;
+    repository.begin_apply(&second)?;
+    repository.mark_prepared(&second.operation_id)?;
+    files.fail_commit.store(true, Ordering::SeqCst);
+
+    assert!(matches!(
+        repository.publish_commit(&ApplyCommitRecord::from_intent(&second)),
+        Err(ApplyRepositoryError::Unavailable(_))
+    ));
+    assert_eq!(
+        repository.active_commit()?.map(|commit| commit.candidate),
+        Some(first.candidate)
+    );
+    let pending = repository.operation(&second.operation_id)?;
+    assert_eq!(pending.state, ApplyOperationState::Prepared);
+    assert_eq!(pending.commit_status, ApplyCommitStatus::NotCommitted);
     Ok(())
 }

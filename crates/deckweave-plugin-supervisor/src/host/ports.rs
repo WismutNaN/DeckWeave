@@ -91,7 +91,22 @@ impl RuntimeActivation for ProductionRuntimeCoordinator {
 }
 
 impl RuntimeCutover for ProductionRuntimeCoordinator {
-    fn enter_barrier(&self, operation_id: &OperationId) -> Result<(), RuntimeCutoverError> {
+    fn enter_barrier(
+        &self,
+        operation_id: &OperationId,
+        plan: &ApplyPlan,
+        prepared: &PreparedActivation,
+    ) -> Result<(), RuntimeCutoverError> {
+        if prepared.operation_id() != operation_id {
+            return Err(RuntimeCutoverError::Barrier(
+                "prepared activation does not match operation".into(),
+            ));
+        }
+        if plan.compiled().requires_disruption() && !plan.token().allow_disruption() {
+            return Err(RuntimeCutoverError::Handoff(
+                "disruptive plan was not explicitly allowed".into(),
+            ));
+        }
         let mut state = self.lock_state().map_err(runtime_barrier)?;
         if !state
             .prepared

@@ -14,6 +14,8 @@ pub struct PlanApplyRequest {
     pub draft_id: DraftId,
     pub expected_draft_version: DraftVersion,
     pub expected_active: Option<ActiveSelection>,
+    #[serde(default)]
+    pub allow_disruption: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -23,6 +25,8 @@ pub struct ApplyPlanPreview {
     pub expires_at_monotonic_millis: u64,
     pub draft_id: DraftId,
     pub draft_version: DraftVersion,
+    pub requires_disruption: bool,
+    pub disruption_allowed: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -33,6 +37,7 @@ pub struct ExecuteApplyRequest {
     pub draft_id: DraftId,
     pub expected_draft_version: DraftVersion,
     pub expected_active: Option<ActiveSelection>,
+    pub allow_disruption: bool,
     pub plan_hash: String,
 }
 

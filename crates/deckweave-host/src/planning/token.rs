@@ -8,6 +8,7 @@ pub(super) fn build_token(
     candidate: &WorkspaceCandidate,
     compiled: &CompiledExecutionPlan,
     evidence: &PlanningEvidence,
+    allow_disruption: bool,
     expires_at_monotonic_millis: u64,
 ) -> Result<PlanToken, ApplyPlanningError> {
     let mut token = PlanToken {
@@ -22,6 +23,7 @@ pub(super) fn build_token(
         registry_revision: evidence.registry_revision,
         grant_revision: evidence.grant_revision,
         expected_active: evidence.active.clone(),
+        allow_disruption,
         expires_at_monotonic_millis,
         plan_hash: String::new(),
     };
@@ -44,6 +46,7 @@ pub(super) fn calculate_plan_hash(token: &PlanToken) -> Result<String, ApplyPlan
         registry_revision: RegistryRevision,
         grant_revision: GrantRevision,
         expected_active: &'a Option<ActiveSelection>,
+        allow_disruption: bool,
         expires_at_monotonic_millis: u64,
     }
     let input = HashInput {
@@ -58,6 +61,7 @@ pub(super) fn calculate_plan_hash(token: &PlanToken) -> Result<String, ApplyPlan
         registry_revision: token.registry_revision,
         grant_revision: token.grant_revision,
         expected_active: &token.expected_active,
+        allow_disruption: token.allow_disruption,
         expires_at_monotonic_millis: token.expires_at_monotonic_millis,
     };
     let bytes = serde_json::to_vec(&input)
