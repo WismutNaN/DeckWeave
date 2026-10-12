@@ -155,6 +155,11 @@ R1 завершён: `scripts/architecture-baseline.json` назначает con
 Pure rules покрыты Node tests, а Host characterization фиксирует lifecycle snapshot, порядок
 authorization/request validation и стабильное отображение ошибок Profile Store до R2/R3.
 
+R2 начат отдельным `deckweave-workspace`: он владеет `WorkspaceDraft`/`WorkspaceRevision`, commands,
+validation, pure JSON-pointer mutation и `DraftRepository`. Profiles реализует port и временно
+re-export прежних имён, поэтому persisted JSON и публичные imports первого среза совместимы.
+Стандартный `cargo test --locked` включает workspace domain tests через `default-members`.
+
 ## Локальная проверка 2026-10-12
 
 - Windows: debug executable собран через Tauri CLI; Svelte/TypeScript — 0 ошибок и предупреждений.

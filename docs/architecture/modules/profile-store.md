@@ -1,7 +1,7 @@
 # Модуль: Profile Store
 
 **Ответственность:** infrastructure adapter, который надёжно хранит drafts, immutable revisions, package locks, commit/operation records, snapshots и assets по ports контекста [Workspace Configuration](workspace-configuration.md). Domain policy export/import и инварианты draft этому adapter не принадлежат. Actual grants находятся в отдельном host authorization store.
-**Расположение:** `crates/deckweave-profiles/`.
+**Расположение:** `crates/deckweave-profiles/`; модели и repository port импортируются из `deckweave-workspace`.
 
 ## Публичный интерфейс
 

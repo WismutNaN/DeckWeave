@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pub use deckweave_domain::ids::PrincipalId;
 use deckweave_domain::ids::{
-    DedupEpoch, DraftId, DraftVersion, IdempotencyKey, OperationId, TraceId, WorkspaceId,
-    WorkspaceRevisionId,
+    DedupEpoch, DraftId, DraftVersion, IdempotencyKey, OperationId, TraceId,
+};
+pub use deckweave_workspace::{
+    DraftCommand, DraftRepository as DraftStore, DraftRepositoryError as DraftStoreError,
+    DraftView, MutationKey, StoredDraftMutation,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -24,29 +27,6 @@ pub enum ApiAuthScope {
 pub struct RequestContext {
     pub principal_id: PrincipalId,
     pub trace_id: TraceId,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MutationKey {
-    pub principal_id: PrincipalId,
-    pub dedup_epoch: DedupEpoch,
-    pub idempotency_key: IdempotencyKey,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum DraftCommand {
-    Set {
-        pointer: String,
-        value: serde_json::Value,
-    },
-    Remove {
-        pointer: String,
-    },
-    ReplaceDocument {
-        document: serde_json::Value,
-    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -81,16 +61,6 @@ pub struct CommandEnvelope {
     pub dedup_epoch: DedupEpoch,
     pub dry_run: bool,
     pub command: AppCommand,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DraftView {
-    pub draft_id: DraftId,
-    pub workspace_id: WorkspaceId,
-    pub base_revision_id: Option<WorkspaceRevisionId>,
-    pub version: DraftVersion,
-    pub document: serde_json::Value,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -157,44 +127,4 @@ pub trait ApiAuthorizer: Send + Sync {
         principal_id: &PrincipalId,
         scope: ApiAuthScope,
     ) -> Result<(), ApiAuthorizationError>;
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Error)]
-pub enum DraftStoreError {
-    #[error("draft was not found")]
-    NotFound,
-    #[error("draft version conflict: expected {expected}, current {current}")]
-    VersionConflict { expected: u64, current: u64 },
-    #[error("idempotency key belongs to another payload")]
-    IdempotencyConflict,
-    #[error("draft command is invalid: {0}")]
-    InvalidCommand(String),
-    #[error("draft store is unavailable: {0}")]
-    Unavailable(String),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StoredDraftMutation {
-    pub key: MutationKey,
-    pub before_version: DraftVersion,
-    pub after_version: DraftVersion,
-    pub document_sha256: String,
-    pub replayed: bool,
-}
-
-pub trait DraftStore: Send + Sync {
-    fn get_draft(&self, draft_id: &DraftId) -> Result<DraftView, DraftStoreError>;
-    fn preview_draft_mutation(
-        &self,
-        draft_id: &DraftId,
-        expected_version: DraftVersion,
-        command: &DraftCommand,
-    ) -> Result<DraftView, DraftStoreError>;
-    fn mutate_draft(
-        &self,
-        draft_id: &DraftId,
-        key: MutationKey,
-        expected_version: DraftVersion,
-        command: &DraftCommand,
-    ) -> Result<StoredDraftMutation, DraftStoreError>;
 }

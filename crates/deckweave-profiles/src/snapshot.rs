@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use super::*;
 use deckweave_domain::ids::{DraftId, DraftVersion};
+use std::collections::BTreeMap;
 
 const MAXIMUM_SNAPSHOT_NAME_BYTES: usize = 128;
 const MAXIMUM_SNAPSHOT_COMMENT_BYTES: usize = 16 * 1024;

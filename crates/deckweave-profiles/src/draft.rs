@@ -1,28 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use super::*;
-use deckweave_application::{DraftStore, DraftStoreError, DraftView, StoredDraftMutation};
 use deckweave_domain::ids::{DraftId, DraftVersion};
+use deckweave_workspace::{
+    DraftEditError, DraftRepository, DraftRepositoryError, DraftView, StoredDraftMutation,
+    preview_draft_mutation as edit_draft, validate_draft,
+};
 use serde::{Deserialize, Serialize};
 use std::{collections::VecDeque, sync::Arc};
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct WorkspaceDraft {
-    pub schema_version: u32,
-    pub draft_id: DraftId,
-    pub workspace_id: WorkspaceId,
-    pub base_revision_id: Option<WorkspaceRevisionId>,
-    pub version: DraftVersion,
-    pub package_lock: Vec<PackageLockEntry>,
-    pub document: serde_json::Value,
-    #[serde(default)]
-    pub assets: Vec<AssetReference>,
-    pub private_section: Option<serde_json::Value>,
-    #[serde(default)]
-    pub extensions: BTreeMap<String, serde_json::Value>,
-    #[serde(flatten)]
-    pub unknown_fields: BTreeMap<String, serde_json::Value>,
-}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -89,7 +73,8 @@ struct DraftChainHead {
 
 impl JsonProfileStore {
     pub fn create_draft(&self, draft: &WorkspaceDraft) -> Result<LoadedDraft, DraftMutationError> {
-        validate_draft(draft)?;
+        validate_draft(draft)
+            .map_err(|error| DraftMutationError::InvalidCommand(error.to_string()))?;
         let _guard = self
             .mutation_lock
             .lock()
@@ -137,28 +122,8 @@ impl JsonProfileStore {
         expected_version: DraftVersion,
         command: &DraftCommand,
     ) -> Result<WorkspaceDraft, DraftMutationError> {
-        let mut next = self.load_draft(draft_id)?.draft;
-        if next.version != expected_version {
-            return Err(DraftMutationError::VersionConflict {
-                expected: expected_version.get(),
-                current: next.version.get(),
-            });
-        }
-        apply_command(&mut next.document, command)?;
-        if !next.document.is_object() {
-            return Err(DraftMutationError::InvalidCommand(
-                "workspace document must remain a JSON object".into(),
-            ));
-        }
-        let next_version = next
-            .version
-            .get()
-            .checked_add(1)
-            .ok_or(DraftMutationError::CounterExhausted)?;
-        next.version = DraftVersion::try_new(next_version)
-            .map_err(|_| DraftMutationError::CounterExhausted)?;
-        validate_draft(&next)?;
-        Ok(next)
+        edit_draft(&self.load_draft(draft_id)?.draft, expected_version, command)
+            .map_err(map_edit_error)
     }
 
     pub fn mutate_draft(
@@ -193,20 +158,8 @@ impl JsonProfileStore {
             });
         }
 
-        let mut next = chain.transaction.draft.clone();
-        apply_command(&mut next.document, command)?;
-        if !next.document.is_object() {
-            return Err(DraftMutationError::InvalidCommand(
-                "workspace document must remain a JSON object".into(),
-            ));
-        }
-        let next_version = next
-            .version
-            .get()
-            .checked_add(1)
-            .ok_or(DraftMutationError::CounterExhausted)?;
-        next.version = DraftVersion::try_new(next_version)
-            .map_err(|_| DraftMutationError::CounterExhausted)?;
+        let next = edit_draft(&chain.transaction.draft, expected_version, command)
+            .map_err(map_edit_error)?;
         let receipt = MutationReceipt {
             storage_version: STORAGE_VERSION,
             key,
@@ -354,7 +307,8 @@ impl JsonProfileStore {
             )
             .into());
         }
-        validate_draft(&transaction.draft)?;
+        validate_draft(&transaction.draft)
+            .map_err(|error| DraftMutationError::InvalidCommand(error.to_string()))?;
         Ok(transaction)
     }
 
@@ -381,8 +335,8 @@ impl JsonProfileStore {
     }
 }
 
-impl DraftStore for JsonProfileStore {
-    fn get_draft(&self, draft_id: &DraftId) -> Result<DraftView, DraftStoreError> {
+impl DraftRepository for JsonProfileStore {
+    fn get_draft(&self, draft_id: &DraftId) -> Result<DraftView, DraftRepositoryError> {
         let draft = self
             .load_draft(draft_id)
             .map_err(map_application_store_error)?
@@ -395,7 +349,7 @@ impl DraftStore for JsonProfileStore {
         draft_id: &DraftId,
         expected_version: DraftVersion,
         command: &DraftCommand,
-    ) -> Result<DraftView, DraftStoreError> {
+    ) -> Result<DraftView, DraftRepositoryError> {
         JsonProfileStore::preview_draft_mutation(self, draft_id, expected_version, command)
             .map(draft_view)
             .map_err(map_application_store_error)
@@ -407,7 +361,7 @@ impl DraftStore for JsonProfileStore {
         key: MutationKey,
         expected_version: DraftVersion,
         command: &DraftCommand,
-    ) -> Result<StoredDraftMutation, DraftStoreError> {
+    ) -> Result<StoredDraftMutation, DraftRepositoryError> {
         let outcome =
             JsonProfileStore::mutate_draft(self, draft_id, key, expected_version, command)
                 .map_err(map_application_store_error)?;
@@ -431,16 +385,18 @@ fn draft_view(draft: WorkspaceDraft) -> DraftView {
     }
 }
 
-fn map_application_store_error(error: DraftMutationError) -> DraftStoreError {
+fn map_application_store_error(error: DraftMutationError) -> DraftRepositoryError {
     match error {
-        DraftMutationError::Store(ProfileStoreError::NotFound) => DraftStoreError::NotFound,
+        DraftMutationError::Store(ProfileStoreError::NotFound) => DraftRepositoryError::NotFound,
         DraftMutationError::Store(ProfileStoreError::InvalidDocument(message))
-        | DraftMutationError::InvalidCommand(message) => DraftStoreError::InvalidCommand(message),
-        DraftMutationError::VersionConflict { expected, current } => {
-            DraftStoreError::VersionConflict { expected, current }
+        | DraftMutationError::InvalidCommand(message) => {
+            DraftRepositoryError::InvalidCommand(message)
         }
-        DraftMutationError::IdempotencyConflict => DraftStoreError::IdempotencyConflict,
-        other => DraftStoreError::Unavailable(other.to_string()),
+        DraftMutationError::VersionConflict { expected, current } => {
+            DraftRepositoryError::VersionConflict { expected, current }
+        }
+        DraftMutationError::IdempotencyConflict => DraftRepositoryError::IdempotencyConflict,
+        other => DraftRepositoryError::Unavailable(other.to_string()),
     }
 }
 
@@ -548,14 +504,14 @@ fn push_bounded(
     history.push_back(value);
 }
 
-fn validate_draft(draft: &WorkspaceDraft) -> Result<(), DraftMutationError> {
-    if draft.schema_version != 1 {
-        return Err(DraftMutationError::InvalidCommand(
-            "unsupported draft schema".into(),
-        ));
+fn map_edit_error(error: DraftEditError) -> DraftMutationError {
+    match error {
+        DraftEditError::VersionConflict { expected, current } => {
+            DraftMutationError::VersionConflict { expected, current }
+        }
+        DraftEditError::InvalidCommand(message) => DraftMutationError::InvalidCommand(message),
+        DraftEditError::CounterExhausted => DraftMutationError::CounterExhausted,
     }
-    validate_workspace_content(&draft.package_lock, &draft.document, &draft.assets)?;
-    Ok(())
 }
 
 fn mutation_fingerprint(
@@ -578,137 +534,4 @@ fn mutation_fingerprint(
         })
         .map_err(ProfileStoreError::from)?,
     ))
-}
-
-fn apply_command(
-    document: &mut serde_json::Value,
-    command: &DraftCommand,
-) -> Result<(), DraftMutationError> {
-    match command {
-        DraftCommand::ReplaceDocument { document: next } => {
-            *document = next.clone();
-            Ok(())
-        }
-        DraftCommand::Set { pointer, value } => set_pointer(document, pointer, value.clone()),
-        DraftCommand::Remove { pointer } => remove_pointer(document, pointer),
-    }
-}
-
-fn pointer_tokens(pointer: &str) -> Result<Vec<String>, DraftMutationError> {
-    if pointer.is_empty() || !pointer.starts_with('/') {
-        return Err(DraftMutationError::InvalidCommand(
-            "JSON pointer must be non-empty and start with '/'".into(),
-        ));
-    }
-    pointer[1..]
-        .split('/')
-        .map(|token| {
-            let mut decoded = String::new();
-            let mut chars = token.chars();
-            while let Some(character) = chars.next() {
-                if character != '~' {
-                    decoded.push(character);
-                    continue;
-                }
-                match chars.next() {
-                    Some('0') => decoded.push('~'),
-                    Some('1') => decoded.push('/'),
-                    _ => {
-                        return Err(DraftMutationError::InvalidCommand(
-                            "invalid JSON pointer escape".into(),
-                        ));
-                    }
-                }
-            }
-            Ok(decoded)
-        })
-        .collect()
-}
-
-fn parent_and_token<'a>(
-    document: &'a mut serde_json::Value,
-    pointer: &str,
-) -> Result<(&'a mut serde_json::Value, String), DraftMutationError> {
-    let mut tokens = pointer_tokens(pointer)?;
-    let token = tokens
-        .pop()
-        .ok_or_else(|| DraftMutationError::InvalidCommand("pointer has no token".into()))?;
-    let mut parent = document;
-    for segment in tokens {
-        parent = match parent {
-            serde_json::Value::Object(object) => object.get_mut(&segment),
-            serde_json::Value::Array(array) => segment
-                .parse::<usize>()
-                .ok()
-                .and_then(|index| array.get_mut(index)),
-            _ => None,
-        }
-        .ok_or_else(|| DraftMutationError::InvalidCommand("pointer parent is missing".into()))?;
-    }
-    Ok((parent, token))
-}
-
-fn set_pointer(
-    document: &mut serde_json::Value,
-    pointer: &str,
-    value: serde_json::Value,
-) -> Result<(), DraftMutationError> {
-    let (parent, token) = parent_and_token(document, pointer)?;
-    match parent {
-        serde_json::Value::Object(object) => {
-            object.insert(token, value);
-            Ok(())
-        }
-        serde_json::Value::Array(array) if token == "-" => {
-            array.push(value);
-            Ok(())
-        }
-        serde_json::Value::Array(array) => {
-            let index = token
-                .parse::<usize>()
-                .map_err(|_| DraftMutationError::InvalidCommand("array index is invalid".into()))?;
-            if index > array.len() {
-                return Err(DraftMutationError::InvalidCommand(
-                    "array index is out of bounds".into(),
-                ));
-            }
-            if index == array.len() {
-                array.push(value);
-            } else {
-                array[index] = value;
-            }
-            Ok(())
-        }
-        _ => Err(DraftMutationError::InvalidCommand(
-            "pointer parent is not a container".into(),
-        )),
-    }
-}
-
-fn remove_pointer(
-    document: &mut serde_json::Value,
-    pointer: &str,
-) -> Result<(), DraftMutationError> {
-    let (parent, token) = parent_and_token(document, pointer)?;
-    match parent {
-        serde_json::Value::Object(object) => object
-            .remove(&token)
-            .map(|_| ())
-            .ok_or_else(|| DraftMutationError::InvalidCommand("field is missing".into())),
-        serde_json::Value::Array(array) => {
-            let index = token
-                .parse::<usize>()
-                .map_err(|_| DraftMutationError::InvalidCommand("array index is invalid".into()))?;
-            if index >= array.len() {
-                return Err(DraftMutationError::InvalidCommand(
-                    "array index is out of bounds".into(),
-                ));
-            }
-            array.remove(index);
-            Ok(())
-        }
-        _ => Err(DraftMutationError::InvalidCommand(
-            "pointer parent is not a container".into(),
-        )),
-    }
 }

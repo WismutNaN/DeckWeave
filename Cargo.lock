@@ -758,6 +758,7 @@ name = "deckweave-application"
 version = "0.1.0"
 dependencies = [
  "deckweave-domain",
+ "deckweave-workspace",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
@@ -850,6 +851,7 @@ dependencies = [
  "deckweave-application",
  "deckweave-domain",
  "deckweave-platform-host",
+ "deckweave-workspace",
  "serde",
  "serde_json",
  "sha2",
@@ -886,6 +888,16 @@ name = "deckweave-virtual-plugin-example"
 version = "0.1.0"
 dependencies = [
  "deckweave-protocol",
+]
+
+[[package]]
+name = "deckweave-workspace"
+version = "0.1.0"
+dependencies = [
+ "deckweave-domain",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

@@ -1,7 +1,7 @@
 # Модуль: Workspace Configuration
 
 **Контекст:** bounded context редактируемой и версионируемой конфигурации.  
-**Целевое расположение:** `crates/deckweave-workspace/`; filesystem adapter остаётся в `crates/deckweave-profiles/`.
+**Расположение:** `crates/deckweave-workspace/`; filesystem adapter остаётся в `crates/deckweave-profiles/`.
 
 ## Ответственность
 
@@ -20,7 +20,7 @@
 | `DraftCommand` | единственный путь изменения draft |
 | `DraftVersion` | optimistic concurrency value |
 | `WorkspaceRevision` | immutable published document |
-| `WorkspaceRepository` | application port persistence |
+| `DraftRepository` | application port для draft persistence/dedup |
 | `ExportPolicy` / `ImportReport` | переносимая конфигурация без grants/secrets |
 
 ## Инварианты
@@ -35,6 +35,9 @@
 ## Зависимости
 
 Контекст зависит от Shared Kernel types и собственных repository ports. Он не импортирует host lifecycle, filesystem adapter, plugin supervisor или UI.
+
+Первый R2-срез уже перенёс модели draft/revision, validation, pure mutation и `DraftRepository`.
+Revision/snapshot/export policy ещё частично находится в Profiles и переносится следующими срезами без изменения persisted JSON.
 
 ## Намеренно не обрабатывает
 

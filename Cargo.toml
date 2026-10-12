@@ -1,7 +1,7 @@
 [workspace]
 resolver = "3"
 members = ["crates/*", "apps/desktop/src-tauri", "examples/virtual-plugin", "runtimes/openaction-host"]
-default-members = ["crates/deckweave-domain", "crates/deckweave-protocol", "crates/deckweave-application", "crates/deckweave-host", "crates/deckweave-platform-host"]
+default-members = ["crates/deckweave-domain", "crates/deckweave-protocol", "crates/deckweave-workspace", "crates/deckweave-application", "crates/deckweave-host", "crates/deckweave-platform-host"]
 
 [workspace.package]
 version = "0.1.0"
@@ -19,6 +19,7 @@ deckweave-profiles = { version = "0.1.0", path = "crates/deckweave-profiles" }
 deckweave-application = { version = "0.1.0", path = "crates/deckweave-application" }
 deckweave-host = { version = "0.1.0", path = "crates/deckweave-host" }
 deckweave-platform-host = { version = "0.1.0", path = "crates/deckweave-platform-host" }
+deckweave-workspace = { version = "0.1.0", path = "crates/deckweave-workspace" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"

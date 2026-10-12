@@ -15,7 +15,7 @@
     },
     "deckweave-application": {
       "context": "Application Gateway contracts",
-      "allowedDependencies": ["deckweave-domain"]
+      "allowedDependencies": ["deckweave-domain", "deckweave-workspace"]
     },
     "deckweave-host": {
       "context": "Host Lifecycle (transitional gateway implementation)",
@@ -27,7 +27,11 @@
     },
     "deckweave-profiles": {
       "context": "Workspace Configuration persistence (transitional)",
-      "allowedDependencies": ["deckweave-application", "deckweave-domain"]
+      "allowedDependencies": [
+        "deckweave-application",
+        "deckweave-domain",
+        "deckweave-workspace"
+      ]
     },
     "deckweave-registry": {
       "context": "Capability Registry",
@@ -58,6 +62,10 @@
     "deckweave-openaction-host": {
       "context": "OpenAction compatibility runtime",
       "allowedDependencies": []
+    },
+    "deckweave-workspace": {
+      "context": "Workspace Configuration",
+      "allowedDependencies": ["deckweave-domain"]
     }
   },
   "sizeExceptions": {
@@ -98,7 +106,7 @@
       "reviewMilestone": "Phase 12"
     },
     "crates/deckweave-profiles/src/draft.rs": {
-      "maxLines": 714,
+      "maxLines": 537,
       "owner": "Workspace Configuration",
       "reason": "Draft aggregate, mutation policy and persistence are intentionally frozen before the R2 extraction.",
       "reviewMilestone": "DDD-R2"
@@ -110,7 +118,7 @@
       "reviewMilestone": "DDD-R2"
     },
     "crates/deckweave-profiles/src/lib.rs": {
-      "maxLines": 460,
+      "maxLines": 391,
       "owner": "Workspace Configuration persistence",
       "reason": "The crate root still combines persisted models and adapter composition before R2.",
       "reviewMilestone": "DDD-R2"

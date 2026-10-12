@@ -2,12 +2,13 @@
 //! Immutable workspace revisions and content-addressed profile assets.
 
 use deckweave_application::{AtomicFileStore, StorageError};
-pub use deckweave_application::{DraftCommand, MutationKey};
-use deckweave_domain::ids::{AssetId, PackageId, SnapshotId, WorkspaceId, WorkspaceRevisionId};
+use deckweave_domain::ids::{AssetId, SnapshotId, WorkspaceId, WorkspaceRevisionId};
+pub use deckweave_workspace::{
+    AssetReference, DraftCommand, MutationKey, PackageLockEntry, WorkspaceDraft, WorkspaceRevision,
+};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
-    collections::BTreeMap,
     fs,
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
@@ -15,9 +16,7 @@ use std::{
 use thiserror::Error;
 
 pub mod draft;
-pub use draft::{
-    DraftEditor, DraftMutationError, LoadedDraft, MutationOutcome, MutationReceipt, WorkspaceDraft,
-};
+pub use draft::{DraftEditor, DraftMutationError, LoadedDraft, MutationOutcome, MutationReceipt};
 pub mod export;
 pub use export::{
     ExportError, ExportSelection, ImportInspection, ImportResult, ImportRevisionSummary,
@@ -27,45 +26,6 @@ pub mod snapshot;
 pub use snapshot::{SnapshotMetadata, SnapshotRef};
 
 const STORAGE_VERSION: u32 = 1;
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PackageLockEntry {
-    pub package_id: PackageId,
-    pub version: String,
-    pub artifact_sha256: String,
-    pub source: Option<String>,
-    #[serde(flatten)]
-    pub extensions: BTreeMap<String, serde_json::Value>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AssetReference {
-    pub id: AssetId,
-    pub sha256: String,
-    pub media_type: String,
-    pub size_bytes: u64,
-    #[serde(flatten)]
-    pub extensions: BTreeMap<String, serde_json::Value>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct WorkspaceRevision {
-    pub schema_version: u32,
-    pub workspace_id: WorkspaceId,
-    pub revision_id: WorkspaceRevisionId,
-    pub package_lock: Vec<PackageLockEntry>,
-    pub document: serde_json::Value,
-    #[serde(default)]
-    pub assets: Vec<AssetReference>,
-    pub private_section: Option<serde_json::Value>,
-    #[serde(default)]
-    pub extensions: BTreeMap<String, serde_json::Value>,
-    #[serde(flatten)]
-    pub unknown_fields: BTreeMap<String, serde_json::Value>,
-}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -379,12 +339,8 @@ impl ProfileStore for JsonProfileStore {
 }
 
 fn validate_revision(revision: &WorkspaceRevision) -> Result<(), ProfileStoreError> {
-    if revision.schema_version != 1 {
-        return Err(ProfileStoreError::InvalidDocument(
-            "unsupported workspace schema version".into(),
-        ));
-    }
-    validate_workspace_content(&revision.package_lock, &revision.document, &revision.assets)
+    deckweave_workspace::validate_revision(revision)
+        .map_err(|error| ProfileStoreError::InvalidDocument(error.to_string()))
 }
 
 fn validate_workspace_content(
@@ -392,33 +348,8 @@ fn validate_workspace_content(
     document: &serde_json::Value,
     assets: &[AssetReference],
 ) -> Result<(), ProfileStoreError> {
-    if !document.is_object() {
-        return Err(ProfileStoreError::InvalidDocument(
-            "workspace document must be a JSON object".into(),
-        ));
-    }
-    for package in package_lock {
-        if package.version.is_empty()
-            || package.version.len() > 128
-            || !is_sha256(&package.artifact_sha256)
-        {
-            return Err(ProfileStoreError::InvalidDocument(
-                "invalid package lock entry".into(),
-            ));
-        }
-    }
-    for asset in assets {
-        if asset.id.as_str() != asset.sha256.to_ascii_lowercase()
-            || !is_sha256(&asset.sha256)
-            || asset.media_type.is_empty()
-            || asset.media_type.len() > 256
-        {
-            return Err(ProfileStoreError::InvalidDocument(
-                "invalid asset reference".into(),
-            ));
-        }
-    }
-    Ok(())
+    deckweave_workspace::validate_workspace_content(package_lock, document, assets)
+        .map_err(|error| ProfileStoreError::InvalidDocument(error.to_string()))
 }
 
 fn canonical_json(value: &impl Serialize) -> Result<Vec<u8>, serde_json::Error> {

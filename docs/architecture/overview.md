@@ -96,9 +96,12 @@ DeckWeave является модульным монолитом с вертик
 ```text
 SDK ───────────────> protocol (permissive, без GPL dependencies)
 shared domain ─────> protocol
+workspace configuration ──> shared domain
+application gateway ─> workspace configuration + shared domain
 bounded-context application ──> собственный domain + shared kernel
 diagnostics ───────> domain/protocol (без зависимости от runtimes)
-registry/automation/profiles/surface ──> domain + diagnostics/узкие ports
+profiles adapter ───> workspace configuration + atomic-storage port
+registry/automation/surface ──> domain + diagnostics/узкие ports
 host ──────────────> application + реализации core компонентов
 api adapters ──────> application (без зависимости от host implementation)
 desktop composition ──> host + api + platform-host + runtime adapters

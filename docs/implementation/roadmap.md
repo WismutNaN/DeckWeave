@@ -80,10 +80,10 @@
 
 ### R2 — Выделить Workspace Configuration
 
-- [ ] Перенести `WorkspaceDraft`, commands, JSON mutation semantics и revision policy в context domain/application modules (→ [Workspace Configuration](../architecture/modules/workspace-configuration.md)).
-- [ ] Оставить append-only/filesystem/recovery в Profile Store infrastructure adapter за repository ports.
-- [ ] Перенести tests по владельцам: domain invariants, use cases через in-memory ports, storage contract/fault tests.
-- [ ] Сохранить временные re-export; удалить их отдельным commit после перевода всех consumers.
+- [x] Создать `deckweave-workspace`, перенести `WorkspaceDraft`/`WorkspaceRevision`, commands, validation, pure JSON mutation и `DraftRepository` port (→ [Workspace Configuration](../architecture/modules/workspace-configuration.md)).
+- [ ] Перенести оставшуюся revision/snapshot/export policy; оставить append-only/filesystem/recovery в Profile Store infrastructure adapter (→ [Profile Store](../architecture/modules/profile-store.md)).
+- [x] Разделить tests первого среза: pure domain mutation в Workspace, application characterization через port, storage/round-trip/fault tests в Profiles.
+- [x] Сохранить временные re-export для прежних imports; удалить их отдельным commit после перевода всех consumers (→ [DDD migration](#ddd-migration)).
 
 ### R3 — Разделить Host Lifecycle и Application Gateway
 
