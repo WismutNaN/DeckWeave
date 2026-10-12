@@ -4,9 +4,11 @@
 
 pub mod audio;
 mod control_audio;
+mod control_window;
 mod descriptor;
 mod error;
 mod runtime;
+mod window;
 mod wire;
 
 pub use error::PlatformFailure;

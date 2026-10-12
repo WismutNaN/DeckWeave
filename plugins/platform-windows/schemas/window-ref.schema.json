@@ -5,7 +5,7 @@
   "required": ["generation", "reference"],
   "properties": {
     "generation": { "type": "integer", "minimum": 1 },
-    "reference": { "type": "string", "minLength": 1, "maxLength": 256 }
+    "reference": { "type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[0-9a-f]{64}$" }
   },
   "additionalProperties": false
 }

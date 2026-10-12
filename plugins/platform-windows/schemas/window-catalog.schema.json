@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://deckweave.dev/schema/windows/window-catalog/v1",
+  "type": "object",
+  "required": ["generation", "windows", "total", "nextOffset", "revision"],
+  "properties": {
+    "generation": { "type": "integer", "minimum": 1 },
+    "windows": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "required": ["windowRef", "processId", "executable", "title"],
+        "properties": {
+          "windowRef": { "type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[0-9a-f]{64}$" },
+          "processId": { "type": "integer", "minimum": 1 },
+          "executable": { "type": ["string", "null"], "maxLength": 32768 },
+          "title": { "type": "string", "maxLength": 512 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "total": { "type": "integer", "minimum": 0, "maximum": 256 },
+    "nextOffset": { "type": ["integer", "null"], "minimum": 1, "maximum": 256 },
+    "revision": { "type": "integer", "minimum": 0 }
+  },
+  "additionalProperties": false
+}

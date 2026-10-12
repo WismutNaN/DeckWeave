@@ -12,12 +12,12 @@ pub(crate) fn runtime_descriptor(group: RuntimeGroup) -> Result<Vec<u8>, Box<dyn
     }
     let mut descriptor: Value = serde_json::from_slice(CONTROL_DESCRIPTOR)?;
     if cfg!(windows) {
-        set_audio_availability(&mut descriptor)?;
+        set_platform_availability(&mut descriptor)?;
     }
     Ok(serde_json::to_vec(&descriptor)?)
 }
 
-fn set_audio_availability(descriptor: &mut Value) -> Result<(), Box<dyn Error>> {
+fn set_platform_availability(descriptor: &mut Value) -> Result<(), Box<dyn Error>> {
     let nodes = descriptor
         .as_array_mut()
         .ok_or("descriptor is not an array")?;
@@ -30,7 +30,12 @@ fn set_audio_availability(descriptor: &mut Value) -> Result<(), Box<dyn Error>> 
                 continue;
             };
             for element in elements {
-                if element.get("elementId").and_then(Value::as_str) != Some("audio") {
+                let element_id = element
+                    .get("elementId")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_owned();
+                if !matches!(element_id.as_str(), "audio" | "applications") {
                     continue;
                 }
                 let capabilities = element
@@ -38,6 +43,11 @@ fn set_audio_availability(descriptor: &mut Value) -> Result<(), Box<dyn Error>> 
                     .and_then(Value::as_array_mut)
                     .ok_or("audio capabilities are absent")?;
                 for capability in capabilities {
+                    if element_id == "applications"
+                        && capability.get("capabilityId").and_then(Value::as_str) == Some("launch")
+                    {
+                        continue;
+                    }
                     let ports = capability
                         .get_mut("ports")
                         .and_then(Value::as_array_mut)
@@ -57,7 +67,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn only_windows_audio_ports_become_available() -> Result<(), Box<dyn Error>> {
+    fn only_implemented_windows_ports_become_available() -> Result<(), Box<dyn Error>> {
         let descriptor: Value =
             serde_json::from_slice(&runtime_descriptor(RuntimeGroup::Control)?)?;
         let mut ports = Vec::new();
@@ -73,7 +83,12 @@ mod tests {
         }
         for (element, port) in ports {
             let status = port["availability"]["status"].as_str().ok_or("status")?;
-            if cfg!(windows) && element == "audio" {
+            let capability = port
+                .get("tags")
+                .and_then(Value::as_array)
+                .is_some_and(|tags| tags.iter().any(|tag| tag == "window"));
+            let implemented = element == "audio" || (element == "applications" && capability);
+            if cfg!(windows) && implemented {
                 assert_eq!(status, "available");
             } else {
                 assert_eq!(status, "unavailable");

@@ -310,20 +310,26 @@ fn exercise(
             }),
         ))?;
         let mut reply = None;
-        let mut state_seen = false;
-        while reply.is_none() || !state_seen {
+        let mut audio_state_seen = false;
+        let mut window_state_seen = false;
+        while reply.is_none() || !audio_state_seen || !window_state_seen {
             let envelope = process.receive(Duration::from_secs(2))?;
             match envelope.body {
                 Some(protocol_envelope::Body::InvocationReply(value)) => reply = Some(value),
                 Some(protocol_envelope::Body::Signal(signal)) => {
-                    let source = signal.source.ok_or("audio state source")?;
+                    let source = signal.source.ok_or("state source")?;
                     let schema = signal
                         .payload
                         .and_then(|payload| payload.schema)
-                        .ok_or("audio state schema")?;
+                        .ok_or("state schema")?;
                     assert_eq!(source.port_id, "state");
-                    assert_eq!(schema.id, "org.deckweave.windows.audio_state");
-                    state_seen = true;
+                    match schema.id.as_str() {
+                        "org.deckweave.windows.audio_state" => audio_state_seen = true,
+                        "org.deckweave.windows.active_window_state" => {
+                            window_state_seen = true;
+                        }
+                        _ => return Err("unexpected state schema".into()),
+                    }
                 }
                 _ => {}
             }
@@ -337,9 +343,64 @@ fn exercise(
             error.code,
             PlatformFailure::controlled_adapter().structured().code
         );
+        process.send(&envelope(
+            5,
+            protocol_envelope::Body::Invoke(InvocationRequest {
+                invocation_id: "window-catalog-1".into(),
+                run_id: "run-1".into(),
+                operation_id: "list-windows".into(),
+                activation_epoch: 1,
+                descriptor_revision: 1,
+                deadline_host_ticks: 100,
+                idempotency_key: None,
+                input: Some(deckweave_protocol::v1::OpaquePayload {
+                    schema: Some(deckweave_protocol::v1::SchemaReference {
+                        id: "org.deckweave.windows.window_catalog_request".into(),
+                        major: 1,
+                        minor: 0,
+                    }),
+                    value: br#"{"offset":0,"limit":10}"#.to_vec(),
+                }),
+                target: Some(EndpointPath {
+                    node_id: "windows-control-node".into(),
+                    provider_id: "org.deckweave.platform.windows.control".into(),
+                    target: Some(deckweave_protocol::v1::endpoint_path::Target::ServiceId(
+                        "windows-platform".into(),
+                    )),
+                    element_id: "applications".into(),
+                    capability_id: "window-catalog".into(),
+                    port_id: "list".into(),
+                }),
+                remaining_budget_ms: Some(1000),
+            }),
+        ))?;
+        let catalog_reply = loop {
+            let next = process.receive(Duration::from_secs(2))?;
+            if let Some(protocol_envelope::Body::InvocationReply(reply)) = next.body
+                && reply.invocation_id == "window-catalog-1"
+            {
+                break reply;
+            }
+        };
+        let Some(deckweave_protocol::v1::invocation_reply::Reply::Terminal(terminal)) =
+            catalog_reply.reply
+        else {
+            return Err("window catalog was not terminal".into());
+        };
+        let Some(deckweave_protocol::v1::terminal_outcome::Result::Succeeded(payload)) =
+            terminal.result
+        else {
+            return Err("window catalog did not succeed".into());
+        };
+        assert_eq!(
+            payload.schema.ok_or("window catalog schema")?.id,
+            "org.deckweave.windows.window_catalog"
+        );
+        let catalog: Value = serde_json::from_slice(&payload.value)?;
+        assert!(catalog["windows"].is_array());
     }
     process.send(&envelope(
-        5,
+        6,
         protocol_envelope::Body::Deactivate(DeactivationRequest {
             runtime_lease_id: format!("lease-{group}"),
             reason: "test".into(),
@@ -388,7 +449,7 @@ fn package_indexes_two_permission_scoped_runtime_groups() -> Result<(), Box<dyn 
             .iter()
             .filter(|endpoint| endpoint.operation.is_some())
             .count(),
-        4
+        7
     );
     Ok(())
 }
@@ -487,7 +548,7 @@ fn descriptor_paths_scope_repeated_local_port_ids() -> Result<(), Box<dyn Error>
             }
         }
     }
-    assert_eq!(repeated, 3);
+    assert_eq!(repeated, 2);
     Ok(())
 }
 

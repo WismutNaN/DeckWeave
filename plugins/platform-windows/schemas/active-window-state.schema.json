@@ -2,14 +2,16 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://deckweave.dev/schema/windows/active-window-state/v1",
   "type": "object",
-  "required": ["generation", "windowRef", "processId", "title", "fresh"],
+  "required": ["availability", "generation", "windowRef", "processId", "executable", "title", "fresh", "revision"],
   "properties": {
+    "availability": { "enum": ["available", "no_foreground", "unsupported"] },
     "generation": { "type": "integer", "minimum": 1 },
-    "windowRef": { "type": "string", "minLength": 1, "maxLength": 256 },
-    "processId": { "type": "integer", "minimum": 0 },
+    "windowRef": { "type": ["string", "null"], "minLength": 1, "maxLength": 256 },
+    "processId": { "type": ["integer", "null"], "minimum": 0 },
     "executable": { "type": ["string", "null"], "maxLength": 32768 },
     "title": { "type": "string", "maxLength": 512 },
-    "fresh": { "type": "boolean" }
+    "fresh": { "type": "boolean" },
+    "revision": { "type": "integer", "minimum": 0 }
   },
   "additionalProperties": false
 }

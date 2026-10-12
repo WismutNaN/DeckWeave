@@ -4,7 +4,7 @@
 
 ## Состояние
 
-Фаза начата. Срезы 7.0 и 7.1 завершены: source audit, neutral input contracts, schemas, manifest template и исполняемые shells двух runtime groups проходят production process/supervisor boundary. В 7.2 реализован автоматизированный Core Audio path; четыре audio actions и state объявляются доступными только Windows artifact, остальные endpoint-ы остаются `unavailable`. Ручная матрица Windows 10/11 и реальные default-device switches ещё не закрыты. Каждый следующий срез должен оставлять `npm run check` и workspace tests зелёными и не объявлять fake/manual result production capability.
+Фаза начата. Срезы 7.0 и 7.1 завершены; в 7.2 реализован автоматизированный Core Audio path. В 7.3A готовы active-window state, bounded catalog и focus/activate actions. Ручные Windows 10/11 проверки ещё открыты. Exact launch/open остаются `unavailable`: [ADR-0021](../decisions/0021-brokered-user-process-launch.md) запрещает ослаблять plugin Job Object и требует узкий Host broker. Каждый следующий срез должен оставлять `npm run check` и workspace tests зелёными и не объявлять fake/manual result production capability.
 
 Phase 6 может сохранять отдельные открытые UI/E2E acceptance items: они не разрешают Windows package обходить Application Gateway или plugin lifecycle. Phase 7 использует существующий production composition и добавляет capabilities через общий package/runtime contract.
 
@@ -53,7 +53,7 @@ Acceptance:
 - [x] Windows crate/dependency не появляется в domain/application/automation crates;
 - [x] non-Windows workspace build компилирует явный unsupported shell без Win32 linkage.
 
-Evidence: `plugins/platform-windows/tests/package_shell.rs` собирает временный пакет из реальных binaries, индексирует его общим `PackageStager`, запускает обе группы через `ProcessRuntime` и проверяет scoped revoke через `RuntimeController`. `scripts/check-schemas.mjs` валидирует manifest template и восемь package schemas. Это проверка lifecycle и границ, а не доказательство готовности audio/window/media/input adapters.
+Evidence: `plugins/platform-windows/tests/package_shell.rs` собирает временный пакет из реальных binaries, индексирует его общим `PackageStager`, запускает обе группы через `ProcessRuntime` и проверяет scoped revoke через `RuntimeController`. `scripts/check-schemas.mjs` валидирует manifest template и все объявленные package schemas. Это проверка lifecycle и границ, а не доказательство готовности audio/window/media/input adapters.
 
 ## 7.2 — Core Audio vertical slice
 
@@ -77,18 +77,23 @@ Acceptance:
 
 ## 7.3 — Active window, catalog, focus и launch
 
-- Dedicated message thread устанавливает out-of-context foreground hook; callback передаёт только HWND/event metadata worker-у.
-- Worker строит `ActiveApplicationState`: ephemeral WindowRef, PID/session evidence, executable/app selector, bounded title metadata и freshness. Raw HWND не сохраняется в profile.
-- Catalog различает app identity и конкретные windows, фильтрует только документированные признаки и возвращает generation. Icon loading остаётся bounded optional query/cache.
-- `activate_window` проверяет generation/ref, существование окна и фактический foreground после вызова. Отказ Windows — нормальный typed outcome.
-- `launch_process` принимает exact executable + argv + cwd policy. `open_target` отдельно принимает file/URI и исполняется на STA Shell worker. Готовность окна — отдельный predicate, не часть launch receipt.
+**Статус:** [~] 7.3A window state/catalog/focus реализован и автоматически проверен; manual focus/elevated matrix, icons и brokered launch/open остаются открыты.
+
+- [x] Dedicated message thread устанавливает out-of-context foreground hook; callback только coalesces событие в bounded channel, Win32 metadata читает worker.
+- [x] Worker строит `ActiveWindowState`: session-scoped hashed WindowRef, PID/session/process-start evidence, executable selector, bounded title metadata и freshness. Raw HWND не проходит wire/profile boundary.
+- [x] Bounded catalog различает app identity и конкретные windows, возвращает generation/revision и страницы до 10 из максимум 256 окон, поэтому укладывается в negotiated message limit. Недоступный/elevated executable остаётся `null`, но окно не исчезает из списка.
+- [x] `activate_window` повторно перечисляет окна, проверяет generation/ref и фактический foreground. `focus_application` использует переносимый executable + optional title selector. Foreground denial является typed terminal failure, не success.
+- [ ] Добавить paged/icon query; icon loading остаётся bounded optional cache и не задерживает foreground callback.
+- [ ] Реализовать Host broker из [ADR-0021](../decisions/0021-brokered-user-process-launch.md), затем включить `launch_process` с exact executable + argv + cwd policy.
+- [ ] Реализовать отдельный `open_target` на STA Shell adapter через тот же broker lifecycle. Готовность окна остаётся отдельным predicate, не частью launch receipt.
 
 Acceptance:
 
-- два окна одного executable, закрытие между list/click, reused handle, elevated target, empty title, missing icon;
-- activation denied не превращается в success;
-- Unicode paths/argv и пробелы не проходят через shell concatenation;
-- app/window state переключает virtual feedback через существующий automation path.
+- [x] unit: два окна одного executable, close/reuse invalidates old ref, missing executable evidence и activation denial;
+- [x] production process: committed runtime публикует active-window state и возвращает schema-validated window catalog без focus side effect;
+- [ ] manual: close между list/click, реальный handle reuse, elevated target, empty title, external foreground switch и focus denial;
+- [ ] broker: Unicode executable/argv/cwd и пробелы никогда не проходят через shell concatenation;
+- [~] app/window state идёт через существующий automation signal path; virtual feedback E2E остаётся в production composition 7.6.
 
 ## 7.4 — Media transport и origin
 

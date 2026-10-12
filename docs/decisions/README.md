@@ -24,3 +24,4 @@ ADR фиксирует причину и последствия выбора, а
 | [0018](0018-interaction-ui-runtime.md) | Host-owned interaction sessions и plugin views |
 | [0019](0019-plugin-composition.md) | Configured instances, explicit service bindings и владение plugin data |
 | [0020](0020-windows-provider-runtime-groups.md) | Windows first-party package с раздельными control и input-observe runtime groups |
+| [0021](0021-brokered-user-process-launch.md) | Host-brokered user process launch без ослабления plugin Job Object |

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use crate::audio::AudioFailure;
+use crate::window::WindowFailure;
 use deckweave_protocol::v1::{ErrorCategory, StructuredError};
 use std::{collections::HashMap, error::Error, fmt};
 
@@ -13,6 +14,7 @@ pub enum PlatformFailure {
     ResourceBusy,
     NoDefaultEndpoint,
     NoMediaSession,
+    NoMatchingWindow,
     StaleWindowReference,
     ForegroundDenied,
     LaunchRejected,
@@ -43,6 +45,7 @@ impl PlatformFailure {
             Self::ResourceBusy => (ErrorCategory::ResourceBusy, "resource_busy"),
             Self::NoDefaultEndpoint => (ErrorCategory::Unavailable, "no_default_endpoint"),
             Self::NoMediaSession => (ErrorCategory::Unavailable, "no_media_session"),
+            Self::NoMatchingWindow => (ErrorCategory::Unavailable, "no_matching_window"),
             Self::StaleWindowReference => (ErrorCategory::Unavailable, "stale_window_reference"),
             Self::ForegroundDenied => (ErrorCategory::PermissionDenied, "foreground_denied"),
             Self::LaunchRejected => (ErrorCategory::PermanentExternal, "launch_rejected"),
@@ -55,6 +58,22 @@ impl PlatformFailure {
             message_key: format!("platform.windows.error.{code}"),
             details: HashMap::new(),
             diagnostic_attachment_id: None,
+        }
+    }
+}
+
+impl From<WindowFailure> for PlatformFailure {
+    fn from(failure: WindowFailure) -> Self {
+        match failure {
+            WindowFailure::UnsupportedOperatingSystem => Self::UnsupportedOperatingSystem,
+            WindowFailure::InvalidInput => Self::InvalidInput,
+            WindowFailure::NoMatchingWindow => Self::NoMatchingWindow,
+            WindowFailure::StaleReference => Self::StaleWindowReference,
+            WindowFailure::ForegroundDenied => Self::ForegroundDenied,
+            WindowFailure::PermissionDenied => Self::PermissionDenied,
+            WindowFailure::ResourceBusy => Self::ResourceBusy,
+            WindowFailure::OsApiUnavailable => Self::OsApiUnavailable,
+            WindowFailure::WorkerStopped => Self::TransientRebind,
         }
     }
 }

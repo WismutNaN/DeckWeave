@@ -3,6 +3,10 @@ use crate::{
     PlatformFailure,
     audio::EffectKnowledge,
     control_audio::{ControlAudio, parse_invocation, state_payload},
+    control_window::{
+        ControlWindow, WindowResult, parse_invocation as parse_window_invocation,
+        result_payload as window_result_payload,
+    },
     descriptor::runtime_descriptor,
     wire::WireSender,
 };
@@ -60,7 +64,9 @@ pub fn run(expected_group: RuntimeGroup) -> Result<(), Box<dyn Error>> {
     )))?;
     let audio = (expected_group == RuntimeGroup::Control)
         .then(|| ControlAudio::start(wire.clone(), generation));
-    let result = serve(expected_group, generation, &wire, audio);
+    let window = (expected_group == RuntimeGroup::Control)
+        .then(|| ControlWindow::start(wire.clone(), generation));
+    let result = serve(expected_group, generation, &wire, audio, window);
     drop(wire);
     let writer_result = writer
         .join()
@@ -115,6 +121,7 @@ fn serve(
     generation: u64,
     wire: &WireSender,
     audio: Option<ControlAudio>,
+    window: Option<ControlWindow>,
 ) -> Result<(), Box<dyn Error>> {
     let mut stdin = io::stdin().lock();
     while let Some(envelope) = read_envelope(&mut stdin, wire.maximum_message_bytes())? {
@@ -151,9 +158,12 @@ fn serve(
                 if let Some(audio) = &audio {
                     audio.activation_committed(wire, generation)?;
                 }
+                if let Some(window) = &window {
+                    window.activation_committed(wire, generation)?;
+                }
             }
             Some(protocol_envelope::Body::Invoke(request)) => {
-                invoke(wire, audio.as_ref(), request)?;
+                invoke(wire, audio.as_ref(), window.as_ref(), request)?;
             }
             Some(protocol_envelope::Body::Deactivate(_)) => return Ok(()),
             _ => {}
@@ -165,6 +175,7 @@ fn serve(
 fn invoke(
     wire: &WireSender,
     audio: Option<&ControlAudio>,
+    window: Option<&ControlWindow>,
     request: deckweave_protocol::v1::InvocationRequest,
 ) -> Result<(), Box<dyn Error>> {
     let invocation_id = request.invocation_id.clone();
@@ -189,9 +200,7 @@ fn invoke(
                 invocation_reply::Reply::Rejected(PlatformFailure::from(error.failure).structured())
             }
         },
-        Ok(None) => {
-            invocation_reply::Reply::Rejected(PlatformFailure::controlled_adapter().structured())
-        }
+        Ok(None) => window_reply(window, &request)?,
         Err(error) => invocation_reply::Reply::Rejected(error.structured()),
     };
     wire.send(protocol_envelope::Body::InvocationReply(InvocationReply {
@@ -199,6 +208,58 @@ fn invoke(
         reply: Some(reply),
     }))?;
     Ok(())
+}
+
+fn window_reply(
+    window: Option<&ControlWindow>,
+    request: &deckweave_protocol::v1::InvocationRequest,
+) -> Result<invocation_reply::Reply, Box<dyn Error>> {
+    let invocation_id = request.invocation_id.clone();
+    let reply = match parse_window_invocation(request) {
+        Ok(Some(invocation)) => match window
+            .ok_or(PlatformFailure::OsApiUnavailable)?
+            .apply(invocation)
+        {
+            Ok(result @ (WindowResult::State(_) | WindowResult::Catalog(_))) => {
+                invocation_reply::Reply::Terminal(TerminalOutcome {
+                    invocation_id,
+                    result: Some(terminal_outcome::Result::Succeeded(window_result_payload(
+                        &result,
+                    )?)),
+                })
+            }
+            Err(error)
+                if matches!(
+                    error.failure,
+                    crate::window::WindowFailure::ForegroundDenied
+                        | crate::window::WindowFailure::StaleReference
+                ) =>
+            {
+                invocation_reply::Reply::Terminal(TerminalOutcome {
+                    invocation_id,
+                    result: Some(terminal_outcome::Result::Failed(
+                        PlatformFailure::from(error.failure).structured(),
+                    )),
+                })
+            }
+            Err(error) if error.effect == crate::window::EffectKnowledge::PossiblyApplied => {
+                invocation_reply::Reply::Terminal(TerminalOutcome {
+                    invocation_id,
+                    result: Some(terminal_outcome::Result::UnknownOutcome(
+                        PlatformFailure::from(error.failure).structured(),
+                    )),
+                })
+            }
+            Err(error) => {
+                invocation_reply::Reply::Rejected(PlatformFailure::from(error.failure).structured())
+            }
+        },
+        Ok(None) => {
+            invocation_reply::Reply::Rejected(PlatformFailure::controlled_adapter().structured())
+        }
+        Err(error) => invocation_reply::Reply::Rejected(error.structured()),
+    };
+    Ok(reply)
 }
 
 fn decode_hex(value: &str) -> Result<Vec<u8>, Box<dyn Error>> {

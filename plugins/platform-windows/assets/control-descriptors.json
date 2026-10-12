@@ -140,7 +140,7 @@
                 "kind": "org.deckweave.window.activate",
                 "ports": [
                   {
-                    "portId": "invoke",
+                    "portId": "activate",
                     "kind": "CommandIn",
                     "direction": "input",
                     "semantics": "command",
@@ -151,6 +151,38 @@
                     "lifetime": "requestable",
                     "descriptorRevision": 1,
                     "tags": ["windows", "window", "action"]
+                  },
+                  {
+                    "portId": "focus",
+                    "kind": "CommandIn",
+                    "direction": "input",
+                    "semantics": "command",
+                    "schema": { "id": "org.deckweave.windows.window_selector", "version": { "major": 1, "minor": 0 } },
+                    "compatibleVersions": { "minimum": { "major": 1, "minor": 0 }, "maximum": { "major": 1, "minor": 0 } },
+                    "requiredPermissions": ["windows.window.activate"],
+                    "availability": { "status": "unavailable", "reason": "org.deckweave.windows.controlled_adapter" },
+                    "lifetime": "requestable",
+                    "descriptorRevision": 1,
+                    "tags": ["windows", "application", "window", "action"]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "window-catalog",
+                "kind": "org.deckweave.window.catalog",
+                "ports": [
+                  {
+                    "portId": "list",
+                    "kind": "CommandIn",
+                    "direction": "input",
+                    "semantics": "command",
+                    "schema": { "id": "org.deckweave.windows.window_catalog_request", "version": { "major": 1, "minor": 0 } },
+                    "compatibleVersions": { "minimum": { "major": 1, "minor": 0 }, "maximum": { "major": 1, "minor": 0 } },
+                    "requiredPermissions": ["windows.window.observe"],
+                    "availability": { "status": "unavailable", "reason": "org.deckweave.windows.controlled_adapter" },
+                    "lifetime": "requestable",
+                    "descriptorRevision": 1,
+                    "tags": ["windows", "window", "catalog", "query"]
                   }
                 ]
               },

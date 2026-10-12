@@ -1,6 +1,6 @@
 # Исследование Фазы 7: Windows provider и Platform Input
 
-**Статус:** решение применено в 7.1 и автоматической части Core Audio 7.2; manual evidence открыто
+**Статус:** решение применено в 7.1, Core Audio 7.2 и window state/catalog/focus 7.3A; manual evidence и brokered launch/open открыты
 **Дата проверки:** 2026-10-13
 **Область:** Windows 10/11, first-party control package, штатная клавиатура в observe/pass-through mode
 
@@ -11,7 +11,7 @@
 - Один first-party package `org.deckweave.platform.windows` содержит две независимые runtime groups: `control` и `input-observe`. Они запускаются только при наличии lease и имеют раздельные permissions/failure domains.
 - Master volume/mute реализуются через Core Audio endpoint APIs и callbacks, а не через media-key emulation. Смена default endpoint приводит к rebind и новому state snapshot.
 - Active-window state приходит через `SetWinEventHook(EVENT_SYSTEM_FOREGROUND, WINEVENT_OUTOFCONTEXT)`; перечисление и активация окон остаются отдельными операциями. Успешное перечисление не доказывает право вызвать `SetForegroundWindow`.
-- Запуск executable и открытие файла/URI — разные typed operations. Произвольный shell source не входит в Windows base provider.
+- Запуск executable и открытие файла/URI — разные typed operations. Сам OS effect выполняет Host broker по ADR-0021: direct child runtime-процесса наследует kill-on-close Job Object, а общий breakaway разрушил бы isolation. Произвольный shell source не входит в Windows base provider.
 - Базовые media transport commands используют короткую атомарную пару `SendInput` down/up с DeckWeave origin tag. Generic input emission и held keys не публикуются до host-owned output lease.
 - Штатная клавиатура наблюдается через Raw Input в фоне: `RIDEV_INPUTSINK | RIDEV_DEVNOTIFY`, без `RIDEV_NOLEGACY`. Поэтому исходное действие ОС сохраняется. Первый provider объявляет `system_aggregate`; переход к `os_logical_device` требует отдельного доказательства стабильности identity и reconnect mapping.
 - `WH_KEYBOARD_LL` не используется для безопасного observe baseline. Microsoft рекомендует Raw Input для наблюдения; low-level hook имеет message-loop/deadline requirements и может быть молча удалён при timeout. Такой hook допустим только в будущем intercept-helper с fail-open policy.
@@ -26,8 +26,8 @@
 | Foreground state | [`SetWinEventHook`](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwineventhook) | dedicated message thread; callback не читает process/icon и не блокируется на IPC |
 | Window catalog | [`EnumWindows`](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-enumwindows) | `WindowRef` session-scoped; title/HWND не являются persisted app identity |
 | Window activation | [`SetForegroundWindow`](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setforegroundwindow) | Windows может отклонить focus; результат проверяется и возвращается как typed denial |
-| Exact process launch | `std::process::Command`/`CreateProcessW` semantics | executable, argv, cwd и env передаются раздельно; никакой shell interpolation |
-| File/URI activation | [`ShellExecuteExW`](https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shellexecuteexw) | отдельный STA executor; успешный launch не означает готовность окна/документа |
+| Exact process launch | Host-owned `std::process::Command`/`CreateProcessW` adapter | executable, argv и cwd передаются раздельно; plugin Job Object не ослабляется, никакой shell interpolation |
+| File/URI activation | Host-owned [`ShellExecuteExW`](https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shellexecuteexw) adapter | отдельный STA executor; успешный launch не означает готовность окна/документа |
 | Keyboard observe | [Raw Input](https://learn.microsoft.com/en-us/windows/win32/inputdev/about-raw-input) | message-only window, background delivery, pass-through, bounded normalizer queue |
 | Media key output | [`SendInput`](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput) | UIPI может блокировать injection; частичная вставка и release attempt дают отдельный outcome |
 | Injected origin evidence | [`KBDLLHOOKSTRUCT`](https://learn.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-kbdllhookstruct) | `LLKHF_INJECTED`/`dwExtraInfo` полезны только в hook path; не приписываются Raw Input без test evidence |
@@ -74,7 +74,7 @@ control application port       input/state normalizer
 ```
 
 - Platform Input владеет normalized observation/origin/granularity/capture policy, но не automation route.
-- Windows control package владеет переводом Win32/COM results в plugin outcomes, но не host authorization и не persisted workspace.
+- Windows control package владеет переводом Win32/COM results в plugin outcomes, но не host authorization и не persisted workspace. Process/Shell launch — минимальный Host-brokered effect: package сохраняет action semantics, Host сохраняет isolation и независимый lifetime пользовательского процесса.
 - Capability Registry получает descriptors/states/signals через общий protocol; raw HWND, COM pointer, hook handle и device handle через IPC не проходят.
 - Callback threads не пишут в stdio и не ждут host. Они публикуют в bounded channel; reliable edges при overflow переводят runtime в fault/degraded, replaceable state coalesces latest value.
 - Отзыв runtime lease останавливает message loops, снимает hooks/callbacks и закрывает COM apartment до terminal process exit.
