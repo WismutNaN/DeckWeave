@@ -782,9 +782,14 @@ name = "deckweave-desktop"
 version = "0.1.0"
 dependencies = [
  "deckweave-application",
+ "deckweave-automation",
+ "deckweave-domain",
  "deckweave-host",
  "deckweave-platform-host",
+ "deckweave-plugin-supervisor",
  "deckweave-profiles",
+ "deckweave-registry",
+ "deckweave-workspace",
  "tauri",
  "tauri-build",
  "tauri-plugin-single-instance",
@@ -876,11 +881,15 @@ name = "deckweave-plugin-supervisor"
 version = "0.1.0"
 dependencies = [
  "deckweave-application",
+ "deckweave-automation",
  "deckweave-domain",
+ "deckweave-host",
  "deckweave-platform",
  "deckweave-platform-host",
+ "deckweave-profiles",
  "deckweave-protocol",
  "deckweave-registry",
+ "deckweave-workspace",
  "getrandom 0.4.3",
  "semver",
  "serde",

@@ -55,19 +55,27 @@
       "context": "Plugin Runtime",
       "allowedDependencies": [
         "deckweave-application",
+        "deckweave-automation",
         "deckweave-domain",
+        "deckweave-host",
         "deckweave-platform",
         "deckweave-protocol",
-        "deckweave-registry"
+        "deckweave-registry",
+        "deckweave-workspace"
       ]
     },
     "deckweave-desktop": {
       "context": "Desktop composition root",
       "allowedDependencies": [
         "deckweave-application",
+        "deckweave-automation",
+        "deckweave-domain",
         "deckweave-host",
         "deckweave-platform-host",
-        "deckweave-profiles"
+        "deckweave-plugin-supervisor",
+        "deckweave-profiles",
+        "deckweave-registry",
+        "deckweave-workspace"
       ]
     },
     "deckweave-virtual-plugin-example": {

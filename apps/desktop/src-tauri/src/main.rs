@@ -1,20 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use deckweave_application::{
-    ApiAuthScope, ApplicationGateway, DraftStore, HostSnapshot, InMemoryApiAuthorizer, PrincipalId,
-};
+use deckweave_application::HostSnapshot;
 use deckweave_host::HostRuntime;
-use deckweave_platform_host::{
-    LaunchOptions, NativeAtomicFileStore, NativePlatform, installed_root,
-};
-use deckweave_profiles::{JsonProfileStore, ProfileStoreLimits};
+use deckweave_platform_host::{LaunchOptions, NativePlatform, installed_root};
 use std::{path::Path, sync::Arc};
 use tauri::{
     Emitter, Manager,
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
 };
+
+mod composition;
 
 #[tauri::command]
 fn host_snapshot(host: tauri::State<'_, Arc<HostRuntime>>) -> HostSnapshot {
@@ -42,6 +39,12 @@ fn show_main(app: &tauri::AppHandle) -> tauri::Result<()> {
 }
 
 fn quit(app: &tauri::AppHandle) {
+    if let Some(runtime) =
+        app.try_state::<Arc<deckweave_plugin_supervisor::host::ProductionRuntimeCoordinator>>()
+        && let Err(error) = runtime.shutdown()
+    {
+        eprintln!("Не удалось завершить plugin runtime: {error}");
+    }
     app.state::<Arc<HostRuntime>>().stop();
     app.exit(0);
 }
@@ -111,29 +114,11 @@ fn run(options: LaunchOptions) -> Result<(), Box<dyn std::error::Error>> {
                 &std::env::current_dir()?,
             )?;
             let root = deckweave_application::HostPlatform::data_root(&platform).to_owned();
-            let authorizer = Arc::new(InMemoryApiAuthorizer::new());
-            authorizer.grant(
-                PrincipalId::try_new("desktop-ui")?,
-                [
-                    ApiAuthScope::Read,
-                    ApiAuthScope::Draft,
-                    ApiAuthScope::Simulation,
-                ],
-            );
-            let draft_store: Arc<dyn DraftStore> = Arc::new(JsonProfileStore::new(
-                root.join("profiles"),
-                Arc::new(NativeAtomicFileStore),
-                ProfileStoreLimits::default(),
-            ));
             let host = Arc::new(HostRuntime::start(Arc::new(platform))?);
-            let gateway = ApplicationGateway::new(
-                Arc::clone(&host) as Arc<dyn deckweave_application::HostStatusSource>,
-                draft_store,
-                authorizer,
-                Arc::new(deckweave_application::UnavailableApplyUseCase),
-            );
+            let services = composition::compose(&root, Arc::clone(&host))?;
             app.manage(host);
-            app.manage(gateway);
+            app.manage(services.runtime);
+            app.manage(services.gateway);
 
             // WebView cache принадлежит root; portable не пишет его в installed data directory.
             let window = tauri::WebviewWindowBuilder::new(
@@ -203,6 +188,11 @@ fn run(options: LaunchOptions) -> Result<(), Box<dyn std::error::Error>> {
     let app = builder.build(tauri::generate_context!())?;
     app.run(|app, event| {
         if let tauri::RunEvent::Exit = event {
+            if let Some(runtime) = app
+                .try_state::<Arc<deckweave_plugin_supervisor::host::ProductionRuntimeCoordinator>>()
+            {
+                let _ignored = runtime.shutdown();
+            }
             app.state::<Arc<HostRuntime>>().stop();
         }
     });

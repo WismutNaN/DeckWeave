@@ -9,9 +9,12 @@ publish.workspace = true
 [dependencies]
 deckweave-application.workspace = true
 deckweave-domain.workspace = true
+deckweave-automation.workspace = true
+deckweave-host.workspace = true
 deckweave-platform.workspace = true
 deckweave-protocol.workspace = true
 deckweave-registry.workspace = true
+deckweave-workspace.workspace = true
 getrandom = "0.4"
 semver = { version = "1.0", features = ["serde"] }
 serde.workspace = true
@@ -21,6 +24,7 @@ thiserror.workspace = true
 
 [dev-dependencies]
 deckweave-platform-host.workspace = true
+deckweave-profiles.workspace = true
 tempfile = "3"
 
 [lints]

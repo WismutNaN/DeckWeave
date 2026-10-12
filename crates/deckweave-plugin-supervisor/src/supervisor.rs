@@ -17,6 +17,8 @@ use deckweave_registry::{CapabilityRegistry, RegistryError, SessionIdentity};
 use std::{collections::VecDeque, sync::Arc};
 use thiserror::Error;
 
+mod factory;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RuntimeKey {
     pub package_id: PackageId,
@@ -165,32 +167,16 @@ impl RuntimeController {
         runtime_group_id: RuntimeGroupId,
         policy: RestartPolicy,
     ) -> Result<Self, SupervisorError> {
-        validate_policy(&policy)?;
-        let artifact = package
-            .artifact_for_current_platform(&runtime_group_id)
-            .map_err(|error| SupervisorError::Artifact(error.to_string()))?;
-        Ok(Self {
-            key: RuntimeKey {
-                package_id: package.package_id.clone(),
-                artifact_sha256: artifact.sha256.clone(),
-                runtime_group_id,
-            },
-            package,
-            policy,
-            status: RuntimeStatus::Indexed,
-            leases: Vec::new(),
-            grants: Vec::new(),
-            session: None,
-            one_time_token: None,
-            next_lease: 0,
-            next_generation: 0,
-            transition_deadline: None,
-            retry_at: None,
-            crashes: VecDeque::new(),
-            registered: false,
-            restart_blocked: false,
-            last_error: None,
-        })
+        Self::new_after_generation(package, runtime_group_id, policy, 0)
+    }
+
+    pub fn new_after_generation(
+        package: Arc<IndexedPackage>,
+        runtime_group_id: RuntimeGroupId,
+        policy: RestartPolicy,
+        previous_generation: u64,
+    ) -> Result<Self, SupervisorError> {
+        factory::runtime_controller(package, runtime_group_id, policy, previous_generation)
     }
 
     pub fn acquire_lease(

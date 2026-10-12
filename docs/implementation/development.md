@@ -163,19 +163,21 @@ re-export прежних имён, поэтому persisted JSON и публич
 
 ## Локальная проверка 2026-10-12
 
-- Windows: debug executable собран через Tauri CLI; Svelte/TypeScript — 0 ошибок и предупреждений.
+- Windows: debug и release executable собраны через Tauri CLI; Svelte/TypeScript — 0 ошибок и предупреждений. Installer bundling отключён конфигурацией и не проверялся.
 - Проверен также dev-запуск с Vite и portable arguments; native smoke проходит и в этом режиме, dev server завершается вместе с запуском.
 - Rust: platform-host, protocol, registry, supervisor, virtual example и OpenAction scanner компилируются и проходят unit/integration tests.
 - Настоящий Tauri/WebView2 smoke: IPC, tray, close-to-tray, same-root focus, different-root conflict, общий Exit handler и отсутствие WebView2 orphans.
 - Plugin runtime: staging/index без исполнения, pre-launch hash recheck, bounded Protobuf stdio,
   negotiated limits, heartbeat/start/stop deadlines, discovery expiry, restart/backoff/circuit breaker,
   grant revoke, session invalidation и process-tree cleanup.
+- Production apply: desktop использует реальный coordinator; public Gateway запускает isolated virtual fixture,
+  replay сохраняет OperationId, startup восстанавливает commit, revoke и Exit очищают registry/process без UI.
 - Pinned OpenAction Counter manifest проходит C0 scanner; C1 отмечается недоступным без platform artifact и отдельного WebSocket host.
 - Format/Clippy, docs-check, Node tests, package boundaries и license/provenance checks проходят.
 - cargo-deny проходит с одним документированным исключением unmaintained GTK build dependency в [THIRD_PARTY](../../THIRD_PARTY.md#проверенные-исключения-dependency-policy).
 
 Пока не проверены: ручной клик Exit в native tray menu, реальный автозапуск после входа Windows,
-Linux/macOS desktop, release packaging и удалённые GitHub Actions. Никаких регистраций автозапуска
+Linux/macOS desktop, installer packaging и удалённые GitHub Actions. Никаких регистраций автозапуска
 при разработке и тестах не выполнялось. В Windows переключатель отражает HKCU-регистрацию текущего
 executable/root; системный Task Manager может дополнительно запретить её исполнение. DeckWeave не снимает этот запрет.
 Non-Windows autostart adapter требует platform acceptance в соответствующем milestone.

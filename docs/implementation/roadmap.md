@@ -118,7 +118,7 @@
 
 - [ ] A завершён; endpoint contract согласован для descriptors, signal ingress, routes и persisted bindings.
 - [ ] B завершён; API dedup contract реализован целиком, а не только в одном draft.
-- [ ] C завершён; интеграция использует production composition и внешний watchdog для hang tests.
+- [x] C завершён; интеграция использует production composition и внешний watchdog для hang tests.
 - [x] D завершён; Фаза 4 использует ограниченный fake compiler для empty/virtual fixtures. Он не принимает произвольный graph как пустой plan; Фаза 5 заменяет adapter настоящим compiler на том же acceptance.
 - [ ] E завершён; process-crash evidence отделено от power-loss/filesystem assumptions.
 
@@ -131,7 +131,7 @@
 - [x] B1 — global mutation ledger, issued epochs, recovery и bounded quota/index.
 - [x] D1 — immutable WorkspaceCandidate, unique package/assets и проверка referenced asset bytes/metadata.
 - [x] D2 — compiler/activation ports и fenced plan token с повторной проверкой preconditions.
-- [ ] C2 — production runtime coordinator через public application path.
+- [x] C2 — production runtime coordinator через public application path.
 - [x] E0 — publication outcomes и disk reconciliation для неоднозначного replace.
 - [x] E1 — durable apply/operation tracking и recovery acceptance.
 - [ ] B2 — checkpoint/compaction до начала editor-heavy Фазы 6; не блокирует первый bounded virtual apply после B1.
@@ -237,7 +237,7 @@ generation drift check, TypeScript contracts и Rust domain/protocol tests.
 - [x] Добавить restart/backoff/circuit-breaker tests (→ [ADR-0005](../decisions/0005-failure-isolation.md)).
 - [x] Добавить scoped discovery lease до первого binding, canonical resource arbiter и host authorization/credential ports (→ [Runtime contracts](../contracts/lifecycle.md#resources-discovery-и-версии-packages), [Host Platform Services](../architecture/modules/host-platform-services.md)).
 - [x] Подтвердить минимальные Rust/TS SDK helpers одним wire fixture и C0 manifest scanner на pinned open plugin (→ [SDK](../contracts/plugins.md#sdk), [Compatibility Host](../architecture/modules/compatibility-host.md)).
-- [ ] Закрыть registry/owner/I/O gaps и production Host coordination по [срезам A/C](#pre-apply-gate); ручное связывание компонентов в integration test не заменяет composition приложения.
+- [x] Закрыть registry/owner/I/O gaps и production Host coordination по [срезам A/C](#pre-apply-gate); desktop и integration test используют один production coordinator.
 
 ### Тесты
 
@@ -273,7 +273,7 @@ Executable C1 spike остаётся обязательным условием �
 **Статус:** [~] В процессе: готовы Profile Store, Workspace Configuration и отделённый Application Gateway; DDD migration R1–R4 завершена. Следующая работа — срезы A–E [pre-apply gate](#pre-apply-gate).
 
 ### Контекст для агента
-> Plugin lifecycle проверен отдельными fixtures, production coordinator ещё требуется. Active automation пока пуст; фаза строит источник истины и command/query boundary.
+> Plugin lifecycle и production coordinator проходят public application path с isolated virtual fixture. Active automation пока пуст; фаза строит источник истины и command/query boundary.
 
 Первый срез хранит revision record с checksum и unknown JSON fields, а assets — по SHA-256 с публикацией
 metadata после bytes. Пути строятся через opaque hash IDs. Второй срез добавил append-only draft
@@ -290,7 +290,7 @@ Export переносит выбранные revision contents как portable t
 Dry-run использует тот же command vocabulary, но не пишет draft и не резервирует idempotency key;
 повтор mutation после restart читает durable receipt и согласованный исторический document. B1 добавил
 авторизованную выдачу persisted dedup windows, global receipt index, expiry/quota и recovery pending commit;
-checkpoint/compaction B2, production runtime coordination и apply пока отсутствуют. Порядок закрытия задаёт [gate A–E](#pre-apply-gate).
+checkpoint/compaction B2 пока отсутствует. Durable apply и production runtime coordination реализованы; оставшиеся fault/power-loss допущения и весь gate задаёт [gate A–E](#pre-apply-gate).
 
 ### Задачи
 
@@ -308,7 +308,7 @@ checkpoint/compaction B2, production runtime coordination и apply пока от
 
 - [x] Юнит: draft commands, undo/redo, revision conflicts.
 - [x] Integration: crash-safe atomic write и recovery corrupted temp.
-- [ ] Scenario: failure до commit оставляет прежнюю выбранную revision; после commit восстанавливается новая без replay actions.
+- [x] Scenario: failure до commit оставляет прежнюю выбранную revision; после commit восстанавливается новая без replay actions.
 - [ ] Fault: kill на каждой стадии записи/apply, disk full, grant revoke во время prepare, exclusive handoff failure, concurrent draft edits, повтор key после restart.
 - [x] Import/export: secrets/grants отсутствуют, unknown fields сохраняются, snapshot rollback использует прежний package hash.
 

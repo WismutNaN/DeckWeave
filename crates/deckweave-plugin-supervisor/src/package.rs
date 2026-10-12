@@ -17,7 +17,7 @@ use thiserror::Error;
 
 const MANIFEST_NAME: &str = "deckweave-plugin.json";
 const MAX_MANIFEST_BYTES: u64 = 1024 * 1024;
-
+mod lookup;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StagingLimits {
     pub maximum_files: usize,

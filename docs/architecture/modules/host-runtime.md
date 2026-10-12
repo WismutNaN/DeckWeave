@@ -59,6 +59,6 @@
 
 `deckweave-host` не реализует `ApplicationService`: Gateway создаётся отдельно в composition root и получает read-only lifecycle projection и bounded-context repositories.
 
-Текущая реализация содержит startup locks/status/autostart, fenced planning и durable `ApplyCoordinator`. In-process `ApplicationGateway` проходит plan/apply/operation, grant change на barrier, idempotent replay и startup reactivation. Desktop composition пока намеренно использует unavailable adapter: production driver с isolated virtual process подключается срезом C2. `ApplyPlanningService` использует явно ограниченный fixture compiler; Фаза 5 заменяет его настоящим без изменения fencing/acceptance.
+Текущая реализация содержит startup locks/status/autostart, fenced planning и durable `ApplyCoordinator`. In-process `ApplicationGateway` проходит plan/apply/operation, grant change на barrier, idempotent replay и startup reactivation. Desktop composition использует production coordinator с package index, isolated process, registry и startup recovery; явный Exit выполняет bounded shutdown. `ApplyPlanningService` пока использует явно ограниченный fixture compiler; Фаза 5 заменяет его настоящим без изменения fencing/acceptance.
 
 ArtifactBroker реализует узкий application port с injected temporary-storage adapter; engine не зависит от Host implementation. Limits и lifecycle: [automation artifacts](../../contracts/automation.md#artifact-и-доступ-к-данным). Это небольшой сервис host, не новый обязательный процесс или database.

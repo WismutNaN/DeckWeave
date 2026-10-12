@@ -52,4 +52,4 @@
 
 Обязательны [resource/version/discovery contracts](../../contracts/lifecycle.md#resources-discovery-и-версии-packages) и package-lock validation при apply/update/rollback.
 
-`RuntimeController` и `ProcessRuntime` пока соединяются fixtures вручную. Неблокирующий transport и cleanup session-owned resources готовы; production driver C2 входит в [gate A/C до apply](../../implementation/roadmap.md#pre-apply-gate), а не откладывается до SDK Фазы 12.
+`ProductionRuntimeCoordinator` соединяет `RuntimeController` и `ProcessRuntime` через Host planning/cutover ports. Он владеет prepared/active generation, bounded monitor, grant-revision revalidation, registry publication/cleanup и shutdown; desktop composition использует тот же путь, что сквозной virtual fixture. Автоматический restart после внешнего crash и полный kill matrix остаются отдельным fault-hardening, а не переносятся в UI или SDK.

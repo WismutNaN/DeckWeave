@@ -12,9 +12,14 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 deckweave-application.workspace = true
+deckweave-automation.workspace = true
+deckweave-domain.workspace = true
 deckweave-host.workspace = true
 deckweave-platform-host.workspace = true
+deckweave-plugin-supervisor.workspace = true
 deckweave-profiles.workspace = true
+deckweave-registry.workspace = true
+deckweave-workspace.workspace = true
 tauri = { version = "2.12.3", features = ["tray-icon"] }
 tauri-plugin-single-instance = "2.5.3"
 
