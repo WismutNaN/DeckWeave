@@ -31,6 +31,7 @@
 - Restart создаёт новую session generation.
 - Все queues, messages и timeouts bounded.
 - Deadline включает outbound write и ожидание завершения reader threads; заполненный stdin pipe и унаследованные descendants pipes не блокируют watchdog/kill path.
+- Reliable control использует bounded FIFO и faults runtime при overflow; replaceable frame/value data использует отдельный bounded keyed latest-value lane с coalescing metric.
 - Handshake согласует required features/schema versions и effective limits; pending jobs удерживают lease лишь до terminal outcome/deadline и bounded cleanup.
 - Expanded permissions блокируют automatic activation.
 - Runtime key = package/artifact hash/group; v1 разрешает одну active version package на host.
@@ -51,4 +52,4 @@
 
 Обязательны [resource/version/discovery contracts](../../contracts/lifecycle.md#resources-discovery-и-версии-packages) и package-lock validation при apply/update/rollback.
 
-`RuntimeController` и `ProcessRuntime` пока соединяются fixtures вручную. Production driver, неблокирующий deadline-aware I/O и cleanup session-owned resources входят в [gate A/C до apply](../../implementation/roadmap.md#pre-apply-gate), а не откладываются до SDK Фазы 12.
+`RuntimeController` и `ProcessRuntime` пока соединяются fixtures вручную. Неблокирующий transport и cleanup session-owned resources готовы; production driver C2 входит в [gate A/C до apply](../../implementation/roadmap.md#pre-apply-gate), а не откладывается до SDK Фазы 12.

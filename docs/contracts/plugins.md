@@ -104,6 +104,8 @@ Default: один процесс на активную `runtime_group` package. 
 
 Wire contract: length-delimited Protocol Buffers через inherited stdin/stdout. Stderr зарезервирован для bounded diagnostic logs.
 
+Host никогда не пишет в plugin stdin на coordinator thread. Blocking pipe I/O принадлежит отдельному worker; reliable control проходит bounded FIFO, а replaceable frame/value updates — bounded keyed latest-value lane. Переполнение reliable queue, исчерпание числа coalescing keys или writer disconnect faults runtime и открывает независимый kill path. Завершение parent не ждёт бесконечного EOF от descendants, унаследовавших pipes: process tree и I/O workers ограничены одним shutdown deadline.
+
 Protocol envelope поддерживает:
 
 - hello/handshake и version negotiation;

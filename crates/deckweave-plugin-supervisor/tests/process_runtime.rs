@@ -20,14 +20,22 @@ use deckweave_protocol::{
     HostProtocolSupport,
     framing::FramingError,
     v1::{
-        ActivationRequest, DeactivationRequest, ProtocolEnvelope, ProtocolLimits, ProtocolVersion,
-        protocol_envelope,
+        ActivationRequest, BackpressureNotice, DeactivationRequest, ProtocolEnvelope,
+        ProtocolLimits, ProtocolVersion, protocol_envelope,
     },
 };
 use deckweave_registry::CapabilityRegistry;
 use semver::Version;
 use sha2::{Digest, Sha256};
-use std::{collections::BTreeMap, error::Error, fs, path::PathBuf, sync::Arc, time::Duration};
+use std::{
+    collections::BTreeMap,
+    error::Error,
+    fs,
+    path::PathBuf,
+    sync::{Arc, mpsc},
+    thread,
+    time::{Duration, Instant},
+};
 
 const FIXTURE: &str = env!("CARGO_BIN_EXE_deckweave-virtual-plugin-fixture");
 
@@ -74,17 +82,29 @@ fn indexed_fixture() -> Result<(IndexedPackage, RuntimeGroupId), Box<dyn Error>>
 fn spawn_with_environment(
     environment: BTreeMap<String, String>,
 ) -> Result<ProcessRuntime, Box<dyn Error>> {
+    spawn_with_config(environment, fixture_process_config())
+}
+
+fn fixture_process_config() -> ProcessConfig {
+    ProcessConfig {
+        maximum_message_bytes: 64 * 1024,
+        maximum_stderr_bytes: 1024,
+        maximum_artifact_bytes: 16 * 1024 * 1024,
+        ..ProcessConfig::default()
+    }
+}
+
+fn spawn_with_config(
+    environment: BTreeMap<String, String>,
+    config: ProcessConfig,
+) -> Result<ProcessRuntime, Box<dyn Error>> {
     let (package, runtime_group_id) = indexed_fixture()?;
     Ok(ProcessRuntime::spawn_indexed(
         &package,
         &runtime_group_id,
         &[7; 32],
         1,
-        ProcessConfig {
-            maximum_message_bytes: 64 * 1024,
-            maximum_stderr_bytes: 1024,
-            maximum_artifact_bytes: 16 * 1024 * 1024,
-        },
+        config,
         &environment,
         &NativeChildProcessPolicy,
     )?)
@@ -232,6 +252,7 @@ fn isolated_process_completes_handshake_activation_and_stop() -> Result<(), Box<
             maximum_message_bytes: 64 * 1024,
             maximum_stderr_bytes: 1024,
             maximum_artifact_bytes: 16 * 1024 * 1024,
+            ..ProcessConfig::default()
         },
         &BTreeMap::new(),
         &NativeChildProcessPolicy,
@@ -369,6 +390,95 @@ fn control_queue_overflow_is_explicit_and_never_unbounded() -> Result<(), Box<dy
     }
     assert!(observed_overflow);
     let _status = process.wait_timeout(Duration::from_secs(2))?;
+    Ok(())
+}
+
+#[test]
+fn unread_stdin_cannot_block_watchdog_or_grow_reliable_queue() -> Result<(), Box<dyn Error>> {
+    let mut config = fixture_process_config();
+    config.maximum_outbound_frames = 2;
+    let mut process = spawn_with_config(
+        BTreeMap::from([("DECKWEAVE_FIXTURE_MODE".into(), "ignore_stdin".into())]),
+        config,
+    )?;
+    let _hello = process.receive(Duration::from_secs(2))?;
+    let large = |message_id| {
+        envelope(
+            message_id,
+            protocol_envelope::Body::Backpressure(BackpressureNotice {
+                lane: "reliable-test".into(),
+                dropped_or_coalesced: 0,
+                policy: "x".repeat(60 * 1024),
+            }),
+        )
+    };
+
+    let started = Instant::now();
+    let mut overflowed = false;
+    for message_id in 1..=32 {
+        match process.send(&large(message_id)) {
+            Ok(()) => {}
+            Err(ProcessError::OutboundQueueOverflow) => {
+                overflowed = true;
+                break;
+            }
+            Err(error) => return Err(error.into()),
+        }
+    }
+    assert!(overflowed, "bounded reliable queue never reported overflow");
+    assert!(started.elapsed() < Duration::from_secs(2));
+    assert!(matches!(
+        process.send(&large(100)),
+        Err(ProcessError::OutboundQueueOverflow)
+    ));
+    assert!(process.wait_timeout(Duration::from_secs(2))?.is_some());
+    Ok(())
+}
+
+#[test]
+fn latest_value_lane_coalesces_without_filling_reliable_control() -> Result<(), Box<dyn Error>> {
+    let mut config = fixture_process_config();
+    config.maximum_outbound_frames = 2;
+    config.maximum_coalesced_keys = 2;
+    let mut process = spawn_with_config(
+        BTreeMap::from([("DECKWEAVE_FIXTURE_MODE".into(), "ignore_stdin".into())]),
+        config,
+    )?;
+    let _hello = process.receive(Duration::from_secs(2))?;
+    for message_id in 1..=32 {
+        process.send_latest(
+            "surface/frame",
+            &envelope(
+                message_id,
+                protocol_envelope::Body::Backpressure(BackpressureNotice {
+                    lane: "latest-test".into(),
+                    dropped_or_coalesced: message_id,
+                    policy: "x".repeat(60 * 1024),
+                }),
+            ),
+        )?;
+    }
+    assert!(process.diagnostics().coalesced_outbound > 0);
+    let _status = process.terminate()?;
+    Ok(())
+}
+
+#[test]
+fn parent_exit_with_inherited_pipes_is_bounded_by_external_watchdog() -> Result<(), Box<dyn Error>>
+{
+    let mut process = spawn(Some("exit_with_inherited_pipes"))?;
+    let _hello = process.receive(Duration::from_secs(2))?;
+    let (sender, receiver) = mpsc::channel();
+    thread::spawn(move || {
+        let result = process
+            .wait_timeout(Duration::from_secs(1))
+            .map(|status| status.is_some())
+            .map_err(|error| error.to_string());
+        let _ignored = sender.send(result);
+    });
+
+    let result = receiver.recv_timeout(Duration::from_secs(3))?;
+    assert_eq!(result, Ok(true));
     Ok(())
 }
 

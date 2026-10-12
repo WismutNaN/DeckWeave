@@ -2,29 +2,27 @@
 use crate::package::{IndexedPackage, PackageError};
 use deckweave_domain::ids::RuntimeGroupId;
 use deckweave_platform::{ChildProcessGuard, ChildProcessPolicy, PlatformError};
-use deckweave_protocol::{
-    framing::{FramingError, read_envelope, write_envelope},
-    v1::ProtocolEnvelope,
-};
+use deckweave_protocol::{framing::FramingError, v1::ProtocolEnvelope};
 use std::{
     collections::BTreeMap,
-    io::Read,
-    process::{Child, ChildStdin, Command, Stdio},
-    sync::{
-        Arc, Mutex,
-        atomic::{AtomicBool, AtomicUsize, Ordering},
-        mpsc,
-    },
+    process::{Child, Command, Stdio},
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 use thiserror::Error;
+
+mod transport;
+use transport::ProcessTransport;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProcessConfig {
     pub maximum_message_bytes: usize,
     pub maximum_stderr_bytes: usize,
     pub maximum_artifact_bytes: u64,
+    pub maximum_inbound_frames: usize,
+    pub maximum_outbound_frames: usize,
+    pub maximum_coalesced_keys: usize,
+    pub io_shutdown_timeout: Duration,
 }
 
 impl Default for ProcessConfig {
@@ -33,7 +31,26 @@ impl Default for ProcessConfig {
             maximum_message_bytes: 1024 * 1024,
             maximum_stderr_bytes: 64 * 1024,
             maximum_artifact_bytes: 128 * 1024 * 1024,
+            maximum_inbound_frames: 16,
+            maximum_outbound_frames: 16,
+            maximum_coalesced_keys: 64,
+            io_shutdown_timeout: Duration::from_secs(2),
         }
+    }
+}
+
+impl ProcessConfig {
+    fn validate(&self) -> Result<(), ProcessError> {
+        if self.maximum_message_bytes == 0 {
+            return Err(ProcessError::InvalidLimit);
+        }
+        if self.maximum_inbound_frames == 0
+            || self.maximum_outbound_frames == 0
+            || self.maximum_coalesced_keys == 0
+        {
+            return Err(ProcessError::InvalidQueueCapacity);
+        }
+        Ok(())
     }
 }
 
@@ -41,6 +58,7 @@ impl Default for ProcessConfig {
 pub struct ProcessDiagnostics {
     pub stderr: String,
     pub truncated: bool,
+    pub coalesced_outbound: usize,
 }
 
 #[derive(Debug, Error)]
@@ -57,10 +75,22 @@ pub enum ProcessError {
     Disconnected,
     #[error("plugin process wait/kill failed: {0}")]
     Process(#[source] std::io::Error),
-    #[error("plugin I/O reader thread panicked")]
-    ReaderPanicked,
+    #[error("plugin I/O thread panicked")]
+    IoThreadPanicked,
     #[error("plugin stdout exceeded the bounded control queue")]
     QueueOverflow,
+    #[error("plugin stdin exceeded the bounded reliable-control queue")]
+    OutboundQueueOverflow,
+    #[error("plugin stdin writer disconnected")]
+    OutboundDisconnected,
+    #[error("coalescing key is empty, too long or contains control characters")]
+    InvalidCoalescingKey,
+    #[error("process I/O queue capacity must be greater than zero")]
+    InvalidQueueCapacity,
+    #[error("plugin I/O threads did not stop before deadline")]
+    IoShutdownTimeout,
+    #[error("plugin process did not terminate before deadline")]
+    TerminationTimeout,
     #[error("system random source unavailable: {0}")]
     Random(String),
     #[error("platform process guard unavailable: {0}")]
@@ -74,13 +104,8 @@ pub enum ProcessError {
 pub struct ProcessRuntime {
     child: Child,
     process_guard: Box<dyn ChildProcessGuard>,
-    stdin: ChildStdin,
-    frames: mpsc::Receiver<Result<ProtocolEnvelope, FramingError>>,
-    diagnostics: Arc<Mutex<ProcessDiagnostics>>,
-    maximum_message_bytes: Arc<AtomicUsize>,
-    stdout_reader: Option<thread::JoinHandle<()>>,
-    stderr_reader: Option<thread::JoinHandle<()>>,
-    queue_overflow: Arc<AtomicBool>,
+    transport: ProcessTransport,
+    io_shutdown_timeout: Duration,
 }
 
 impl ProcessRuntime {
@@ -93,6 +118,7 @@ impl ProcessRuntime {
         extra_environment: &BTreeMap<String, String>,
         process_policy: &dyn ChildProcessPolicy,
     ) -> Result<Self, ProcessError> {
+        config.validate()?;
         let artifact = package.verify_artifact_for_current_platform(
             runtime_group_id,
             config.maximum_artifact_bytes,
@@ -128,125 +154,54 @@ impl ProcessRuntime {
             }
         };
         let stdin = child.stdin.take().ok_or(ProcessError::MissingPipe)?;
-        let mut stdout = child.stdout.take().ok_or(ProcessError::MissingPipe)?;
-        let mut stderr = child.stderr.take().ok_or(ProcessError::MissingPipe)?;
-
-        let (sender, frames) = mpsc::sync_channel(16);
-        let queue_overflow = Arc::new(AtomicBool::new(false));
-        let reader_overflow = Arc::clone(&queue_overflow);
-        let maximum_message_bytes = Arc::new(AtomicUsize::new(config.maximum_message_bytes));
-        let reader_limit = Arc::clone(&maximum_message_bytes);
-        let stdout_reader = thread::Builder::new()
-            .name("deckweave-plugin-stdout".into())
-            .spawn(move || {
-                loop {
-                    match read_envelope(&mut stdout, reader_limit.load(Ordering::Acquire)) {
-                        Ok(Some(envelope)) => {
-                            if let Err(error) = sender.try_send(Ok(envelope)) {
-                                if matches!(error, mpsc::TrySendError::Full(_)) {
-                                    reader_overflow.store(true, Ordering::Release);
-                                }
-                                break;
-                            }
-                        }
-                        Ok(None) => break,
-                        Err(error) => {
-                            if let Err(send_error) = sender.try_send(Err(error))
-                                && matches!(send_error, mpsc::TrySendError::Full(_))
-                            {
-                                reader_overflow.store(true, Ordering::Release);
-                            }
-                            break;
-                        }
-                    }
-                }
-            })
-            .map_err(ProcessError::Spawn)?;
-
-        let diagnostics = Arc::new(Mutex::new(ProcessDiagnostics {
-            stderr: String::new(),
-            truncated: false,
-        }));
-        let diagnostics_writer = Arc::clone(&diagnostics);
-        let maximum_stderr_bytes = config.maximum_stderr_bytes;
-        let stderr_reader = thread::Builder::new()
-            .name("deckweave-plugin-stderr".into())
-            .spawn(move || {
-                let mut bytes = Vec::with_capacity(maximum_stderr_bytes);
-                let mut truncated = false;
-                let mut chunk = [0_u8; 8192];
-                loop {
-                    match stderr.read(&mut chunk) {
-                        Ok(0) => break,
-                        Ok(read) => {
-                            let retained =
-                                read.min(maximum_stderr_bytes.saturating_sub(bytes.len()));
-                            bytes.extend_from_slice(&chunk[..retained]);
-                            truncated |= retained < read;
-                        }
-                        Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {}
-                        Err(_) => break,
-                    }
-                }
-                let mut diagnostics = diagnostics_writer
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
-                diagnostics.stderr = String::from_utf8_lossy(&bytes).into_owned();
-                diagnostics.truncated = truncated;
-            })
-            .map_err(ProcessError::Spawn)?;
+        let stdout = child.stdout.take().ok_or(ProcessError::MissingPipe)?;
+        let stderr = child.stderr.take().ok_or(ProcessError::MissingPipe)?;
+        let transport = ProcessTransport::spawn(stdin, stdout, stderr, &config)?;
 
         Ok(Self {
             child,
             process_guard,
-            stdin,
-            frames,
-            diagnostics,
-            maximum_message_bytes,
-            stdout_reader: Some(stdout_reader),
-            stderr_reader: Some(stderr_reader),
-            queue_overflow,
+            transport,
+            io_shutdown_timeout: config.io_shutdown_timeout,
         })
     }
 
     pub fn send(&mut self, envelope: &ProtocolEnvelope) -> Result<(), ProcessError> {
-        write_envelope(
-            &mut self.stdin,
-            envelope,
-            self.maximum_message_bytes.load(Ordering::Acquire),
-        )?;
-        Ok(())
+        self.send_with_fencing(|transport| transport.send_reliable(envelope))
+    }
+
+    /// Sends replaceable data through a bounded latest-value lane. Reusing a
+    /// key replaces an unsent value instead of growing the reliable queue.
+    pub fn send_latest(
+        &mut self,
+        key: &str,
+        envelope: &ProtocolEnvelope,
+    ) -> Result<(), ProcessError> {
+        self.send_with_fencing(|transport| transport.send_latest(key, envelope))
     }
 
     /// Applies the negotiated effective limit to all subsequent inbound and
     /// outbound frames. Negotiation may only tighten the host launch limit.
     pub fn constrain_maximum_message_bytes(&self, maximum: usize) -> Result<(), ProcessError> {
-        if maximum == 0 {
-            return Err(ProcessError::InvalidLimit);
-        }
-        self.maximum_message_bytes
-            .fetch_min(maximum, Ordering::AcqRel);
-        Ok(())
+        self.transport.constrain_maximum_message_bytes(maximum)
     }
 
-    pub fn receive(&self, timeout: Duration) -> Result<ProtocolEnvelope, ProcessError> {
-        match self.frames.recv_timeout(timeout) {
-            Ok(Ok(envelope)) => Ok(envelope),
-            Ok(Err(error)) => Err(ProcessError::Framing(error)),
-            Err(mpsc::RecvTimeoutError::Timeout) => Err(ProcessError::Timeout),
-            Err(mpsc::RecvTimeoutError::Disconnected)
-                if self.queue_overflow.load(Ordering::Acquire) =>
-            {
-                Err(ProcessError::QueueOverflow)
+    pub fn receive(&mut self, timeout: Duration) -> Result<ProtocolEnvelope, ProcessError> {
+        match self.transport.receive(timeout) {
+            Err(error @ ProcessError::QueueOverflow) => {
+                self.process_guard.terminate_tree()?;
+                Err(error)
             }
-            Err(mpsc::RecvTimeoutError::Disconnected) => Err(ProcessError::Disconnected),
+            result => result,
         }
     }
 
     pub fn try_wait(&mut self) -> Result<Option<std::process::ExitStatus>, ProcessError> {
         let status = self.child.try_wait().map_err(ProcessError::Process)?;
         if status.is_some() {
-            self.join_io_readers()?;
+            self.transport.close_outbound();
+            self.process_guard.terminate_tree()?;
+            self.transport.reap_finished()?;
         }
         Ok(status)
     }
@@ -255,12 +210,15 @@ impl ProcessRuntime {
         &mut self,
         timeout: Duration,
     ) -> Result<Option<std::process::ExitStatus>, ProcessError> {
-        let deadline = std::time::Instant::now() + timeout;
+        let deadline = Instant::now()
+            .checked_add(timeout)
+            .unwrap_or_else(Instant::now);
         loop {
             if let Some(status) = self.try_wait()? {
+                self.transport.finish_until(deadline)?;
                 return Ok(Some(status));
             }
-            if std::time::Instant::now() >= deadline {
+            if Instant::now() >= deadline {
                 return Ok(None);
             }
             thread::sleep(Duration::from_millis(5));
@@ -269,17 +227,26 @@ impl ProcessRuntime {
 
     pub fn terminate(&mut self) -> Result<std::process::ExitStatus, ProcessError> {
         self.process_guard.terminate_tree()?;
-        let status = self.child.wait().map_err(ProcessError::Process)?;
-        self.join_io_readers()?;
+        self.transport.close_outbound();
+        let deadline = Instant::now()
+            .checked_add(self.io_shutdown_timeout)
+            .unwrap_or_else(Instant::now);
+        let status = loop {
+            if let Some(status) = self.child.try_wait().map_err(ProcessError::Process)? {
+                break status;
+            }
+            if Instant::now() >= deadline {
+                return Err(ProcessError::TerminationTimeout);
+            }
+            thread::sleep(Duration::from_millis(2));
+        };
+        self.transport.finish_until(deadline)?;
         Ok(status)
     }
 
     #[must_use]
     pub fn diagnostics(&self) -> ProcessDiagnostics {
-        self.diagnostics
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clone()
+        self.transport.diagnostics()
     }
 
     pub fn random_token() -> Result<Vec<u8>, ProcessError> {
@@ -288,22 +255,36 @@ impl ProcessRuntime {
         Ok(token)
     }
 
-    fn join_io_readers(&mut self) -> Result<(), ProcessError> {
-        if let Some(reader) = self.stdout_reader.take() {
-            reader.join().map_err(|_| ProcessError::ReaderPanicked)?;
+    fn send_with_fencing(
+        &mut self,
+        send: impl FnOnce(&ProcessTransport) -> Result<(), ProcessError>,
+    ) -> Result<(), ProcessError> {
+        match send(&self.transport) {
+            Err(
+                error @ (ProcessError::OutboundQueueOverflow | ProcessError::OutboundDisconnected),
+            ) => {
+                self.process_guard.terminate_tree()?;
+                Err(error)
+            }
+            result => result,
         }
-        if let Some(reader) = self.stderr_reader.take() {
-            reader.join().map_err(|_| ProcessError::ReaderPanicked)?;
-        }
-        Ok(())
     }
 }
 
 impl Drop for ProcessRuntime {
     fn drop(&mut self) {
         let _ignored = self.process_guard.terminate_tree();
-        let _ignored = self.child.wait();
-        let _ignored = self.join_io_readers();
+        self.transport.close_outbound();
+        let deadline = Instant::now()
+            .checked_add(self.io_shutdown_timeout)
+            .unwrap_or_else(Instant::now);
+        while Instant::now() < deadline {
+            match self.child.try_wait() {
+                Ok(Some(_)) | Err(_) => break,
+                Ok(None) => thread::sleep(Duration::from_millis(2)),
+            }
+        }
+        let _ignored = self.transport.reap_finished();
     }
 }
 

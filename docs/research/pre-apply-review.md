@@ -55,9 +55,9 @@ DDD migration R1–R4 создала полезные границы: Workspace 
 
 ## C — Process I/O и единый runtime owner
 
-**P1, статический дефект.** [ProcessRuntime::send](../../crates/deckweave-plugin-supervisor/src/process.rs) синхронно пишет в `ChildStdin`. Если plugin перестал читать, заполненный pipe блокирует вызывающий поток; `receive(timeout)` не ограничивает эту запись. При едином mutable owner watchdog не получает управление для `terminate`. `try_wait` после завершения parent также без deadline делает join reader threads; grandchild с унаследованными stdout/stderr способен удерживать их открытыми.
+**C1 реализован.** Блокирующие stdin/stdout/stderr изолированы в process transport workers. Caller использует bounded `try_send`: reliable control переполнение немедленно faults и завершает process tree, а keyed latest-value lane заменяет ещё не отправленное значение в bounded map. Writer failure также fences runtime. Wait/terminate имеют общий deadline; parent exit завершает process tree и не делает безусловный join потомков, удерживающих inherited pipes.
 
-Нужен transport adapter с ограниченной outbound queue, deadline/cancellation и доступным независимо от заблокированного I/O kill path. Очереди разделяют reliable control и coalescible data по contract; overflow немедленно fences источник. Exit parent не должен ждать EOF от потомков до возврата управления coordinator. Acceptance запускает специальный child, который не читает stdin, и parent, завершающийся с живым наследником pipes; внешний watchdog ограничивает сам тест. Текущее наличие Job Object/process group не доказывает ограниченное время join.
+Acceptance включает child, который не читает stdin, coalescing под backpressure и parent, выходящий с живым наследником pipes; последний тест ограничен внешним watchdog. Это закрывает transport defect, но не C2: production Host coordinator всё ещё должен владеть polling, grant/revoke и shutdown transitions.
 
 **Незавершённая способность.** [HostRuntime](../../crates/deckweave-host/src/lib.rs) сейчас владеет locks/status/autostart. Desktop создаёт Host/Gateway/Store, но не production driver, связывающий `RuntimeController`, `ProcessRuntime`, clock, registry и grant events. Integration tests вручную соединяют эти части. Следующий срез должен запустить virtual provider через public application path и пройти revoke/crash/shutdown при закрытом UI.
 

@@ -24,6 +24,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         std::fs::write(marker, b"orphaned")?;
         return Ok(());
     }
+    if mode == "hold_inherited_pipes" {
+        std::thread::sleep(Duration::from_secs(60));
+        return Ok(());
+    }
     eprintln!("virtual fixture started");
 
     if mode == "oversized" {
@@ -69,6 +73,16 @@ fn main() -> Result<(), Box<dyn Error>> {
             }),
         }),
     )?;
+    if mode == "ignore_stdin" {
+        std::thread::sleep(Duration::from_secs(60));
+        return Ok(());
+    }
+    if mode == "exit_with_inherited_pipes" {
+        Command::new(std::env::current_exe()?)
+            .env("DECKWEAVE_FIXTURE_MODE", "hold_inherited_pipes")
+            .spawn()?;
+        return Ok(());
+    }
     if mode == "spam_stdout" {
         for index in 0..64_u64 {
             message_id += 1;
