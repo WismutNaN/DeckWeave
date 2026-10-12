@@ -59,6 +59,8 @@ Host presentation adapter владеет placement, focus, z-order, monitor/DPI 
 
 Custom web content наследует origin/partition/bridge ограничения Widget/Interaction runtime. Data provider не получает Tauri/window API. Screen capture/pixel sample требует отдельного scoped capability; создание overlay не выдаёт доступ к экрану. Idle frame throttling, limits views/bytes/FPS и screen-lock privacy проверяются до реального presenter.
 
+Contract fixtures: `interaction/tests/collection_presenter.rs` использует один presenter для tasks/windows/notes, двух devices и slot cycling; back получает новую presentation revision. `feed_metric_contracts.rs` проверяет mixed count units/accounts, partial source и отсутствие read command у renderer. Метрики заменяют corrected record по identity/revision, требуют explicit source policy при overlap; calendar day и duration разделены. Fixture получает civil-day границы от fake adapter (включая день 25 часов), но не доказывает IANA/DST реализацию. `application/tests/plugin_assets.rs` проверяет scoped bytes, MIME/hash/size, consumer release и document references после закрытия view.
+
 ## Приёмка
 
 Fake presenter до Фазы 6 проверяет один data source на двух devices, reorder/delete между render и click, page refresh, slot/scene switch при hold, независимость соседних slots и отдельные lifetimes edit/view/data. Реальные adapters добавляют mixed DPI, missing monitor, focus restrictions, screen lock, frame loss/ACK, web isolation и закрытие главного окна без потери разрешённой persistent view. Пипетка и игра — [conformance scenarios](../plugins/productivity.md), а не исключения из этих правил.

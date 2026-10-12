@@ -148,6 +148,10 @@ impl SlotSelections {
             .filter(|(definition, index, _)| definition.widgets[*index] == widget)
             .count()
     }
+    pub fn selected(&self, slot: &str) -> Result<&str, PresentationError> {
+        let (definition, index, _) = self.slots.get(slot).ok_or(PresentationError::Missing)?;
+        Ok(&definition.widgets[*index])
+    }
     pub fn remove(&mut self, slot: &str) {
         self.slots.remove(slot);
     }

@@ -10,11 +10,11 @@
 | Instances | Settings/schema/revision/CredentialRefs, required features, несколько leases одной group, endpoint ownership по instance. `configured_instances` запускает два аккаунта в одном процессе и восстанавливает настройки после restart | Разные contributions с held effects и unresolved/revoked credentials; secret lease/use/renew не заменяется передачей CredentialRef |
 | Bindings | Structural schemas, wire SchemaRef, finite ranges, single-trigger named arguments, compiler field/type checks, run-local results. `argument_compiler` проверяет compiler → scheduler; `structured_arguments` — concurrent/malformed data | Полные collection/join/parallel operators остаются Фазой 11; implicit unit conversion запрещён |
 | Live execution | Общий monotonic clock, timer pump, provider budget, ordered scheduler/dispatch, activation commit после routes, cleanup receipt/deadline и stop drain | Negative/missing ACK при shutdown доказаны новым real-process test. Остаются held-output fixture с другим живым owner, apply/revoke/crash и mixed ingress/overflow в настоящем bridge; descriptor QoS проверен отдельно |
-| Presentation | ItemRef/revision/hit capture, slot next/back/consumer count, DesktopViewSession lease model; InteractionSession query fence/schema/retention и owner/provider cancellation | Persistent-view lifecycle и scoped document CAS/export fake проверены. Остаются общий presenter + tasks/windows/notes, asset fake и mixed unread/metric/date fixtures |
+| Presentation | ItemRef/revision/hit capture, slot next/back/consumer count, DesktopViewSession lease model; InteractionSession query fence/schema/retention и owner/provider cancellation | `collection_presenter`, `plugin_data`, `plugin_assets`, `feed_metric_contracts` доказывают общую модель, scoped CAS/retention, независимые slots и partial/count units/corrected measurements. Это contract fakes: реальный renderer, durable data adapter и IANA/внешние API проверяются позже |
 | Composition | Desktop: PackageGraphCompiler, static catalog по package lock, ScopedAuthorizationStore. Credential preflight подключён; default unresolved блокирует activation до запуска процесса | End-to-end credential-resolution/revoke fixture. LocalePreferencesService + JSON CAS store подключены в Desktop; tests доказывают restart, delivery retry и static catalog fallback/hash |
 | Services | Typed role bindings, transitive resolver, cycle/optional/missing/artifact conflicts; delegation intersection/deadline/fence и subscription gap rules с tests | `service_lifecycle` доказывает job/subscription results, cancel, provider restart, revoke и lease cleanup на выбранных windows/MQTT roles. Live broker ещё не подключён: serviceBindings сохраняются, но compiler явно блокирует execution |
 
-Следующие обязательные срезы: (1) cleanup/ingress conformance; (2) presentation/data/collection fakes; (3) credential application use cases; (4) integrated gate. Реальные hardware, DSP, renderer и внешние services имеют собственные более поздние этапы. Наличие DTO и успешный M1 не закрывают перечисленные проверки.
+Следующие обязательные срезы: (1) cleanup/ingress conformance; (2) credential application use cases; (3) integrated gate. Реальные hardware, DSP, renderer и внешние services имеют собственные более поздние этапы. Наличие DTO и успешный M1 не закрывают перечисленные проверки.
 
 ## Порядок
 
@@ -51,11 +51,11 @@
 
 ### 6G.4 — Представления, коллекции и данные plugin
 
-- [ ] Зафиксировать ItemRef/revision и presentation hit binding, navigation/back, scene selection без workspace apply. Fake presenter: task list, windows и notes используют один contract (→ [presentation](../contracts/presentation.md), CG-08).
+- [x] Зафиксировать ItemRef/revision и presentation hit binding, navigation/back, scene selection без workspace apply. Fake presenter: task list, windows и notes используют один contract (→ [presentation](../contracts/presentation.md), CG-08).
 - [x] Развести InteractionSession и DesktopViewSession; добавить query-generation/owner/deadline/retention модель и fake lifecycle (→ [Interaction Runtime](../architecture/modules/interaction-runtime.md), CG-07).
-- [ ] Определить scoped document/asset storage ports и retention/export/revision policy; fake private notes/palette survive view close, workspace rollback не откатывает их молча (→ [plugin data](../contracts/plugin-composition.md#plugin-data), CG-09).
-- [ ] Зафиксировать общий presenter service и slot-local widget selection; два slots меняются независимо, hidden widgets не продолжают render/tick без consumer (→ [slot contract](../contracts/presentation.md#slot-switching), CG-14).
-- [ ] Добавить fake mixed unread/feed и personal metric/date fixtures: разные count units/partial source, no read-on-render, corrected/overlapping measurements и timezone boundaries (→ [личные данные и ленты](../plugins/feeds-and-personal.md), CG-13/15).
+- [x] Определить scoped document/asset storage ports и retention/export/revision policy; fake private notes/palette survive view close, workspace rollback не откатывает их молча (→ [plugin data](../contracts/plugin-composition.md#plugin-data), CG-09).
+- [x] Зафиксировать общий presenter service и slot-local widget selection; два slots меняются независимо, hidden widgets не продолжают render/tick без consumer (→ [slot contract](../contracts/presentation.md#slot-switching), CG-14).
+- [x] Добавить fake mixed unread/feed и personal metric/date fixtures: разные count units/partial source, no read-on-render, corrected/overlapping measurements и timezone boundaries (→ [личные данные и ленты](../plugins/feeds-and-personal.md), CG-13/15).
 
 Выход: перестановка списка между render/click не меняет target операции; два displays независимы; close edit не удаляет note/view, late search не подменяет актуальный query. Contracts/fixtures готовы до canvas; настоящий renderer/always-on-top и durable plugin store adapter реализуются перед соответствующими packages в Фазах 9/13 либо отдельном срезе. Не вводить новую базу данных только ради этих mocks.
 
@@ -68,7 +68,7 @@
 
 ## Финальная демонстрация и разрешение перехода
 
-- [ ] Один reusable collection presenter получает fake tasks/windows/notes; item actions адресуют конкретную revision (→ [PLG-022](../plugins/productivity.md#plg-022)).
+- [x] Один reusable collection presenter получает fake tasks/windows/notes; item actions адресуют конкретную revision (→ [PLG-022](../plugins/productivity.md#plg-022)).
 - [x] Fake layout consumer использует выбранный fake window service; fake hub использует выбранный fake MQTT role. Lifecycle/delegation можно доказать test port без сетевых credentials (→ [композиция](../contracts/plugin-composition.md)).
 - [ ] Fake transcript/HTTP record → task create показывает structured bindings; two instances не смешиваются (→ [PLG-009](../plugins/integrations.md#plg-009)).
 - [ ] Fake clock/game/held-output/telemetry fixture доказывает order, deadlines и cleanup; physical frame latency измеряется позже (→ [PLG-021](../plugins/productivity.md#plg-021)).
