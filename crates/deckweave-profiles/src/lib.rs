@@ -2,7 +2,7 @@
 //! Immutable workspace revisions and content-addressed profile assets.
 
 use deckweave_domain::ids::{AssetId, SnapshotId, WorkspaceId, WorkspaceRevisionId};
-use deckweave_platform::{AtomicFileStore, StorageError};
+use deckweave_platform::{AtomicFileStore, PublicationError};
 pub use deckweave_workspace::{
     AssetReference, DraftCommand, ExportSelection, ImportInspection, ImportRevisionSummary,
     MutationKey, MutationWindow, PackageLockEntry, RevisionExportSelection, SnapshotRef,
@@ -62,7 +62,7 @@ pub enum ProfileStoreError {
         source: std::io::Error,
     },
     #[error(transparent)]
-    Storage(#[from] StorageError),
+    Storage(#[from] PublicationError),
     #[error("profile document JSON is invalid: {0}")]
     Json(#[from] serde_json::Error),
     #[error("profile document is invalid: {0}")]

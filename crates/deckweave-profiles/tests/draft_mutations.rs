@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use deckweave_domain::ids::{DraftId, DraftVersion, IdempotencyKey, PrincipalId, WorkspaceId};
-use deckweave_platform::{AtomicFileStore, StorageError};
+use deckweave_platform::{AtomicFileStore, PublicationError, StorageError};
 use deckweave_platform_host::NativeAtomicFileStore;
 use deckweave_profiles::{
     AssetReference, DraftCommand, DraftEditor, DraftMutationError, JsonProfileStore, MutationClock,
@@ -278,12 +278,12 @@ impl AtomicFileStore for FailOnCall {
         target: &Path,
         bytes: &[u8],
         backup: Option<&Path>,
-    ) -> Result<(), StorageError> {
+    ) -> Result<(), PublicationError> {
         let call = self.call.fetch_add(1, Ordering::SeqCst) + 1;
         if call == self.fail_on {
-            return Err(StorageError::Unavailable(
+            return Err(PublicationError::not_published(StorageError::Unavailable(
                 "injected head publication failure".into(),
-            ));
+            )));
         }
         NativeAtomicFileStore.write_atomic(target, bytes, backup)
     }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use deckweave_domain::ids::{PackageId, WorkspaceId, WorkspaceRevisionId};
-use deckweave_platform::{AtomicFileStore, StorageError};
+use deckweave_platform::{AtomicFileStore, PublicationError, StorageError};
 use deckweave_platform_host::NativeAtomicFileStore;
 use deckweave_profiles::{
     JsonProfileStore, PackageLockEntry, ProfileStore, ProfileStoreError, ProfileStoreLimits,
@@ -122,16 +122,19 @@ impl AtomicFileStore for FailOnCall {
         target: &Path,
         bytes: &[u8],
         _backup: Option<&Path>,
-    ) -> Result<(), StorageError> {
+    ) -> Result<(), PublicationError> {
         let call = self.call.fetch_add(1, Ordering::SeqCst) + 1;
         if call == self.fail_on {
-            return Err(StorageError::Unavailable("injected disk failure".into()));
+            return Err(PublicationError::not_published(StorageError::Unavailable(
+                "injected disk failure".into(),
+            )));
         }
         let parent = target
             .parent()
-            .ok_or_else(|| StorageError::Unavailable("missing parent".into()))?;
-        fs::create_dir_all(parent)?;
-        fs::write(target, bytes)?;
+            .ok_or_else(|| StorageError::Unavailable("missing parent".into()))
+            .map_err(PublicationError::not_published)?;
+        fs::create_dir_all(parent).map_err(PublicationError::not_published)?;
+        fs::write(target, bytes).map_err(PublicationError::not_published)?;
         Ok(())
     }
 }

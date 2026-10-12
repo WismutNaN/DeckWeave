@@ -51,6 +51,67 @@ pub enum StorageError {
     Io(#[from] std::io::Error),
 }
 
+/// What is known after an atomic publication attempt fails.
+///
+/// A successful [`AtomicFileStore::write_atomic`] always means that the target
+/// was observed with the requested bytes. An error must retain whether retrying
+/// is safe without first reconciling durable state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PublicationOutcome {
+    NotPublished,
+    Unknown,
+}
+
+#[derive(Debug, Error)]
+pub enum PublicationError {
+    #[error("durable publication did not occur: {0}")]
+    NotPublished(#[source] StorageError),
+    #[error(
+        "durable publication outcome is unknown for {target}; staged path is retained if present at {staged_path}: publish failed: {publish_error}; reconciliation failed: {reconciliation_error}"
+    )]
+    Unknown {
+        target: PathBuf,
+        staged_path: PathBuf,
+        #[source]
+        publish_error: StorageError,
+        reconciliation_error: String,
+    },
+}
+
+impl PublicationError {
+    pub fn not_published(error: impl Into<StorageError>) -> Self {
+        Self::NotPublished(error.into())
+    }
+
+    pub fn unknown(
+        target: PathBuf,
+        staged_path: PathBuf,
+        publish_error: StorageError,
+        reconciliation_error: impl Into<String>,
+    ) -> Self {
+        Self::Unknown {
+            target,
+            staged_path,
+            publish_error,
+            reconciliation_error: reconciliation_error.into(),
+        }
+    }
+
+    pub fn outcome(&self) -> PublicationOutcome {
+        match self {
+            Self::NotPublished(_) => PublicationOutcome::NotPublished,
+            Self::Unknown { .. } => PublicationOutcome::Unknown,
+        }
+    }
+
+    pub fn staged_path(&self) -> Option<&Path> {
+        match self {
+            Self::NotPublished(_) => None,
+            Self::Unknown { staged_path, .. } => Some(staged_path),
+        }
+    }
+}
+
 /// Durable publication port for JSON source-of-truth adapters.
 pub trait AtomicFileStore: Send + Sync {
     fn write_atomic(
@@ -58,5 +119,5 @@ pub trait AtomicFileStore: Send + Sync {
         target: &Path,
         bytes: &[u8],
         backup: Option<&Path>,
-    ) -> Result<(), StorageError>;
+    ) -> Result<(), PublicationError>;
 }

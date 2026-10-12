@@ -11,6 +11,7 @@
 | `CredentialBroker` | service port | Scoped resolution/use локального secret |
 | `AuthorizationStore` | service port | Principals, grants, revisions и revoke |
 | `ChildProcessGuard` | resource guard | Bounded cleanup дочернего process tree |
+| `AtomicFileStore` | storage port | Публикация одного файла с различением `NotPublished`/`Unknown` и disk reconciliation |
 | `PrivateTempStorage` | injected adapter | Scoped temporary artifacts/handles с user-only access; политика TTL/quota принадлежит Host ArtifactBroker |
 
 ## Зависимости
@@ -28,6 +29,7 @@
 - Credential broker не зависит от запуска package, которому выдаёт scoped доступ.
 - Grants не входят в profile и не восстанавливаются при rollback/import.
 - Lock и canonical data-root validation предшествуют Store/API/hardware startup.
+- Успешный atomic write означает успешный replace либо подтверждённое сравнением bytes состояние target. При ошибке replace adapter перечитывает target; staged bytes удаляются только при подтверждённом результате и сохраняются при `Unknown`.
 - Unavailable OS credential store даёт явный статус, без plaintext fallback.
 
 ## Намеренно НЕ обрабатывает

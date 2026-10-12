@@ -132,7 +132,7 @@
 - [x] D1 — immutable WorkspaceCandidate, unique package/assets и проверка referenced asset bytes/metadata.
 - [x] D2 — compiler/activation ports и fenced plan token с повторной проверкой preconditions.
 - [ ] C2 — production runtime coordinator через public application path.
-- [ ] E0 — publication outcomes и disk reconciliation для неоднозначного replace.
+- [x] E0 — publication outcomes и disk reconciliation для неоднозначного replace.
 - [ ] E1 — durable apply/operation tracking и recovery acceptance.
 - [ ] B2 — checkpoint/compaction до начала editor-heavy Фазы 6; не блокирует первый bounded virtual apply после B1.
 

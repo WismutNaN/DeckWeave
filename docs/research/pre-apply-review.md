@@ -79,6 +79,8 @@ Host `ApplyPlanningService` связывает plan hash с HostBootId, draft ve
 
 Нужны классификация publication outcome, reconciliation с диском и fault fixtures. Удаление неподдерживаемого флага в этом аудите не решает весь recovery protocol. Уровень гарантии задаётся отдельно для process kill и power loss, с filesystem assumptions. Checksum обнаруживает повреждение, но не возвращает потерянные bytes.
 
+**E0 реализован.** `AtomicFileStore` теперь возвращает классифицированный `PublicationError`: `NotPublished` допускает безопасный retry, `Unknown` требует восстановления по durable document. Native adapter после ошибки replace перечитывает target и сравнивает его с ожидаемыми bytes: совпадение превращает потерянный ответ в успех, старый/отсутствующий target — в `NotPublished`, ошибка чтения — в `Unknown` без удаления staged file. Fault fixtures воспроизводят ошибку до replace, ошибку после фактической смены target и невозможность reconciliation. Это доказывает process-level decision path, но не обещает power-loss durability изменения directory metadata.
+
 После commit новая revision остаётся выбранной даже при degraded activation; до commit выбирается прежняя. Receipt, operation status и selected revision должны согласовываться после потери ответа. Disk full, grant revoke на prepare, exclusive handoff failure и настоящий kill процесса на каждой стадии проверяются через тот же composition, который используется приложением. Fake I/O error проверяет только свой участок, а не весь путь восстановления.
 
 ## Последующие фазы: недостающие условия входа
