@@ -129,7 +129,8 @@
 - [x] A3 — атомарная initial registration без пустой session и без разрушения прежней topology.
 - [x] C1 — bounded/nonblocking process transport и независимый kill path.
 - [x] B1 — global mutation ledger, issued epochs, recovery и bounded quota/index.
-- [ ] D — candidate/compiler/activation ports и fenced plan token.
+- [x] D1 — immutable WorkspaceCandidate, unique package/assets и проверка referenced asset bytes/metadata.
+- [ ] D2 — compiler/activation ports и fenced plan token с повторной проверкой preconditions.
 - [ ] C2 — production runtime coordinator через public application path.
 - [ ] E0 — publication outcomes и disk reconciliation для неоднозначного replace.
 - [ ] E1 — durable apply/operation tracking и recovery acceptance.

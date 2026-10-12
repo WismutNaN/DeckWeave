@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Workspace Configuration bounded context.
 
+mod candidate;
 mod command;
 mod model;
 mod repository;
@@ -26,4 +27,5 @@ pub use validation::{
 };
 
 // Temporary compatibility names while Application Gateway consumers migrate.
+pub use candidate::{CandidateError, WorkspaceCandidate};
 pub use repository::{DraftRepository as DraftStore, DraftRepositoryError as DraftStoreError};

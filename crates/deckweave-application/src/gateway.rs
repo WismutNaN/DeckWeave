@@ -194,6 +194,13 @@ fn map_store_error(context: &RequestContext, error: DraftRepositoryError) -> Api
             false,
             BTreeMap::from([("reason".into(), message.into())]),
         ),
+        DraftRepositoryError::InvalidCandidate(message) => api_error(
+            context,
+            ApiErrorCode::InvalidCommand,
+            "api.error.invalid_candidate",
+            false,
+            BTreeMap::from([("reason".into(), message.into())]),
+        ),
         DraftRepositoryError::Unavailable(message) => api_error(
             context,
             ApiErrorCode::Unavailable,

@@ -2,7 +2,7 @@
 use deckweave_application::{
     ApiAuthScope, ApiErrorCode, AppCommand, AppQuery, ApplicationGateway, ApplicationService,
     CommandEnvelope, DraftCommand, DraftStore, DraftStoreError, DraftView, InMemoryApiAuthorizer,
-    MutationWindow, PrincipalId, RequestContext, StoredDraftMutation,
+    MutationWindow, PrincipalId, RequestContext, StoredDraftMutation, WorkspaceCandidate,
 };
 use deckweave_domain::{
     DeploymentMode, LifecycleState,
@@ -81,6 +81,10 @@ impl DraftStore for CharacterizationStore {
     }
 
     fn get_draft(&self, _draft_id: &DraftId) -> Result<DraftView, DraftStoreError> {
+        self.fail()
+    }
+
+    fn get_candidate(&self, _draft_id: &DraftId) -> Result<WorkspaceCandidate, DraftStoreError> {
         self.fail()
     }
 
@@ -247,6 +251,13 @@ fn store_errors_keep_the_stable_application_error_contract() -> Result<(), Box<d
             message_key: "api.error.invalid_command",
             retryable: false,
             details: BTreeMap::from([("reason".into(), serde_json::json!("bad pointer"))]),
+        },
+        Case {
+            store_error: DraftStoreError::InvalidCandidate("missing asset".into()),
+            code: ApiErrorCode::InvalidCommand,
+            message_key: "api.error.invalid_candidate",
+            retryable: false,
+            details: BTreeMap::from([("reason".into(), serde_json::json!("missing asset"))]),
         },
         Case {
             store_error: DraftStoreError::Unavailable("disk offline".into()),

@@ -65,7 +65,9 @@ Coordinator получает ports, а не imports чужой infrastructure. P
 
 ## D — Candidate и apply без циклической зависимости фаз
 
-**Незавершённая способность.** Фаза 4 обещает apply, а compiler и `ExecutionPlan` появятся в Фазе 5. Без явного port возникает риск временного «успешного validate», которое затем останется в production.
+**D1 реализован.** Workspace выпускает immutable `WorkspaceCandidate`, хеш которого связывает полный draft, package lock и asset set. Duplicate PackageId/AssetId отклоняются structural validation, а Profile Store не выдаёт candidate, пока каждый referenced asset не прочитан и его checksum/media type/size не совпадают. Compiler больше не должен строить plan из урезанного `DraftView`.
+
+**Оставшаяся способность D2.** Фаза 4 обещает apply, а полный compiler и `ExecutionPlan` появятся в Фазе 5. Без явного port возникает риск временного «успешного validate», которое затем останется в production.
 
 В Фазе 4 Host получает `PlanCompiler`/`RuntimeActivation`/commit repository ports; имена implementation могут отличаться. Fake compiler проверяет orchestration и явно принимает только empty/virtual fixture subset. Неподдерживаемый executable graph возвращает `unsupported`, а не успешный пустой plan. В Фазе 5 тот же acceptance выполняется с настоящим compiler и isolated virtual runtime. Plan token привязан к draft version, candidate/package hashes, registry/grant revisions, expected active revision и expiry; prepare/barrier повторно проверяют preconditions.
 

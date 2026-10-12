@@ -20,6 +20,7 @@
 | `DraftCommand` | единственный путь изменения draft |
 | `DraftVersion` | optimistic concurrency value |
 | `WorkspaceRevision` | immutable published document |
+| `WorkspaceCandidate` | validated immutable snapshot полного draft с content/lock/assets hashes |
 | `DraftRepository` | application port для draft persistence/dedup |
 | `MutationWindow`, `MutationKey` | глобальная identity mutation и выданный Host срок её replay |
 | `ExportPolicy` / `ImportReport` | переносимая конфигурация без grants/secrets |
@@ -28,6 +29,7 @@
 
 - acknowledged command увеличивает version ровно один раз и имеет durable receipt;
 - один mutation key не может принадлежать разным drafts/commands; replay предшествует optimistic version check;
+- package lock и asset references не содержат duplicate identities; candidate hash связывает весь draft, lock и asset set;
 - revision не меняется после публикации;
 - rollback создаёт новый draft и затем новую revision;
 - unknown optional extension fields сохраняются round-trip;
@@ -40,6 +42,7 @@
 
 R2 перенёс модели draft/revision/snapshot, validation, pure mutation, правила export selection и `DraftRepository`.
 Profiles сохраняет только archive encoding, checksums, append-only receipts, recovery и filesystem layout; persisted JSON не изменён.
+Перед planning adapter строит `WorkspaceCandidate` только после structural validation и проверки доступности каждого referenced asset с совпадающей metadata.
 
 ## Намеренно не обрабатывает
 

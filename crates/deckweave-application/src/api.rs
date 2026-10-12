@@ -5,7 +5,7 @@ use deckweave_domain::ids::{
 };
 pub use deckweave_workspace::{
     DraftCommand, DraftRepository as DraftStore, DraftRepositoryError as DraftStoreError,
-    DraftView, MutationKey, MutationWindow, StoredDraftMutation,
+    DraftView, MutationKey, MutationWindow, StoredDraftMutation, WorkspaceCandidate,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

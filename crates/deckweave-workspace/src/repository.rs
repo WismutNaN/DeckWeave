@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-use crate::DraftCommand;
+use crate::{DraftCommand, WorkspaceCandidate};
 use deckweave_domain::ids::{
     DedupEpoch, DraftId, DraftVersion, IdempotencyKey, PrincipalId, WorkspaceId,
     WorkspaceRevisionId,
@@ -48,6 +48,8 @@ pub enum DraftRepositoryError {
     ReceiptQuota,
     #[error("draft command is invalid: {0}")]
     InvalidCommand(String),
+    #[error("workspace candidate is invalid or incomplete: {0}")]
+    InvalidCandidate(String),
     #[error("draft store is unavailable: {0}")]
     Unavailable(String),
 }
@@ -69,6 +71,8 @@ pub trait DraftRepository: Send + Sync {
         principal_id: &PrincipalId,
     ) -> Result<MutationWindow, DraftRepositoryError>;
     fn get_draft(&self, draft_id: &DraftId) -> Result<DraftView, DraftRepositoryError>;
+    fn get_candidate(&self, draft_id: &DraftId)
+    -> Result<WorkspaceCandidate, DraftRepositoryError>;
     fn preview_draft_mutation(
         &self,
         draft_id: &DraftId,

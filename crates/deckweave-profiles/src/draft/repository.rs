@@ -4,6 +4,7 @@
 use super::*;
 use deckweave_workspace::{
     DraftRepository, DraftRepositoryError, DraftView, MutationWindow, StoredDraftMutation,
+    WorkspaceCandidate,
 };
 
 impl DraftRepository for JsonProfileStore {
@@ -21,6 +22,36 @@ impl DraftRepository for JsonProfileStore {
             .map_err(map_application_store_error)?
             .draft;
         Ok(draft_view(draft))
+    }
+
+    fn get_candidate(
+        &self,
+        draft_id: &DraftId,
+    ) -> Result<WorkspaceCandidate, DraftRepositoryError> {
+        let draft = self
+            .load_draft(draft_id)
+            .map_err(map_application_store_error)?
+            .draft;
+        for reference in &draft.assets {
+            let (descriptor, _) =
+                ProfileStore::read_asset(self, &reference.id).map_err(|error| {
+                    DraftRepositoryError::InvalidCandidate(format!(
+                        "asset {} is unavailable: {error}",
+                        reference.id
+                    ))
+                })?;
+            if descriptor.sha256 != reference.sha256.to_ascii_lowercase()
+                || descriptor.media_type != reference.media_type
+                || descriptor.size_bytes != reference.size_bytes
+            {
+                return Err(DraftRepositoryError::InvalidCandidate(format!(
+                    "asset {} metadata does not match the draft reference",
+                    reference.id
+                )));
+            }
+        }
+        WorkspaceCandidate::from_draft(draft)
+            .map_err(|error| DraftRepositoryError::InvalidCandidate(error.to_string()))
     }
 
     fn preview_draft_mutation(

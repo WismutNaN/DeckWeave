@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use crate::{AssetReference, PackageLockEntry, WorkspaceDraft, WorkspaceRevision};
+use std::collections::BTreeSet;
 use thiserror::Error;
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
@@ -10,8 +11,12 @@ pub enum WorkspaceValidationError {
     DocumentIsNotObject,
     #[error("invalid package lock entry")]
     InvalidPackageLock,
+    #[error("package lock contains duplicate package IDs")]
+    DuplicatePackageLock,
     #[error("invalid asset reference")]
     InvalidAssetReference,
+    #[error("workspace contains duplicate asset IDs")]
+    DuplicateAssetReference,
 }
 
 pub fn validate_revision(revision: &WorkspaceRevision) -> Result<(), WorkspaceValidationError> {
@@ -36,6 +41,7 @@ pub fn validate_workspace_content(
     if !document.is_object() {
         return Err(WorkspaceValidationError::DocumentIsNotObject);
     }
+    let mut package_ids = BTreeSet::new();
     for package in package_lock {
         if package.version.is_empty()
             || package.version.len() > 128
@@ -43,7 +49,11 @@ pub fn validate_workspace_content(
         {
             return Err(WorkspaceValidationError::InvalidPackageLock);
         }
+        if !package_ids.insert(&package.package_id) {
+            return Err(WorkspaceValidationError::DuplicatePackageLock);
+        }
     }
+    let mut asset_ids = BTreeSet::new();
     for asset in assets {
         if asset.id.as_str() != asset.sha256.to_ascii_lowercase()
             || !is_sha256(&asset.sha256)
@@ -51,6 +61,9 @@ pub fn validate_workspace_content(
             || asset.media_type.len() > 256
         {
             return Err(WorkspaceValidationError::InvalidAssetReference);
+        }
+        if !asset_ids.insert(&asset.id) {
+            return Err(WorkspaceValidationError::DuplicateAssetReference);
         }
     }
     Ok(())

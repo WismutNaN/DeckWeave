@@ -3,9 +3,10 @@ use deckweave_domain::ids::{DraftId, DraftVersion, IdempotencyKey, PrincipalId, 
 use deckweave_platform::{AtomicFileStore, StorageError};
 use deckweave_platform_host::NativeAtomicFileStore;
 use deckweave_profiles::{
-    DraftCommand, DraftEditor, DraftMutationError, JsonProfileStore, MutationClock, MutationKey,
-    ProfileStoreError, ProfileStoreLimits, WorkspaceDraft,
+    AssetReference, DraftCommand, DraftEditor, DraftMutationError, JsonProfileStore, MutationClock,
+    MutationKey, ProfileStore, ProfileStoreError, ProfileStoreLimits, WorkspaceDraft,
 };
+use deckweave_workspace::{DraftRepository, DraftRepositoryError};
 use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,
@@ -464,6 +465,43 @@ fn receipt_quota_stops_new_mutations_without_changing_the_draft() -> Result<(), 
         Err(DraftMutationError::ReceiptQuota)
     ));
     assert_eq!(store.load_draft(&original.draft_id)?.draft, before_rejected);
+    Ok(())
+}
+
+#[test]
+fn candidate_requires_every_referenced_asset_with_matching_metadata() -> Result<(), Box<dyn Error>>
+{
+    let directory = tempfile::tempdir()?;
+    let store = native_store(directory.path());
+    let descriptor = store.put_asset(b"candidate asset", "text/plain")?;
+    let mut valid = draft()?;
+    valid.draft_id = DraftId::try_new("candidate-assets")?;
+    valid.assets.push(AssetReference {
+        id: descriptor.id.clone(),
+        sha256: descriptor.sha256.clone(),
+        media_type: descriptor.media_type.clone(),
+        size_bytes: descriptor.size_bytes,
+        extensions: BTreeMap::new(),
+    });
+    store.create_draft(&valid)?;
+    let candidate = DraftRepository::get_candidate(&store, &valid.draft_id)?;
+    assert_eq!(candidate.assets_sha256().len(), 64);
+
+    let mut missing = draft()?;
+    missing.draft_id = DraftId::try_new("candidate-missing")?;
+    let sha256 = "c".repeat(64);
+    missing.assets.push(AssetReference {
+        id: deckweave_domain::ids::AssetId::try_new(&sha256)?,
+        sha256,
+        media_type: "text/plain".into(),
+        size_bytes: 1,
+        extensions: BTreeMap::new(),
+    });
+    store.create_draft(&missing)?;
+    assert!(matches!(
+        DraftRepository::get_candidate(&store, &missing.draft_id),
+        Err(DraftRepositoryError::InvalidCandidate(_))
+    ));
     Ok(())
 }
 
