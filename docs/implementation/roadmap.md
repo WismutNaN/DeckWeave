@@ -74,9 +74,9 @@
 
 ### R1 — Зафиксировать baseline и architecture gates
 
-- [ ] Добавить/актуализировать characterization tests текущих draft, receipts, authorization и host snapshot paths до переноса кода.
-- [ ] Расширить `check-boundaries` правилами context dependencies, thin crate roots и size ratchet; исключения содержат owner/reason/review milestone (→ DW-NF-015).
-- [ ] Сохранить зелёными `npm run check`, full Rust tests и fault tests; записать baseline без изменения runtime behavior.
+- [x] Добавить/актуализировать characterization tests текущих draft, receipts, authorization и host snapshot paths до переноса кода.
+- [x] Расширить `check-boundaries` правилами context dependencies, thin crate roots и size ratchet; исключения содержат owner/reason/review milestone (→ DW-NF-015).
+- [x] Сохранить зелёными `npm run check`, full Rust workspace tests и fault tests; baseline не меняет runtime behavior.
 
 ### R2 — Выделить Workspace Configuration
 

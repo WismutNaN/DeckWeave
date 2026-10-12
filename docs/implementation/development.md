@@ -44,6 +44,14 @@ npm run build
 ```
 
 Создаётся target/release/deckweave-desktop.exe. Installer пока не создаётся.
+Прямой Tauri-вызов из корня также поддерживается и проходит через desktop workspace:
+
+```powershell
+npm run tauri build
+```
+
+Обе команды создают executable без installer, пока `bundle.active` в `tauri.conf.json` равен `false`;
+это текущая release policy, а не ошибка bundle toolchain. `npm run build` дополнительно передаёт `--no-bundle` явно.
 Для быстрой debug-сборки:
 
 ```powershell
@@ -140,6 +148,12 @@ Permissive reference plugin находится в `examples/virtual-plugin`; о�
 - domain получает invariant tests, application — use-case tests через ports, adapter — contract/fault tests.
 
 Текущий перенос идёт по [DDD migration R1–R4](roadmap.md#ddd-migration). До любого перемещения code R1 фиксирует characterization tests и автоматические boundary gates. Каждый срез сохраняет зелёную сборку и отдельный rollback commit; большой одновременный rewrite запрещён.
+
+R1 завершён: `scripts/architecture-baseline.json` назначает context owner каждому workspace package,
+фиксирует пределы 150 строк для crate roots и 400 строк для production modules. Существующие превышения
+имеют точный `maxLines`, owner, reason и milestone пересмотра; любое увеличение ломает `check:boundaries`.
+Pure rules покрыты Node tests, а Host characterization фиксирует lifecycle snapshot, порядок
+authorization/request validation и стабильное отображение ошибок Profile Store до R2/R3.
 
 ## Локальная проверка 2026-10-12
 

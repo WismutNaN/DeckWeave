@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 1,
+  "limits": {
+    "crateRootLines": 150,
+    "productionModuleLines": 400
+  },
+  "packages": {
+    "deckweave-protocol": {
+      "context": "Shared Kernel / Protocol",
+      "allowedDependencies": []
+    },
+    "deckweave-domain": {
+      "context": "Shared Kernel",
+      "allowedDependencies": ["deckweave-protocol"]
+    },
+    "deckweave-application": {
+      "context": "Application Gateway contracts",
+      "allowedDependencies": ["deckweave-domain"]
+    },
+    "deckweave-host": {
+      "context": "Host Lifecycle (transitional gateway implementation)",
+      "allowedDependencies": ["deckweave-application", "deckweave-domain"]
+    },
+    "deckweave-platform-host": {
+      "context": "Host Platform infrastructure",
+      "allowedDependencies": ["deckweave-application", "deckweave-domain"]
+    },
+    "deckweave-profiles": {
+      "context": "Workspace Configuration persistence (transitional)",
+      "allowedDependencies": ["deckweave-application", "deckweave-domain"]
+    },
+    "deckweave-registry": {
+      "context": "Capability Registry",
+      "allowedDependencies": ["deckweave-domain"]
+    },
+    "deckweave-plugin-supervisor": {
+      "context": "Plugin Runtime",
+      "allowedDependencies": [
+        "deckweave-application",
+        "deckweave-domain",
+        "deckweave-protocol",
+        "deckweave-registry"
+      ]
+    },
+    "deckweave-desktop": {
+      "context": "Desktop composition root",
+      "allowedDependencies": [
+        "deckweave-application",
+        "deckweave-host",
+        "deckweave-platform-host",
+        "deckweave-profiles"
+      ]
+    },
+    "deckweave-virtual-plugin-example": {
+      "context": "Permissive SDK example",
+      "allowedDependencies": ["deckweave-protocol"]
+    },
+    "deckweave-openaction-host": {
+      "context": "OpenAction compatibility runtime",
+      "allowedDependencies": []
+    }
+  },
+  "sizeExceptions": {
+    "apps/desktop/src-tauri/src/main.rs": {
+      "maxLines": 227,
+      "owner": "Desktop composition root",
+      "reason": "The initial Tauri composition root still combines command wiring, tray lifecycle and window setup.",
+      "reviewMilestone": "Phase 6"
+    },
+    "crates/deckweave-domain/src/capability.rs": {
+      "maxLines": 421,
+      "owner": "Shared Kernel",
+      "reason": "Existing capability vocabulary is split only after its Phase 5 consumers prove stable seams.",
+      "reviewMilestone": "Phase 5"
+    },
+    "crates/deckweave-host/src/lib.rs": {
+      "maxLines": 316,
+      "owner": "Host Lifecycle",
+      "reason": "Current crate root still contains transitional Application Gateway dispatch and error mapping.",
+      "reviewMilestone": "DDD-R3"
+    },
+    "crates/deckweave-platform-host/src/lib.rs": {
+      "maxLines": 589,
+      "owner": "Host Platform infrastructure",
+      "reason": "Existing OS services await extraction behind the already defined narrow ports.",
+      "reviewMilestone": "DDD-R3"
+    },
+    "crates/deckweave-plugin-supervisor/src/package.rs": {
+      "maxLines": 544,
+      "owner": "Plugin Runtime",
+      "reason": "Package validation and indexing predate the DDD module ratchet and require a dedicated extraction slice.",
+      "reviewMilestone": "Phase 12"
+    },
+    "crates/deckweave-plugin-supervisor/src/supervisor.rs": {
+      "maxLines": 735,
+      "owner": "Plugin Runtime",
+      "reason": "Lifecycle state and process coordination require characterization before separation.",
+      "reviewMilestone": "Phase 12"
+    },
+    "crates/deckweave-profiles/src/draft.rs": {
+      "maxLines": 714,
+      "owner": "Workspace Configuration",
+      "reason": "Draft aggregate, mutation policy and persistence are intentionally frozen before the R2 extraction.",
+      "reviewMilestone": "DDD-R2"
+    },
+    "crates/deckweave-profiles/src/export.rs": {
+      "maxLines": 460,
+      "owner": "Workspace Configuration",
+      "reason": "Export policy and archive adapter still share one legacy module pending context extraction.",
+      "reviewMilestone": "DDD-R2"
+    },
+    "crates/deckweave-profiles/src/lib.rs": {
+      "maxLines": 460,
+      "owner": "Workspace Configuration persistence",
+      "reason": "The crate root still combines persisted models and adapter composition before R2.",
+      "reviewMilestone": "DDD-R2"
+    },
+    "crates/deckweave-protocol/src/lib.rs": {
+      "maxLines": 383,
+      "owner": "Shared Kernel / Protocol",
+      "reason": "Generated boundary exports and negotiation helpers predate the thin-root rule.",
+      "reviewMilestone": "Phase 5"
+    },
+    "crates/deckweave-registry/src/lib.rs": {
+      "maxLines": 391,
+      "owner": "Capability Registry",
+      "reason": "The initial aggregate and service share a crate root until registry use cases expand.",
+      "reviewMilestone": "Phase 5"
+    },
+    "runtimes/openaction-host/src/lib.rs": {
+      "maxLines": 258,
+      "owner": "OpenAction compatibility runtime",
+      "reason": "The C0 scanner and compatibility report remain together until the production host extraction.",
+      "reviewMilestone": "Phase 14"
+    }
+  }
+}

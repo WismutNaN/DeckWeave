@@ -3,6 +3,16 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
+import {
+  normalizePath,
+  validateLocalDependencies,
+  validateSizeRatchet,
+} from "./boundary-rules.mjs";
+
+const architecture = JSON.parse(
+  fs.readFileSync("scripts/architecture-baseline.json", "utf8"),
+);
+
 const metadata = JSON.parse(
   execFileSync(
     "cargo",
@@ -15,35 +25,25 @@ const locals = metadata.packages.filter((p) =>
 );
 const byName = new Map(locals.map((p) => [p.name, p]));
 const errors = [];
-const allowed = {
-  "deckweave-protocol": [],
-  "deckweave-virtual-plugin-example": ["deckweave-protocol"],
-  "deckweave-openaction-host": [],
-  "deckweave-domain": ["deckweave-protocol"],
-  "deckweave-registry": ["deckweave-domain"],
-  "deckweave-plugin-supervisor": [
-    "deckweave-application",
-    "deckweave-domain",
-    "deckweave-protocol",
-    "deckweave-registry",
-  ],
-  "deckweave-profiles": ["deckweave-application", "deckweave-domain"],
-  "deckweave-application": ["deckweave-domain"],
-  "deckweave-host": ["deckweave-application", "deckweave-domain"],
-  "deckweave-platform-host": ["deckweave-application", "deckweave-domain"],
-  "deckweave-desktop": [
-    "deckweave-application",
-    "deckweave-host",
-    "deckweave-platform-host",
-    "deckweave-profiles",
-  ],
-};
 function sourceFiles(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((item) => {
     const file = path.join(dir, item.name);
     return item.isDirectory() ? sourceFiles(file) : [file];
   });
 }
+errors.push(...validateLocalDependencies(locals, architecture.packages));
+
+const productionSources = new Map();
+const crateRoots = new Set(
+  locals.flatMap((pkg) =>
+    pkg.targets
+      .map((target) =>
+        normalizePath(path.relative(process.cwd(), target.src_path)),
+      )
+      .filter((file) => file.includes("/src/")),
+  ),
+);
+
 for (const pkg of locals) {
   const permissive = [
     "deckweave-protocol",
@@ -52,15 +52,8 @@ for (const pkg of locals) {
   const license = permissive ? "MIT OR Apache-2.0" : "GPL-3.0-or-later";
   if (pkg.license !== license)
     errors.push(pkg.name + ": неправильная лицензия");
-  if (!allowed[pkg.name])
-    errors.push(pkg.name + ": добавьте явную границу зависимостей");
   for (const dep of pkg.dependencies) {
     if (dep.kind === "dev") continue;
-    if (byName.has(dep.name) && !allowed[pkg.name]?.includes(dep.name)) {
-      errors.push(
-        pkg.name + " -> " + dep.name + ": нарушена граница зависимости",
-      );
-    }
     if (
       permissive &&
       byName.has(dep.name) &&
@@ -74,6 +67,10 @@ for (const pkg of locals) {
   for (const file of sourceFiles(path.join(dir, "src")).filter((f) =>
     f.endsWith(".rs"),
   )) {
+    productionSources.set(
+      normalizePath(path.relative(process.cwd(), file)),
+      fs.readFileSync(file, "utf8"),
+    );
     if (
       !fs
         .readFileSync(file, "utf8")
@@ -86,6 +83,14 @@ for (const pkg of locals) {
     if (!fs.existsSync(path.join(dir, file)))
       errors.push(pkg.name + ": отсутствует " + file);
 }
+errors.push(
+  ...validateSizeRatchet({
+    files: productionSources,
+    crateRoots,
+    limits: architecture.limits,
+    exceptions: architecture.sizeExceptions,
+  }),
+);
 for (const file of [
   "LICENSE",
   "THIRD_PARTY.md",
@@ -123,5 +128,7 @@ if (errors.length) {
   process.exitCode = 1;
 } else
   console.log(
-    `Границы и лицензии: ${locals.length} packages, protocol изолирован, production не зависит от testkit.`,
+    `Границы: ${locals.length} packages с context ownership, ` +
+      `${productionSources.size} production modules под size ratchet; ` +
+      "protocol изолирован, production не зависит от testkit.",
   );
