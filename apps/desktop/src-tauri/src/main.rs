@@ -2,9 +2,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use deckweave_application::{
-    ApiAuthScope, ApplicationService, DraftStore, HostSnapshot, PrincipalId,
+    ApiAuthScope, ApplicationGateway, DraftStore, HostSnapshot, InMemoryApiAuthorizer, PrincipalId,
 };
-use deckweave_host::{HostRuntime, InMemoryApiAuthorizer};
+use deckweave_host::HostRuntime;
 use deckweave_platform_host::{
     LaunchOptions, NativeAtomicFileStore, NativePlatform, installed_root,
 };
@@ -17,17 +17,17 @@ use tauri::{
 };
 
 #[tauri::command]
-fn host_snapshot(host: tauri::State<'_, HostRuntime>) -> HostSnapshot {
+fn host_snapshot(host: tauri::State<'_, Arc<HostRuntime>>) -> HostSnapshot {
     host.snapshot()
 }
 
 #[tauri::command]
-fn autostart_enabled(host: tauri::State<'_, HostRuntime>) -> Result<bool, String> {
+fn autostart_enabled(host: tauri::State<'_, Arc<HostRuntime>>) -> Result<bool, String> {
     host.autostart_enabled().map_err(|error| error.to_string())
 }
 
 #[tauri::command]
-fn set_autostart(enabled: bool, host: tauri::State<'_, HostRuntime>) -> Result<(), String> {
+fn set_autostart(enabled: bool, host: tauri::State<'_, Arc<HostRuntime>>) -> Result<(), String> {
     host.set_autostart(enabled)
         .map_err(|error| error.to_string())
 }
@@ -42,7 +42,7 @@ fn show_main(app: &tauri::AppHandle) -> tauri::Result<()> {
 }
 
 fn quit(app: &tauri::AppHandle) {
-    app.state::<HostRuntime>().stop();
+    app.state::<Arc<HostRuntime>>().stop();
     app.exit(0);
 }
 
@@ -54,7 +54,7 @@ fn quit_app(app: tauri::AppHandle) {
 fn second_instance(app: &tauri::AppHandle, args: Vec<String>, cwd: String) {
     let result = (|| -> Result<Option<String>, Box<dyn std::error::Error>> {
         let host = app
-            .try_state::<HostRuntime>()
+            .try_state::<Arc<HostRuntime>>()
             .ok_or("Host ещё запускается")?;
         let options = LaunchOptions::parse(args.iter().skip(1).map(Into::into))?;
         let executable = args.first().ok_or("Нет пути приложения")?;
@@ -77,7 +77,7 @@ fn second_instance(app: &tauri::AppHandle, args: Vec<String>, cwd: String) {
         Ok(notice) => notice,
         Err(error) => Some(error.to_string()),
     };
-    if let Some(host) = app.try_state::<HostRuntime>() {
+    if let Some(host) = app.try_state::<Arc<HostRuntime>>() {
         host.set_notice(notice);
         if let Err(error) = app.emit("host-changed", ()) {
             eprintln!("{error}");
@@ -125,11 +125,14 @@ fn run(options: LaunchOptions) -> Result<(), Box<dyn std::error::Error>> {
                 Arc::new(NativeAtomicFileStore),
                 ProfileStoreLimits::default(),
             ));
-            app.manage(HostRuntime::start_with_services(
-                Arc::new(platform),
+            let host = Arc::new(HostRuntime::start(Arc::new(platform))?);
+            let gateway = ApplicationGateway::new(
+                Arc::clone(&host) as Arc<dyn deckweave_application::HostStatusSource>,
                 draft_store,
                 authorizer,
-            )?);
+            );
+            app.manage(host);
+            app.manage(gateway);
 
             // WebView cache принадлежит тому же root; portable не пишет browser
             // profile в общий installed data directory.
@@ -200,7 +203,7 @@ fn run(options: LaunchOptions) -> Result<(), Box<dyn std::error::Error>> {
     let app = builder.build(tauri::generate_context!())?;
     app.run(|app, event| {
         if let tauri::RunEvent::Exit = event {
-            app.state::<HostRuntime>().stop();
+            app.state::<Arc<HostRuntime>>().stop();
         }
     });
     Ok(())

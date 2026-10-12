@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-use deckweave_application::{AtomicFileStore, StorageError};
 use deckweave_domain::ids::{
     DedupEpoch, DraftId, DraftVersion, IdempotencyKey, PrincipalId, WorkspaceId,
 };
+use deckweave_platform::{AtomicFileStore, StorageError};
 use deckweave_platform_host::NativeAtomicFileStore;
 use deckweave_profiles::{
     DraftCommand, DraftEditor, DraftMutationError, JsonProfileStore, MutationKey,

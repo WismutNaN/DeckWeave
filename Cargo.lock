@@ -758,6 +758,7 @@ name = "deckweave-application"
 version = "0.1.0"
 dependencies = [
  "deckweave-domain",
+ "deckweave-platform",
  "deckweave-workspace",
  "serde",
  "serde_json",
@@ -794,10 +795,21 @@ version = "0.1.0"
 dependencies = [
  "deckweave-application",
  "deckweave-domain",
+ "deckweave-platform",
  "deckweave-platform-host",
  "deckweave-profiles",
  "serde_json",
  "tempfile",
+]
+
+[[package]]
+name = "deckweave-interaction"
+version = "0.1.0"
+dependencies = [
+ "deckweave-domain",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -811,12 +823,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "deckweave-platform"
+version = "0.1.0"
+dependencies = [
+ "deckweave-domain",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "deckweave-platform-host"
 version = "0.1.0"
 dependencies = [
  "auto-launch",
- "deckweave-application",
  "deckweave-domain",
+ "deckweave-platform",
  "directories",
  "fs2",
  "libc",
@@ -826,11 +846,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "deckweave-platform-input"
+version = "0.1.0"
+dependencies = [
+ "deckweave-domain",
+ "serde",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "deckweave-plugin-supervisor"
 version = "0.1.0"
 dependencies = [
  "deckweave-application",
  "deckweave-domain",
+ "deckweave-platform",
  "deckweave-platform-host",
  "deckweave-protocol",
  "deckweave-registry",
@@ -848,8 +878,8 @@ name = "deckweave-profiles"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
- "deckweave-application",
  "deckweave-domain",
+ "deckweave-platform",
  "deckweave-platform-host",
  "deckweave-workspace",
  "serde",

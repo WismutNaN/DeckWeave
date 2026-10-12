@@ -121,12 +121,12 @@ Module specifications уточняют ports каждого контекста. 
 
 | Сейчас | Целевая ответственность |
 |---|---|
-| `deckweave-profiles::draft` совмещает aggregate, JSON mutation, append-only persistence и adapter | domain/application Workspace Configuration отделены от filesystem Profile Store adapter |
-| `deckweave-host::lib` совмещает lifecycle, API dispatch, auth и error translation | Host Lifecycle отдельно; Application Gateway владеет dispatch/auth/errors |
-| `deckweave-platform-host::lib` объединяет несколько OS services | отдельные adapters за узкими host ports |
-| крупные crate roots | тонкие re-exports и composition modules |
+| Workspace Configuration | `deckweave-workspace` владеет aggregate, commands, snapshot/export policy и repository ports; `deckweave-profiles` — append-only/filesystem adapter |
+| Host и API | `deckweave-host` владеет lifecycle; `deckweave-application::ApplicationGateway` — dispatch/auth/errors |
+| OS bootstrap | ports находятся в `deckweave-platform`, реализации разделены на launch/storage/process adapters в `deckweave-platform-host` |
+| новые расширения | `deckweave-platform-input` и `deckweave-interaction` фиксируют контракты/fixtures без преждевременных OS/web integrations |
 
-Миграция выполняется strangler-подходом с временными re-export/adapters. Сначала фиксируются characterization tests и architecture gates, затем ответственность переносится по одному context за commit. Полный порядок и rollback описаны в [roadmap](../implementation/roadmap.md#ddd-migration).
+Миграция R1–R4 выполнена strangler-подходом без изменения persisted/wire schema. Compatibility re-export OS ports сохранён в `deckweave-application` только для внешних потребителей; новый код импортирует `deckweave-platform` напрямую. Полный порядок и gate продолжения описаны в [roadmap](../implementation/roadmap.md#ddd-migration).
 
 ## Антипаттерны
 

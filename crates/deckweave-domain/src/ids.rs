@@ -182,6 +182,7 @@ text_id!(PortId);
 text_id!(GraphNodeId);
 text_id!(ExecutionId);
 text_id!(InvocationId);
+text_id!(InteractionSessionId);
 text_id!(JobId);
 text_id!(ClockDomainId);
 text_id!(TraceId);

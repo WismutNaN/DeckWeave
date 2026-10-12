@@ -1,7 +1,7 @@
 # Модуль: Interaction Runtime
 
 **Контекст:** короткие host-owned desktop interactions, возвращающие typed result в конкретный automation invocation.  
-**Целевое расположение:** contracts/application в `crates/deckweave-interaction/`, presentation adapter в desktop shell, custom web views — в lazy isolated runtime.
+**Расположение:** contracts и session state machine в `crates/deckweave-interaction/`, будущий presentation adapter — в desktop shell, custom web views — в lazy isolated runtime.
 
 ## Ответственность
 
@@ -33,6 +33,8 @@
 ## Пример Zotero
 
 Keyboard event запускает automation action `zotero.search`. Action открывает search interaction, provider выдаёт страницы `ItemRef`, пользователь выбирает результат, а terminal result передаётся следующему `zotero.open_attachment` step. Zotero-specific query/PDF logic остаётся в plugin, окно и session semantics — в Interaction Runtime.
+
+R4 реализует bounded pages, selected/cancelled/timed-out terminal outcomes, duplicate-terminal rejection, owner isolation и presenter/provider ports с fakes. Реальные окна, Zotero provider и custom web content намеренно не подключены.
 
 ## Намеренно не обрабатывает
 

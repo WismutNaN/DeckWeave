@@ -36,8 +36,8 @@
 
 Контекст зависит от Shared Kernel types и собственных repository ports. Он не импортирует host lifecycle, filesystem adapter, plugin supervisor или UI.
 
-Первый R2-срез уже перенёс модели draft/revision, validation, pure mutation и `DraftRepository`.
-Revision/snapshot/export policy ещё частично находится в Profiles и переносится следующими срезами без изменения persisted JSON.
+R2 перенёс модели draft/revision/snapshot, validation, pure mutation, правила export selection и `DraftRepository`.
+Profiles сохраняет только archive encoding, checksums, append-only receipts, recovery и filesystem layout; persisted JSON не изменён.
 
 ## Намеренно не обрабатывает
 

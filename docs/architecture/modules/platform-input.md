@@ -1,7 +1,7 @@
 # Модуль: Platform Input
 
 **Контекст:** системные input sources и synthetic targets.  
-**Расположение:** bundled packages `plugins/platform-windows/`, позже Linux/macOS; узкие privileged helpers — отдельные platform components.
+**Расположение:** contracts/validation/fixtures в `crates/deckweave-platform-input/`; bundled packages `plugins/platform-windows/` появятся в Фазе 7, позже Linux/macOS; privileged helpers — отдельные platform components.
 
 ## Ответственность
 
@@ -24,6 +24,8 @@ Bundled provider доступен сразу после установки, но
 | `InputDecision` | pass/suppress/replace для подготовленного intercept path |
 | `SyntheticInput` | typed output с origin и lease |
 | `PrivilegeStatus` | доступность platform helper и причина downgrade |
+
+R4 реализует `InputSourceDescriptor`, `InputEmitterDescriptor`, `CapturePolicy` и проверки честной granularity/pass-through/fail-open. Runtime-типы `InputObservation`, decisions и synthetic leases остаются задачами Фазы 7.
 
 ## Намеренно не обрабатывает
 

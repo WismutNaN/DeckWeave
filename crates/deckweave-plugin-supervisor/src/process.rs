@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use crate::package::{IndexedPackage, PackageError};
-use deckweave_application::{ChildProcessGuard, ChildProcessPolicy, PlatformError};
 use deckweave_domain::ids::RuntimeGroupId;
+use deckweave_platform::{ChildProcessGuard, ChildProcessPolicy, PlatformError};
 use deckweave_protocol::{
     framing::{FramingError, read_envelope, write_envelope},
     v1::ProtocolEnvelope,

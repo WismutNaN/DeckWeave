@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #![allow(unsafe_code)]
 
-use deckweave_application::StorageError;
+use deckweave_platform::StorageError;
 use std::{os::windows::ffi::OsStrExt, path::Path, ptr};
 use windows_sys::Win32::Storage::FileSystem::{
     MOVEFILE_WRITE_THROUGH, MoveFileExW, REPLACEFILE_WRITE_THROUGH, ReplaceFileW,

@@ -18,7 +18,7 @@
 
 | Модуль | Что использует |
 |---|---|
-| Application contracts | Commands/queries/service ports; реализацию Host передаёт composition root |
+| Application contracts | Commands/queries и `ApplicationGateway`; Host передаёт только read-only status port |
 | Bounded context ports | Маршрутизация use cases без импорта их infrastructure |
 | Principal context | Authenticated identity; authorization проверяет service, не только transport |
 | Diagnostics | Operation trace |

@@ -25,7 +25,7 @@
 | Automation Engine | Compiled plan |
 | Profile Store | Revisions |
 | Diagnostics | Health/trace |
-| Application contracts | Реализуемые commands/queries/service ports |
+| Application contracts | Read-only `HostStatusSource`; Gateway подключается composition root |
 | Host Platform Services | Injected locks, data roots, credentials и process cleanup |
 
 ## Инварианты
@@ -52,6 +52,6 @@
 
 > Использовать сериализованного owner для mutable host state. Не держать async lock во время внешнего plugin call. Обязательны [порядок apply/crash recovery](../../contracts/lifecycle.md#сохранение-и-apply) и bounded cleanup held outputs. После commit rollback — новая operation, не обещание отмены внешнего эффекта.
 
-Текущий `deckweave-host` временно содержит часть Application Gateway. Перенос выполняется по [DDD migration](../../implementation/roadmap.md#ddd-migration) с characterization tests и совместимыми re-export, а не параллельной реализацией семантики.
+`deckweave-host` не реализует `ApplicationService`: Gateway создаётся отдельно в composition root и получает read-only lifecycle projection и bounded-context repositories.
 
 ArtifactBroker реализует узкий application port с injected temporary-storage adapter; engine не зависит от Host implementation. Limits и lifecycle: [automation artifacts](../../contracts/automation.md#artifact-и-доступ-к-данным). Это небольшой сервис host, не новый обязательный процесс или database.

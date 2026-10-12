@@ -6,36 +6,6 @@ use std::collections::{BTreeMap, BTreeSet};
 
 const EXPORT_FORMAT_VERSION: u32 = 1;
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct RevisionExportSelection {
-    pub workspace_id: WorkspaceId,
-    pub revision_id: WorkspaceRevisionId,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ExportSelection {
-    pub revisions: Vec<RevisionExportSelection>,
-    pub include_assets: bool,
-    pub include_private_sections: bool,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ImportRevisionSummary {
-    pub workspace_id: WorkspaceId,
-    pub source_revision_id: WorkspaceRevisionId,
-    pub has_private_section: bool,
-    pub package_count: usize,
-    pub asset_count: usize,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ImportInspection {
-    pub revisions: Vec<ImportRevisionSummary>,
-    pub included_assets: Vec<AssetId>,
-    pub missing_assets: Vec<AssetId>,
-    pub unresolved_credential_refs: Vec<CredentialRef>,
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct ImportResult {
     pub draft: LoadedDraft,
@@ -109,15 +79,12 @@ struct ValidatedBundle {
 
 impl JsonProfileStore {
     pub fn export_revisions(&self, selection: &ExportSelection) -> Result<Vec<u8>, ExportError> {
-        if selection.revisions.is_empty() {
-            return Err(ExportError::EmptySelection);
-        }
-        let unique: BTreeSet<_> = selection.revisions.iter().cloned().collect();
-        if unique.len() != selection.revisions.len() {
-            return Err(ExportError::InvalidBundle(
-                "export selection contains duplicate revisions".into(),
-            ));
-        }
+        deckweave_workspace::validate_export_selection(selection).map_err(|error| match error {
+            deckweave_workspace::ExportSelectionError::Empty => ExportError::EmptySelection,
+            deckweave_workspace::ExportSelectionError::DuplicateRevision => {
+                ExportError::InvalidBundle(error.to_string())
+            }
+        })?;
 
         let mut revisions = Vec::with_capacity(selection.revisions.len());
         let mut referenced_assets = BTreeMap::<AssetId, AssetReference>::new();

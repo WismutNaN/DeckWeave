@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Только HKCU: никогда не изменяем автозапуск других пользователей.
-use deckweave_application::PlatformError;
+use deckweave_platform::PlatformError;
 use std::path::Path;
 use windows_registry::CURRENT_USER;
 

@@ -1,26 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use super::*;
 use deckweave_domain::ids::{DraftId, DraftVersion};
-use std::collections::BTreeMap;
-
-const MAXIMUM_SNAPSHOT_NAME_BYTES: usize = 128;
-const MAXIMUM_SNAPSHOT_COMMENT_BYTES: usize = 16 * 1024;
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SnapshotRef {
-    pub schema_version: u32,
-    pub snapshot_id: SnapshotId,
-    pub workspace_id: WorkspaceId,
-    pub revision_id: WorkspaceRevisionId,
-    pub name: String,
-    pub comment: Option<String>,
-    pub created_at_unix_ms: u64,
-    #[serde(default)]
-    pub extensions: BTreeMap<String, serde_json::Value>,
-    #[serde(flatten)]
-    pub unknown_fields: BTreeMap<String, serde_json::Value>,
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SnapshotMetadata {
@@ -150,24 +130,6 @@ impl JsonProfileStore {
 }
 
 fn validate_snapshot(snapshot: &SnapshotRef) -> Result<(), ProfileStoreError> {
-    if snapshot.schema_version != 1 {
-        return Err(ProfileStoreError::InvalidDocument(
-            "unsupported snapshot schema version".into(),
-        ));
-    }
-    if snapshot.name.trim().is_empty() || snapshot.name.len() > MAXIMUM_SNAPSHOT_NAME_BYTES {
-        return Err(ProfileStoreError::InvalidDocument(
-            "snapshot name must be non-empty and at most 128 bytes".into(),
-        ));
-    }
-    if snapshot
-        .comment
-        .as_ref()
-        .is_some_and(|comment| comment.len() > MAXIMUM_SNAPSHOT_COMMENT_BYTES)
-    {
-        return Err(ProfileStoreError::InvalidDocument(
-            "snapshot comment exceeds 16 KiB".into(),
-        ));
-    }
-    Ok(())
+    deckweave_workspace::validate_snapshot(snapshot)
+        .map_err(|error| ProfileStoreError::InvalidDocument(error.to_string()))
 }

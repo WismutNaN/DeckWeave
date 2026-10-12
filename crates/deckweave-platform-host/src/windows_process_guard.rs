@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #![allow(unsafe_code)]
 
-use deckweave_application::{ChildProcessGuard, PlatformError};
+use deckweave_platform::{ChildProcessGuard, PlatformError};
 use std::{mem::size_of, os::windows::io::AsRawHandle, process::Child, ptr};
 use windows_sys::Win32::{
     Foundation::{CloseHandle, HANDLE},

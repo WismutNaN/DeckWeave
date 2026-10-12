@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Immutable workspace revisions and content-addressed profile assets.
 
-use deckweave_application::{AtomicFileStore, StorageError};
 use deckweave_domain::ids::{AssetId, SnapshotId, WorkspaceId, WorkspaceRevisionId};
+use deckweave_platform::{AtomicFileStore, StorageError};
 pub use deckweave_workspace::{
-    AssetReference, DraftCommand, MutationKey, PackageLockEntry, WorkspaceDraft, WorkspaceRevision,
+    AssetReference, DraftCommand, ExportSelection, ImportInspection, ImportRevisionSummary,
+    MutationKey, PackageLockEntry, RevisionExportSelection, SnapshotRef, WorkspaceDraft,
+    WorkspaceRevision,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -18,12 +20,9 @@ use thiserror::Error;
 pub mod draft;
 pub use draft::{DraftEditor, DraftMutationError, LoadedDraft, MutationOutcome, MutationReceipt};
 pub mod export;
-pub use export::{
-    ExportError, ExportSelection, ImportInspection, ImportResult, ImportRevisionSummary,
-    RevisionExportSelection,
-};
+pub use export::{ExportError, ImportResult};
 pub mod snapshot;
-pub use snapshot::{SnapshotMetadata, SnapshotRef};
+pub use snapshot::SnapshotMetadata;
 
 const STORAGE_VERSION: u32 = 1;
 

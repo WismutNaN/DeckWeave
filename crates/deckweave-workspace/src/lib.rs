@@ -4,6 +4,8 @@
 mod command;
 mod model;
 mod repository;
+mod snapshot;
+mod transfer;
 mod validation;
 
 pub use command::{DraftEditError, apply_draft_command, preview_draft_mutation};
@@ -12,6 +14,11 @@ pub use model::{
 };
 pub use repository::{
     DraftRepository, DraftRepositoryError, DraftView, MutationKey, StoredDraftMutation,
+};
+pub use snapshot::{SnapshotRef, SnapshotValidationError, validate_snapshot};
+pub use transfer::{
+    ExportSelection, ExportSelectionError, ImportInspection, ImportRevisionSummary,
+    RevisionExportSelection, validate_export_selection,
 };
 pub use validation::{
     WorkspaceValidationError, validate_draft, validate_revision, validate_workspace_content,

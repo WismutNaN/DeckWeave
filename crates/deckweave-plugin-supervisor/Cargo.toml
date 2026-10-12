@@ -9,6 +9,7 @@ publish.workspace = true
 [dependencies]
 deckweave-application.workspace = true
 deckweave-domain.workspace = true
+deckweave-platform.workspace = true
 deckweave-protocol.workspace = true
 deckweave-registry.workspace = true
 getrandom = "0.4"

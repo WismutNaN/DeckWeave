@@ -66,7 +66,7 @@
 <a id="ddd-migration"></a>
 ## DDD migration перед продолжением Фазы 4
 
-**Исходное состояние:** profile storage, draft ApplicationService и host lifecycle уже работают, но крупные модули смешивают aggregate/application/infrastructure, а `deckweave-host` временно содержит dispatch, authorization и error translation.
+**Исходное состояние до миграции:** profile storage, draft ApplicationService и host lifecycle работали, но крупные модули смешивали aggregate/application/infrastructure, а `deckweave-host` содержал dispatch, authorization и error translation. R1–R4 ниже фиксируют выполненное разделение.
 
 **Целевое состояние:** bounded contexts и dependency rules из [DDD](../architecture/ddd.md); Workspace Configuration отделён от Profile Store adapter, Host Lifecycle — от Application Gateway, Platform Input и Interaction UI имеют собственные ports/contracts.
 
@@ -81,25 +81,25 @@
 ### R2 — Выделить Workspace Configuration
 
 - [x] Создать `deckweave-workspace`, перенести `WorkspaceDraft`/`WorkspaceRevision`, commands, validation, pure JSON mutation и `DraftRepository` port (→ [Workspace Configuration](../architecture/modules/workspace-configuration.md)).
-- [ ] Перенести оставшуюся revision/snapshot/export policy; оставить append-only/filesystem/recovery в Profile Store infrastructure adapter (→ [Profile Store](../architecture/modules/profile-store.md)).
+- [x] Перенести оставшуюся revision/snapshot/export policy; оставить append-only/filesystem/recovery в Profile Store infrastructure adapter (→ [Profile Store](../architecture/modules/profile-store.md)).
 - [x] Разделить tests первого среза: pure domain mutation в Workspace, application characterization через port, storage/round-trip/fault tests в Profiles.
 - [x] Сохранить временные re-export для прежних imports; удалить их отдельным commit после перевода всех consumers (→ [DDD migration](#ddd-migration)).
 
 ### R3 — Разделить Host Lifecycle и Application Gateway
 
-- [ ] Вынести command/query dispatch, principal scopes, stable error mapping и operation tracking из `deckweave-host`.
-- [ ] Оставить Host владельцем startup/apply/active revision/epochs/recovery; platform-host разбить на узкие adapters без смены публичных ports.
-- [ ] Проверить запрет прямых imports чужой infrastructure и parity in-process client.
+- [x] Вынести command/query dispatch, principal scopes и stable error mapping из `deckweave-host`; operation tracking добавляется уже в эту границу первым срезом Фазы 4.
+- [x] Оставить Host владельцем startup/apply/active revision/epochs/recovery; platform-host разбить на узкие launch/storage/process adapters без смены публичных ports.
+- [x] Проверить запрет прямых imports чужой infrastructure и parity in-process client.
 
 ### R4 — Подготовить новые расширения
 
-- [ ] Добавить protocol/domain fixtures Platform Input: bundled aggregate keyboard, observe/pass-through, честная granularity, separate intercept/emit.
-- [ ] Добавить InteractionSession ports и fake presenter/provider: search pages, selection/cancel/timeout, concurrent isolation.
-- [ ] Не подключать реальный OS hook, Zotero или custom web runtime до соответствующих Фаз 7/13.
+- [x] Добавить protocol/domain fixtures Platform Input: bundled aggregate keyboard, observe/pass-through, честная granularity, separate intercept/emit.
+- [x] Добавить InteractionSession ports и fake presenter/provider: search pages, selection/cancel/timeout, concurrent isolation.
+- [x] Не подключать реальный OS hook, Zotero или custom web runtime до соответствующих Фаз 7/13.
 
 **Rollback:** до удаления compatibility re-export каждый срез откатывается одним commit. Изменение persisted document/wire schema в R1–R4 запрещено без отдельной migration/ADR. Если gate выявляет незафиксированную семантику, перенос останавливается на текущей зелёной версии, добавляется characterization test, затем срез повторяется.
 
-**Gate продолжения Фазы 4:** R1–R3 завершены; operation tracking/apply реализуются через Application Gateway и Host Lifecycle ports, а не в прежнем смешанном crate root. R4 может идти после R3 независимо от apply skeleton.
+**Gate продолжения Фазы 4:** [x] R1–R3 завершены; R4 также подготовлен. Operation tracking/apply реализуются через Application Gateway и Host Lifecycle ports, а не в прежнем смешанном crate root.
 
 ---
 
@@ -231,7 +231,7 @@ manifest или PI не выдаётся за runtime compatibility.
 **Цель:** создать безопасный путь read → draft → validate → plan → apply → rollback.
 **Результат:** CLI/test client редактирует virtual workspace, получает conflict и возвращается к snapshot.
 **Трудоёмкость:** L
-**Статус:** [~] В процессе: готовы Profile Store и draft ApplicationService; сначала выполняется DDD migration R1–R3, затем operation tracking/apply.
+**Статус:** [~] В процессе: готовы Profile Store, Workspace Configuration и отделённый Application Gateway; DDD migration R1–R4 завершена, следующий срез — operation tracking/apply.
 
 ### Контекст для агента
 > Plugin lifecycle работает. Active automation пока пуст; фаза строит источник истины и command/query boundary.
@@ -247,7 +247,7 @@ Export переносит выбранные revision contents как portable t
 не подменяет checksum/identity исходной revision. Import проверяет bundle/assets до публикации, создаёт
 новый draft, оставляет CredentialRef unresolved и не загружает/не запускает package metadata. Следующий
 срез добавил transport-independent command/query ApplicationService и in-process client. Profiles
-реализует DraftStore port, а Host проверяет principal scopes, expected DraftVersion и stable API errors.
+реализует DraftRepository port, а Application Gateway проверяет principal scopes, expected DraftVersion и stable API errors.
 Dry-run использует тот же command vocabulary, но не пишет draft и не резервирует idempotency key;
 повтор mutation после restart читает durable receipt. Следующий срез — operation tracking и apply skeleton.
 

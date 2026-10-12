@@ -1,6 +1,6 @@
 # Документация DeckWeave
 
-DeckWeave объединяет устройства и приложения через плагины: ввод, действия с результатами, визуальные поверхности, подсветку и будущие media streams. Реализованы protocol/plugin foundations Фаз 1–3 и часть Profile/Application API Фазы 4; runtime apply, automation и реальные device providers ещё не готовы. Состояние подтверждено локальными автоматическими проверками Windows; ручная приёмка и GitHub CI ещё не выполнены. Полная архитектурная спецификация описывает целевую систему, а не уже доступные возможности. [Запуск и проверки](implementation/development.md), [статус фаз](implementation/roadmap.md#фаза-4--profile-revisions-и-application-api).
+DeckWeave объединяет устройства и приложения через плагины: ввод, действия с результатами, визуальные поверхности, подсветку и будущие media streams. Реализованы protocol/plugin foundations Фаз 1–3, Profile/Workspace foundation Фазы 4 и подготовительная DDD migration R1–R4; следующий срез — durable operation tracking/apply. Реальные input hooks, interaction UI и device providers ещё не готовы. Состояние подтверждено локальными автоматическими проверками Windows; ручная приёмка и GitHub CI ещё не выполнены. Полная архитектурная спецификация описывает целевую систему, а не уже доступные возможности. [Запуск и проверки](implementation/development.md), [статус фаз](implementation/roadmap.md#фаза-4--profile-revisions-и-application-api).
 
 ## Порядок чтения
 

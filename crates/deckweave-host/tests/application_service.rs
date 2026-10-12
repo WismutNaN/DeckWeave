@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use deckweave_application::{
     ApiAuthScope, ApiErrorCode, AppCommand, AppCommandResult, AppQuery, AppQueryResult,
-    ApplicationService, CommandEnvelope, DraftCommand, DraftStore, HostLease, HostPlatform,
-    PlatformError, PrincipalId, RequestContext,
+    ApplicationGateway, ApplicationService, CommandEnvelope, DraftCommand, DraftStore,
+    InMemoryApiAuthorizer, PrincipalId, RequestContext,
 };
 use deckweave_domain::{
     DeploymentMode,
     ids::{DedupEpoch, DraftId, DraftVersion, IdempotencyKey, TraceId, WorkspaceId},
 };
-use deckweave_host::{HostRuntime, InMemoryApiAuthorizer};
+use deckweave_host::HostRuntime;
+use deckweave_platform::{HostLease, HostPlatform, PlatformError};
 use deckweave_platform_host::NativeAtomicFileStore;
 use deckweave_profiles::{JsonProfileStore, ProfileStoreLimits, WorkspaceDraft};
 use std::{collections::BTreeMap, error::Error, path::PathBuf, sync::Arc};
@@ -85,17 +86,14 @@ fn envelope(key: &str, value: &str, dry_run: bool) -> Result<CommandEnvelope, Bo
 fn service(
     root: PathBuf,
     authorizer: Arc<InMemoryApiAuthorizer>,
-) -> Result<HostRuntime, Box<dyn Error>> {
+) -> Result<ApplicationGateway, Box<dyn Error>> {
     let store: Arc<dyn DraftStore> = Arc::new(JsonProfileStore::new(
         root.join("profiles"),
         Arc::new(NativeAtomicFileStore),
         ProfileStoreLimits::default(),
     ));
-    Ok(HostRuntime::start_with_services(
-        Arc::new(TestPlatform { root }),
-        store,
-        authorizer,
-    )?)
+    let host = Arc::new(HostRuntime::start(Arc::new(TestPlatform { root }))?);
+    Ok(ApplicationGateway::new(host, store, authorizer))
 }
 
 #[test]

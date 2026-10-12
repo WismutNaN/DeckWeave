@@ -9,11 +9,12 @@ publish.workspace = true
 [dependencies]
 deckweave-domain.workspace = true
 deckweave-application.workspace = true
-serde_json.workspace = true
+deckweave-platform.workspace = true
 
 [dev-dependencies]
 deckweave-platform-host.workspace = true
 deckweave-profiles.workspace = true
+serde_json.workspace = true
 tempfile = "3"
 
 [lints]

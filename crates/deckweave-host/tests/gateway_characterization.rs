@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use deckweave_application::{
-    ApiAuthScope, ApiErrorCode, AppCommand, AppQuery, ApplicationService, CommandEnvelope,
-    DraftCommand, DraftStore, DraftStoreError, DraftView, HostLease, HostPlatform, PlatformError,
+    ApiAuthScope, ApiErrorCode, AppCommand, AppQuery, ApplicationGateway, ApplicationService,
+    CommandEnvelope, DraftCommand, DraftStore, DraftStoreError, DraftView, InMemoryApiAuthorizer,
     RequestContext, StoredDraftMutation,
 };
 use deckweave_domain::{
     DeploymentMode, LifecycleState,
     ids::{DedupEpoch, DraftId, DraftVersion, IdempotencyKey, TraceId},
 };
-use deckweave_host::{HostRuntime, InMemoryApiAuthorizer};
+use deckweave_host::HostRuntime;
+use deckweave_platform::{HostLease, HostPlatform, PlatformError};
 use std::{
     collections::BTreeMap,
     error::Error,
@@ -107,8 +108,9 @@ fn service(
     root: PathBuf,
     store: Arc<dyn DraftStore>,
     authorizer: Arc<InMemoryApiAuthorizer>,
-) -> Result<HostRuntime, PlatformError> {
-    HostRuntime::start_with_services(Arc::new(TestPlatform { root }), store, authorizer)
+) -> Result<ApplicationGateway, PlatformError> {
+    let host = Arc::new(HostRuntime::start(Arc::new(TestPlatform { root }))?);
+    Ok(ApplicationGateway::new(host, store, authorizer))
 }
 
 fn invalid_envelope() -> Result<CommandEnvelope, Box<dyn Error>> {

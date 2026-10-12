@@ -1,7 +1,7 @@
 # Модуль: Host Platform Services
 
 **Ответственность:** предоставляет минимальные OS services, необходимые для запуска, хранения доверия и остановки host независимо от plugins.
-**Расположение:** `crates/deckweave-platform-host/`; service ports в `crates/deckweave-application/`, wiring в desktop composition root.
+**Расположение:** общие OS-порты в `crates/deckweave-platform/`, adapters в `crates/deckweave-platform-host/`, wiring в desktop composition root.
 
 ## Публичный интерфейс
 
@@ -17,7 +17,7 @@
 
 | Модуль | Что использует |
 |---|---|
-| Application contracts | Ports и principal/resource types |
+| Platform contracts | Host/storage/process ports; без зависимости adapters от Application Gateway |
 | OS APIs | Locks, credential store, autostart, process cleanup |
 | Diagnostics | Redacted errors/metrics |
 
