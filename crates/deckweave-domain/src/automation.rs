@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use crate::{
+    endpoint::RuntimeEndpointRef,
     ids::{
-        ActivationEpoch, DescriptorRevision, ExecutionId, GraphNodeId, InvocationId, JobId,
-        NamespacedKind, OperationId, PluginSessionId, PortId, RuntimeArtifactId,
+        ActivationEpoch, BindingId, ExecutionId, GraphNodeId, InvocationId, JobId, NamespacedKind,
+        OperationId, RuntimeArtifactId,
     },
     schema::{ExtensionMap, SchemaRef},
 };
@@ -92,12 +93,16 @@ pub struct OperationDescriptor {
     pub extensions: ExtensionMap,
 }
 
+/// Compatibility name for consumers that treat a resolved endpoint as a
+/// command target. The same fenced value object is used by signal ingress.
+pub type ResolvedTarget = RuntimeEndpointRef;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ResolvedTarget {
-    pub plugin_session_id: PluginSessionId,
-    pub port_id: PortId,
-    pub descriptor_revision: DescriptorRevision,
+pub struct ResolvedEndpointRoute {
+    pub binding_id: BindingId,
+    pub source: RuntimeEndpointRef,
+    pub target: RuntimeEndpointRef,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

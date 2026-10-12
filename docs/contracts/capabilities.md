@@ -254,7 +254,8 @@ Device и service — разные варианты target. Одинаковый
 
 `SignalEnvelope` содержит:
 
-- `session_generation`;
+- канонический runtime source: полный `StableEndpointRef`, plugin session/generation и descriptor revision;
+- отдельную device session generation для device target; service target её не содержит;
 - monotonically increasing `sequence` в объявленном session/source-stream scope;
 - monotonic `captured_at` вместе с `ClockDomainId` источника;
 - назначенные host `received_at`, `IngressOrdinal`, `HostBootId` и `ActivationEpoch`;

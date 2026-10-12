@@ -116,7 +116,7 @@
 | D — Candidate/apply seam | Workspace проверяет lock/assets, Automation port компилирует, Host сериализует preconditions/barrier | Plan token связан с draft/package/registry/grants/active revision; unsupported graph отклоняется; topology/grant change между plan и prepare конфликтует |
 | E — Commit/recovery | Host + Store ports: intent/commit/status и reconciliation неоднозначных OS errors | Kill до/после каждого шага, disk full, lost reply, failed exclusive handoff; старый выбор до commit, новый после commit, без replay effects |
 
-- [ ] A завершён; endpoint contract согласован для descriptors, signal ingress, routes и persisted bindings.
+- [x] A завершён; endpoint contract согласован для descriptors, signal ingress, routes и persisted bindings.
 - [ ] B завершён; API dedup contract реализован целиком, а не только в одном draft.
 - [x] C завершён; интеграция использует production composition и внешний watchdog для hang tests.
 - [x] D завершён; Фаза 4 использует ограниченный fake compiler для empty/virtual fixtures. Он не принимает произвольный graph как пустой plan; Фаза 5 заменяет adapter настоящим compiler на том же acceptance.
@@ -127,6 +127,7 @@
 - [x] A1 — stable endpoint identity и raw signal path: полный device/service path, повторяемые локальные IDs, независимость persisted binding от runtime group.
 - [x] A2 — owner-scoped leases и точечный cleanup session/prepare/probe owner.
 - [x] A3 — атомарная initial registration без пустой session и без разрушения прежней topology.
+- [x] A4 — persisted binding, normalized signal ingress и command route используют общие stable/runtime endpoint types; deprecated локальный PortId не разрешается эвристически.
 - [x] C1 — bounded/nonblocking process transport и независимый kill path.
 - [x] B1 — global mutation ledger, issued epochs, recovery и bounded quota/index.
 - [x] D1 — immutable WorkspaceCandidate, unique package/assets и проверка referenced asset bytes/metadata.

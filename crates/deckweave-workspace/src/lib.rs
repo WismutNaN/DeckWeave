@@ -2,6 +2,7 @@
 //! Workspace Configuration bounded context.
 
 mod apply;
+mod binding;
 mod candidate;
 mod command;
 mod model;
@@ -10,6 +11,7 @@ mod snapshot;
 mod transfer;
 mod validation;
 
+pub use binding::EndpointBinding;
 pub use command::{DraftEditError, apply_draft_command, preview_draft_mutation};
 pub use model::{
     AssetReference, DraftCommand, PackageLockEntry, WorkspaceDraft, WorkspaceRevision,

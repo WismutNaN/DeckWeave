@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use deckweave_domain::ids::{
-    CapabilityId, DeviceIdentity, ElementId, NodeId, PackageId, PortId, ProviderId,
+    CapabilityId, DeviceIdentity, ElementId, NodeId, PackageId, PortId, ProviderId, ServiceId,
 };
 use deckweave_domain::{
     automation::{ExecutionKind, OperationDescriptor},
-    capability::{NodeDescriptor, SignalEnvelope},
+    capability::{NodeDescriptor, SignalEnvelope, SignalValidationError},
     endpoint::{EndpointTargetRef, PortPath, StableEndpointRef},
     lighting::LightTopology,
     media::StreamTemplate,
@@ -215,9 +215,27 @@ fn signal_sequence_and_host_ingress_are_not_derived_from_value_direction()
         .enumerate()
         .map(|(index, delta)| {
             serde_json::from_value::<SignalEnvelope>(json!({
-                "deviceSessionId": "device-session-1",
-                "sessionGeneration": 1,
-                "sourcePortId": "encoder.delta",
+                "source": {
+                    "stable": {
+                        "packageId": "org.deckweave.fixture.keyboard",
+                        "nodeId": "local-node",
+                        "target": {
+                            "kind": "device",
+                            "providerId": "fixture-hid-provider",
+                            "deviceIdentity": "keyboard-observe-fixture"
+                        },
+                        "port": {
+                            "elementId": "encoder",
+                            "capabilityId": "encoder-rotation",
+                            "portId": "encoder.delta"
+                        }
+                    },
+                    "runtimeGroupId": "input",
+                    "pluginSessionId": "plugin-session-1",
+                    "sessionGeneration": 1,
+                    "descriptorRevision": 1
+                },
+                "deviceSessionGeneration": 1,
                 "sequence": index + 1,
                 "capturedAt": {
                     "ticks": index + 100,
@@ -246,6 +264,23 @@ fn signal_sequence_and_host_ingress_are_not_derived_from_value_direction()
         .collect::<Option<_>>()
         .ok_or("all deltas must be numeric")?;
     assert_eq!(decoded_deltas, [1, 1, -1]);
+
+    let mut missing_generation = signals[0].clone();
+    missing_generation.device_session_generation = None;
+    assert_eq!(
+        missing_generation.validate(),
+        Err(SignalValidationError::MissingDeviceGeneration)
+    );
+
+    let mut service_signal = signals[0].clone();
+    service_signal.source.stable.target = EndpointTargetRef::Service {
+        provider_id: ProviderId::try_new("fixture-service-provider")?,
+        service_id: ServiceId::try_new("keyboard-service")?,
+    };
+    assert_eq!(
+        service_signal.validate(),
+        Err(SignalValidationError::UnexpectedDeviceGeneration)
+    );
     Ok(())
 }
 

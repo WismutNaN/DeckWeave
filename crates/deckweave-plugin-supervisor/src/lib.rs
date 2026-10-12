@@ -4,4 +4,5 @@
 pub mod host;
 pub mod package;
 pub mod process;
+pub mod routing;
 pub mod supervisor;

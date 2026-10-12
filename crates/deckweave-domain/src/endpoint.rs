@@ -2,7 +2,8 @@
 //! Stable endpoint identity shared by profiles, routing and runtime resolution.
 
 use crate::ids::{
-    CapabilityId, DeviceIdentity, ElementId, NodeId, PackageId, PortId, ProviderId, ServiceId,
+    CapabilityId, DescriptorRevision, DeviceIdentity, ElementId, NodeId, PackageId,
+    PluginSessionId, PortId, ProviderId, RuntimeGroupId, ServiceId, SessionGeneration,
 };
 use serde::{Deserialize, Serialize};
 
@@ -40,4 +41,16 @@ pub struct StableEndpointRef {
     pub node_id: NodeId,
     pub target: EndpointTargetRef,
     pub port: PortPath,
+}
+
+/// Runtime-resolved identity. It is never persisted in a workspace because
+/// every transient field becomes stale after a provider restart or regrouping.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeEndpointRef {
+    pub stable: StableEndpointRef,
+    pub runtime_group_id: RuntimeGroupId,
+    pub plugin_session_id: PluginSessionId,
+    pub session_generation: SessionGeneration,
+    pub descriptor_revision: DescriptorRevision,
 }

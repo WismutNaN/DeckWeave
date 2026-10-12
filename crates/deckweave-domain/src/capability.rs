@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use crate::{
     ids::{
-        ActivationEpoch, CapabilityId, CausationId, ClockDomainId, CorrelationId,
-        DescriptorRevision, DeviceIdentity, DeviceSessionId, ElementId, HostBootId, IngressOrdinal,
-        NamespacedKind, NodeId, PortId, ProviderId, ServiceId, SessionGeneration, TraceId,
+        CapabilityId, DescriptorRevision, DeviceIdentity, ElementId, NamespacedKind, NodeId,
+        PortId, ProviderId, ServiceId, SessionGeneration,
     },
     schema::{ExtensionMap, SchemaRef, SchemaVersionRange},
 };
@@ -11,6 +10,9 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 use thiserror::Error;
+
+mod signal;
+pub use signal::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 #[serde(transparent)]
@@ -234,67 +236,6 @@ pub struct NodeDescriptor {
     pub extensions: ExtensionMap,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum SignalQuality {
-    Fresh,
-    Stale,
-    Estimated,
-    Degraded,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum SignalOrigin {
-    Physical,
-    Synthetic,
-    Remote,
-    Replay,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SourceTimestamp {
-    pub ticks: u64,
-    pub frequency_hz: u64,
-    pub clock_domain_id: ClockDomainId,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct HostIngress {
-    pub received_ticks: u64,
-    pub ingress_ordinal: IngressOrdinal,
-    pub host_boot_id: HostBootId,
-    pub activation_epoch: ActivationEpoch,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TraceContext {
-    pub trace_id: TraceId,
-    pub correlation_id: Option<CorrelationId>,
-    pub causation_id: Option<CausationId>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SignalEnvelope {
-    pub device_session_id: DeviceSessionId,
-    pub session_generation: SessionGeneration,
-    pub source_port_id: PortId,
-    pub sequence: u64,
-    pub captured_at: SourceTimestamp,
-    pub host_ingress: Option<HostIngress>,
-    pub wall_clock_rfc3339: Option<String>,
-    pub quality: SignalQuality,
-    pub origin: SignalOrigin,
-    pub trace: TraceContext,
-    pub payload: Value,
-    #[serde(default, flatten)]
-    pub extensions: ExtensionMap,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum DescriptorError {
     #[error("недопустимый port kind: {0}")]
@@ -307,8 +248,6 @@ pub enum DescriptorError {
     DuplicateId(String),
     #[error("identity evidence confidence должна быть в диапазоне 0..=1")]
     InvalidConfidence,
-    #[error("source clock frequency и sequence должны быть больше нуля")]
-    InvalidSignalClock,
     #[error("rate hints должны быть положительными и maximum не ниже preferred")]
     InvalidRate,
     #[error(transparent)]
@@ -407,15 +346,6 @@ fn validate_elements(elements: &[ElementDescriptor]) -> Result<(), DescriptorErr
         }
     }
     Ok(())
-}
-
-impl SignalEnvelope {
-    pub fn validate(&self) -> Result<(), DescriptorError> {
-        if self.sequence == 0 || self.captured_at.frequency_hz == 0 {
-            return Err(DescriptorError::InvalidSignalClock);
-        }
-        Ok(())
-    }
 }
 
 pub type StateFields = BTreeMap<String, Value>;

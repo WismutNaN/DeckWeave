@@ -181,7 +181,10 @@ fn invalid_initial_snapshot_preserves_working_session_and_resources() -> Result<
         Err(RegistryError::DuplicateNode("within snapshot".into()))
     );
     assert_eq!(registry.snapshot()?, before);
-    assert_eq!(registry.resolve(&key_a_reference()?)?.session, current);
+    let resolved = registry.resolve(&key_a_reference()?)?;
+    assert_eq!(resolved.runtime_group_id, current.runtime_group_id);
+    assert_eq!(resolved.plugin_session_id, current.plugin_session_id);
+    assert_eq!(resolved.session_generation, current.generation);
     assert_eq!(
         registry.acquire_resource(
             ResourceLeaseOwner::RuntimeSession {
@@ -544,7 +547,7 @@ fn stable_reference_survives_runtime_group_migration() -> Result<(), Box<dyn Err
         vec![fixture("observe-keyboard.node.json")?],
     )?;
     assert_eq!(
-        registry.resolve(&reference)?.session.runtime_group_id,
+        registry.resolve(&reference)?.runtime_group_id,
         migrated.runtime_group_id
     );
     Ok(())

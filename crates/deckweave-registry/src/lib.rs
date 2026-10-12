@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Runtime topology and canonical physical-resource ownership.
 
-pub use deckweave_domain::endpoint::{EndpointTargetRef, PortPath, StableEndpointRef};
+pub use deckweave_domain::endpoint::{
+    EndpointTargetRef, PortPath, RuntimeEndpointRef, StableEndpointRef,
+};
 use deckweave_domain::{
     capability::NodeDescriptor,
     ids::{
@@ -34,13 +36,7 @@ pub struct SessionIdentity {
     pub generation: SessionGeneration,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ResolvedEndpoint {
-    pub reference: StablePortRef,
-    pub session: SessionIdentity,
-    pub descriptor_revision: DescriptorRevision,
-}
+pub type ResolvedEndpoint = RuntimeEndpointRef;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -233,8 +229,10 @@ impl CapabilityRegistry {
             return Err(RegistryError::AmbiguousEndpoint);
         }
         Ok(ResolvedEndpoint {
-            reference: reference.clone(),
-            session: state.identity.clone(),
+            stable: reference.clone(),
+            runtime_group_id: state.identity.runtime_group_id.clone(),
+            plugin_session_id: state.identity.plugin_session_id.clone(),
+            session_generation: state.identity.generation,
             descriptor_revision: state.descriptor_revision,
         })
     }

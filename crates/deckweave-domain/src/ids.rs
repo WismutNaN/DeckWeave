@@ -179,6 +179,7 @@ text_id!(PluginSessionId);
 text_id!(ElementId);
 text_id!(CapabilityId);
 text_id!(PortId);
+text_id!(BindingId);
 text_id!(GraphNodeId);
 text_id!(ExecutionId);
 text_id!(InvocationId);

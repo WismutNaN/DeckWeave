@@ -123,9 +123,12 @@ Remote/media пока представлены только descriptors; transpo
 
 Фаза 4 в процессе: `deckweave-profiles` поддерживает immutable checksum-verified revisions,
 content-addressed assets, durable draft transactions/receipts, snapshots и selective export/import.
-Transport-independent ApplicationService выполняет draft mutations с principal scopes, optimistic version,
-dry-run и durable dedup через injected ports. Operation tracking, active commit/apply barrier и runtime
-activation ещё не подключены, поэтому draft пока не меняет конфигурацию запущенного host.
+Transport-independent Application Gateway выполняет draft mutations с principal scopes, optimistic version,
+dry-run и durable dedup через injected ports. Через тот же публичный путь доступны plan/apply/status:
+Host сохраняет operation intent, повторяет fenced checks на barrier, публикует active commit и активирует
+isolated `virtual_echo`. Startup восстанавливает committed revision без replay входного события. Произвольный
+automation graph и UI bindings ещё не поддержаны: restricted compiler принимает только подтверждённый fixture
+до реализации Фазы 5.
 
 Permissive reference plugin находится в `examples/virtual-plugin`; он зависит только от
 `deckweave-protocol`. OpenAction C0 scanner и pinned fixture находятся в `runtimes/openaction-host`

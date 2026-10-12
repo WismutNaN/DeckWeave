@@ -110,12 +110,6 @@
       "reason": "The initial Tauri composition root still combines command wiring, tray lifecycle and window setup.",
       "reviewMilestone": "Phase 6"
     },
-    "crates/deckweave-domain/src/capability.rs": {
-      "maxLines": 421,
-      "owner": "Shared Kernel",
-      "reason": "Existing capability vocabulary is split only after its Phase 5 consumers prove stable seams.",
-      "reviewMilestone": "Phase 5"
-    },
     "crates/deckweave-plugin-supervisor/src/package.rs": {
       "maxLines": 544,
       "owner": "Plugin Runtime",
