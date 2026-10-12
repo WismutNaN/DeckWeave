@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://deckweave.dev/schema/windows/window-ref/v1",
+  "type": "object",
+  "required": ["generation", "reference"],
+  "properties": {
+    "generation": { "type": "integer", "minimum": 1 },
+    "reference": { "type": "string", "minLength": 1, "maxLength": 256 }
+  },
+  "additionalProperties": false
+}

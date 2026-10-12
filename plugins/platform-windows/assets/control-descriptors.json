@@ -1,0 +1,156 @@
+[
+  {
+    "nodeId": "windows-control-node",
+    "kind": "local",
+    "label": "Windows controls",
+    "descriptorRevision": 1,
+    "services": [
+      {
+        "serviceId": "windows-platform",
+        "providerId": "org.deckweave.platform.windows.control",
+        "label": "Windows",
+        "elements": [
+          {
+            "elementId": "audio",
+            "label": "Master audio",
+            "capabilities": [
+              {
+                "capabilityId": "endpoint-control",
+                "kind": "org.deckweave.audio.endpoint",
+                "ports": [
+                  {
+                    "portId": "set-volume",
+                    "kind": "CommandIn",
+                    "direction": "input",
+                    "semantics": "command",
+                    "schema": { "id": "org.deckweave.windows.audio_command", "version": { "major": 1, "minor": 0 } },
+                    "compatibleVersions": { "minimum": { "major": 1, "minor": 0 }, "maximum": { "major": 1, "minor": 0 } },
+                    "requiredPermissions": ["windows.audio.control"],
+                    "availability": { "status": "unavailable", "reason": "org.deckweave.windows.controlled_adapter" },
+                    "lifetime": "requestable",
+                    "descriptorRevision": 1,
+                    "tags": ["windows", "audio", "action"]
+                  },
+                  {
+                    "portId": "set-mute",
+                    "kind": "CommandIn",
+                    "direction": "input",
+                    "semantics": "command",
+                    "schema": { "id": "org.deckweave.windows.audio_command", "version": { "major": 1, "minor": 0 } },
+                    "compatibleVersions": { "minimum": { "major": 1, "minor": 0 }, "maximum": { "major": 1, "minor": 0 } },
+                    "requiredPermissions": ["windows.audio.control"],
+                    "availability": { "status": "unavailable", "reason": "org.deckweave.windows.controlled_adapter" },
+                    "lifetime": "requestable",
+                    "descriptorRevision": 1,
+                    "tags": ["windows", "audio", "action"]
+                  },
+                  {
+                    "portId": "state",
+                    "kind": "StateOut",
+                    "direction": "output",
+                    "semantics": "state",
+                    "schema": { "id": "org.deckweave.windows.audio_state", "version": { "major": 1, "minor": 0 } },
+                    "compatibleVersions": { "minimum": { "major": 1, "minor": 0 }, "maximum": { "major": 1, "minor": 0 } },
+                    "requiredPermissions": ["windows.audio.observe"],
+                    "availability": { "status": "unavailable", "reason": "org.deckweave.windows.controlled_adapter" },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": ["windows", "audio", "state"]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "elementId": "media",
+            "label": "Media transport",
+            "capabilities": [
+              {
+                "capabilityId": "transport-control",
+                "kind": "org.deckweave.media.transport",
+                "ports": [
+                  {
+                    "portId": "invoke",
+                    "kind": "CommandIn",
+                    "direction": "input",
+                    "semantics": "command",
+                    "schema": { "id": "org.deckweave.windows.media_transport", "version": { "major": 1, "minor": 0 } },
+                    "compatibleVersions": { "minimum": { "major": 1, "minor": 0 }, "maximum": { "major": 1, "minor": 0 } },
+                    "requiredPermissions": ["windows.media.control"],
+                    "availability": { "status": "unavailable", "reason": "org.deckweave.windows.controlled_adapter" },
+                    "lifetime": "requestable",
+                    "descriptorRevision": 1,
+                    "tags": ["windows", "media", "action"]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "elementId": "applications",
+            "label": "Applications and windows",
+            "capabilities": [
+              {
+                "capabilityId": "launch",
+                "kind": "org.deckweave.application.launch",
+                "ports": [
+                  {
+                    "portId": "invoke",
+                    "kind": "CommandIn",
+                    "direction": "input",
+                    "semantics": "command",
+                    "schema": { "id": "org.deckweave.windows.app_target", "version": { "major": 1, "minor": 0 } },
+                    "compatibleVersions": { "minimum": { "major": 1, "minor": 0 }, "maximum": { "major": 1, "minor": 0 } },
+                    "requiredPermissions": ["windows.process.launch"],
+                    "availability": { "status": "unavailable", "reason": "org.deckweave.windows.controlled_adapter" },
+                    "lifetime": "requestable",
+                    "descriptorRevision": 1,
+                    "tags": ["windows", "application", "action"]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "window-activation",
+                "kind": "org.deckweave.window.activate",
+                "ports": [
+                  {
+                    "portId": "invoke",
+                    "kind": "CommandIn",
+                    "direction": "input",
+                    "semantics": "command",
+                    "schema": { "id": "org.deckweave.windows.window_ref", "version": { "major": 1, "minor": 0 } },
+                    "compatibleVersions": { "minimum": { "major": 1, "minor": 0 }, "maximum": { "major": 1, "minor": 0 } },
+                    "requiredPermissions": ["windows.window.activate"],
+                    "availability": { "status": "unavailable", "reason": "org.deckweave.windows.controlled_adapter" },
+                    "lifetime": "requestable",
+                    "descriptorRevision": 1,
+                    "tags": ["windows", "window", "action"]
+                  }
+                ]
+              },
+              {
+                "capabilityId": "foreground-state",
+                "kind": "org.deckweave.window.foreground",
+                "ports": [
+                  {
+                    "portId": "state",
+                    "kind": "StateOut",
+                    "direction": "output",
+                    "semantics": "state",
+                    "schema": { "id": "org.deckweave.windows.active_window_state", "version": { "major": 1, "minor": 0 } },
+                    "compatibleVersions": { "minimum": { "major": 1, "minor": 0 }, "maximum": { "major": 1, "minor": 0 } },
+                    "requiredPermissions": ["windows.window.observe"],
+                    "availability": { "status": "unavailable", "reason": "org.deckweave.windows.controlled_adapter" },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": ["windows", "window", "state"]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]

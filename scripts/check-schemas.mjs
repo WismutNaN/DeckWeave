@@ -40,6 +40,25 @@ for (const [name, fixture] of Object.entries(schemas)) {
   }
 }
 
+const windowsPackageRoot = path.join(root, "plugins", "platform-windows");
+const windowsManifest = JSON.parse(
+  fs.readFileSync(
+    path.join(windowsPackageRoot, "package", "deckweave-plugin.template.json"),
+    "utf8",
+  ),
+);
+if (!validateManifest || !validateManifest(windowsManifest)) {
+  throw new Error(
+    `platform-windows manifest: ${ajv.errorsText(validateManifest?.errors)}`,
+  );
+}
+for (const entry of windowsManifest.schemas) {
+  const schema = JSON.parse(
+    fs.readFileSync(path.join(windowsPackageRoot, entry.path), "utf8"),
+  );
+  ajv.compile(schema);
+}
+
 const invalidManifest = { manifestVersion: 1, packageId: "not-namespaced" };
 if (!validateManifest || validateManifest(invalidManifest)) {
   throw new Error("invalid manifest unexpectedly passed validation");
@@ -72,5 +91,5 @@ for (const unsafePath of [
   }
 }
 console.log(
-  "JSON Schema: 3 schemas, extensible fixtures and invalid-manifest rejection pass.",
+  "JSON Schema: shared documents and Windows package schemas pass validation.",
 );

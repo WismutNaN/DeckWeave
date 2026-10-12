@@ -1,0 +1,51 @@
+[
+  {
+    "nodeId": "windows-input-node",
+    "kind": "local",
+    "label": "Windows input",
+    "descriptorRevision": 1,
+    "devices": [
+      {
+        "identity": "system-keyboard-aggregate",
+        "providerId": "org.deckweave.platform.windows.input",
+        "kind": "virtual",
+        "label": "System keyboard",
+        "elements": [
+          {
+            "elementId": "keyboard",
+            "label": "Keyboard",
+            "capabilities": [
+              {
+                "capabilityId": "observe",
+                "kind": "org.deckweave.input.keyboard",
+                "ports": [
+                  {
+                    "portId": "edge",
+                    "kind": "EventOut",
+                    "direction": "output",
+                    "semantics": "event",
+                    "schema": { "id": "org.deckweave.windows.keyboard_observation", "version": { "major": 1, "minor": 0 } },
+                    "compatibleVersions": { "minimum": { "major": 1, "minor": 0 }, "maximum": { "major": 1, "minor": 0 } },
+                    "requiredPermissions": ["input.observe"],
+                    "availability": { "status": "unavailable", "reason": "org.deckweave.windows.controlled_adapter" },
+                    "lifetime": "always",
+                    "descriptorRevision": 1,
+                    "tags": ["windows", "keyboard", "observe", "pass-through"]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "org.deckweave.inputSource": {
+          "granularity": "system_aggregate",
+          "physicalIdentity": false,
+          "canObserve": true,
+          "canIntercept": false,
+          "passThrough": true,
+          "failOpen": true
+        }
+      }
+    ]
+  }
+]

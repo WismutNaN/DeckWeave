@@ -1,0 +1,84 @@
+{
+  "manifestVersion": 1,
+  "packageId": "org.deckweave.platform.windows",
+  "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
+  "source": {
+    "repository": "https://github.com/WismutNaN/DeckWeave",
+    "revision": "source-tree",
+    "provenance": "First-party package; artifact and schema hashes are replaced by the release packager."
+  },
+  "artifacts": [
+    {
+      "id": "windows-x86_64-control",
+      "os": "windows",
+      "architecture": "x86_64",
+      "entrypoint": "bin/deckweave-platform-windows-control.exe",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "id": "windows-x86_64-input-observe",
+      "os": "windows",
+      "architecture": "x86_64",
+      "entrypoint": "bin/deckweave-platform-windows-input-observe.exe",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ],
+  "runtimeGroups": [
+    {
+      "id": "control",
+      "runtimeClass": "isolated_control",
+      "artifactId": "windows-x86_64-control"
+    },
+    {
+      "id": "input-observe",
+      "runtimeClass": "isolated_control",
+      "artifactId": "windows-x86_64-input-observe"
+    }
+  ],
+  "contributions": [
+    {
+      "id": "windows-control",
+      "type": "org.deckweave.platform_provider",
+      "runtimeGroupId": "control",
+      "descriptor": { "platform": "windows", "mode": "controlled_adapter" }
+    },
+    {
+      "id": "keyboard-observe",
+      "type": "org.deckweave.device_provider",
+      "runtimeGroupId": "input-observe",
+      "descriptor": {
+        "platform": "windows",
+        "granularity": "system_aggregate",
+        "observe": true,
+        "intercept": false,
+        "passThrough": true,
+        "failOpen": true
+      }
+    }
+  ],
+  "protocolRange": {
+    "minimum": { "major": 1, "minor": 0 },
+    "maximum": { "major": 1, "minor": 1 }
+  },
+  "permissions": [
+    { "scope": "windows.audio.observe", "accessMode": "observe", "resourceSelector": { "endpoint": "default_render_multimedia" }, "reason": "Read the default output volume and mute state", "optional": false, "runtimeGroupIds": ["control"] },
+    { "scope": "windows.audio.control", "accessMode": "write", "resourceSelector": { "endpoint": "default_render_multimedia" }, "reason": "Change the default output volume and mute state", "optional": false, "runtimeGroupIds": ["control"] },
+    { "scope": "windows.window.observe", "accessMode": "observe", "resourceSelector": { "session": "current_user" }, "reason": "Observe the foreground window and enumerate visible application windows", "optional": false, "runtimeGroupIds": ["control"] },
+    { "scope": "windows.window.activate", "accessMode": "execute", "resourceSelector": { "session": "current_user" }, "reason": "Request activation of a selected application window", "optional": false, "runtimeGroupIds": ["control"] },
+    { "scope": "windows.process.launch", "accessMode": "execute", "resourceSelector": { "mode": "exact_executable" }, "reason": "Launch an explicitly configured executable with separate arguments", "optional": false, "runtimeGroupIds": ["control"] },
+    { "scope": "windows.shell.open", "accessMode": "execute", "resourceSelector": { "mode": "file_or_uri" }, "reason": "Open an explicitly configured file or URI through Windows Shell", "optional": false, "runtimeGroupIds": ["control"] },
+    { "scope": "windows.media.control", "accessMode": "execute", "resourceSelector": { "commands": ["play_pause", "next", "previous", "stop"] }, "reason": "Send an allowlisted media transport command", "optional": false, "runtimeGroupIds": ["control"] },
+    { "scope": "input.observe", "accessMode": "observe", "resourceSelector": { "kind": "keyboard", "granularity": "system_aggregate" }, "reason": "Observe keyboard edges without suppressing the original Windows input", "optional": false, "runtimeGroupIds": ["input-observe"] }
+  ],
+  "schemas": [
+    { "id": "org.deckweave.windows.audio_command", "version": { "major": 1, "minor": 0 }, "path": "schemas/audio-command.schema.json", "sha256": "0000000000000000000000000000000000000000000000000000000000000000" },
+    { "id": "org.deckweave.windows.audio_state", "version": { "major": 1, "minor": 0 }, "path": "schemas/audio-state.schema.json", "sha256": "0000000000000000000000000000000000000000000000000000000000000000" },
+    { "id": "org.deckweave.windows.media_transport", "version": { "major": 1, "minor": 0 }, "path": "schemas/media-transport.schema.json", "sha256": "0000000000000000000000000000000000000000000000000000000000000000" },
+    { "id": "org.deckweave.windows.app_target", "version": { "major": 1, "minor": 0 }, "path": "schemas/app-target.schema.json", "sha256": "0000000000000000000000000000000000000000000000000000000000000000" },
+    { "id": "org.deckweave.windows.window_selector", "version": { "major": 1, "minor": 0 }, "path": "schemas/window-selector.schema.json", "sha256": "0000000000000000000000000000000000000000000000000000000000000000" },
+    { "id": "org.deckweave.windows.window_ref", "version": { "major": 1, "minor": 0 }, "path": "schemas/window-ref.schema.json", "sha256": "0000000000000000000000000000000000000000000000000000000000000000" },
+    { "id": "org.deckweave.windows.active_window_state", "version": { "major": 1, "minor": 0 }, "path": "schemas/active-window-state.schema.json", "sha256": "0000000000000000000000000000000000000000000000000000000000000000" },
+    { "id": "org.deckweave.windows.keyboard_observation", "version": { "major": 1, "minor": 0 }, "path": "schemas/keyboard-observation.schema.json", "sha256": "0000000000000000000000000000000000000000000000000000000000000000" }
+  ]
+}

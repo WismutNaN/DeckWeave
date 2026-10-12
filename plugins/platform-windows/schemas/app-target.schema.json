@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://deckweave.dev/schema/windows/app-target/v1",
+  "type": "object",
+  "required": ["executable", "arguments"],
+  "properties": {
+    "executable": { "type": "string", "minLength": 1, "maxLength": 32768 },
+    "arguments": { "type": "array", "maxItems": 128, "items": { "type": "string", "maxLength": 32768 } },
+    "workingDirectory": { "type": ["string", "null"], "maxLength": 32768 }
+  },
+  "additionalProperties": false
+}

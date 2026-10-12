@@ -1,0 +1,6 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://deckweave.dev/schema/windows/media-transport/v1",
+  "type": "string",
+  "enum": ["play_pause", "next", "previous", "stop"]
+}

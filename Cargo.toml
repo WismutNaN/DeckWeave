@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/*", "apps/desktop/src-tauri", "examples/virtual-plugin", "runtimes/openaction-host"]
+members = ["crates/*", "apps/desktop/src-tauri", "examples/virtual-plugin", "plugins/*", "runtimes/openaction-host"]
 default-members = ["crates/deckweave-domain", "crates/deckweave-protocol", "crates/deckweave-workspace", "crates/deckweave-platform", "crates/deckweave-platform-input", "crates/deckweave-interaction", "crates/deckweave-application", "crates/deckweave-host", "crates/deckweave-platform-host"]
 
 [workspace.package]

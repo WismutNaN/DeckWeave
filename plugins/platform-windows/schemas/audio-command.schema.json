@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://deckweave.dev/schema/windows/audio-command/v1",
+  "oneOf": [
+    { "type": "object", "required": ["kind", "scalar"], "properties": { "kind": { "const": "set_volume" }, "scalar": { "type": "number", "minimum": 0, "maximum": 1 } }, "additionalProperties": false },
+    { "type": "object", "required": ["kind", "delta"], "properties": { "kind": { "const": "change_volume" }, "delta": { "type": "number", "minimum": -1, "maximum": 1 } }, "additionalProperties": false },
+    { "type": "object", "required": ["kind", "muted"], "properties": { "kind": { "const": "set_mute" }, "muted": { "type": "boolean" } }, "additionalProperties": false },
+    { "type": "object", "required": ["kind"], "properties": { "kind": { "const": "toggle_mute" } }, "additionalProperties": false }
+  ]
+}

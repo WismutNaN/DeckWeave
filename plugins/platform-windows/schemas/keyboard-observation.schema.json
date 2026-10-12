@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://deckweave.dev/schema/windows/keyboard-observation/v1",
+  "type": "object",
+  "required": ["key", "edge", "origin"],
+  "properties": {
+    "key": {
+      "type": "object",
+      "required": ["key", "location"],
+      "properties": {
+        "key": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*(\\.[A-Za-z0-9][A-Za-z0-9_-]*)+$", "maxLength": 128 },
+        "location": { "enum": ["standard", "left", "right", "numpad", "unknown"] }
+      },
+      "additionalProperties": false
+    },
+    "edge": { "enum": ["pressed", "repeated", "released"] },
+    "origin": {
+      "oneOf": [
+        { "type": "object", "required": ["kind"], "properties": { "kind": { "const": "device_or_unknown" } }, "additionalProperties": false },
+        { "type": "object", "required": ["kind", "providerId", "runtimeGeneration"], "properties": { "kind": { "const": "deckweave_synthetic" }, "providerId": { "type": "string" }, "runtimeGeneration": { "type": "integer", "minimum": 1 } }, "additionalProperties": false },
+        { "type": "object", "required": ["kind"], "properties": { "kind": { "const": "other_synthetic" } }, "additionalProperties": false },
+        { "type": "object", "required": ["kind"], "properties": { "kind": { "const": "unknown" } }, "additionalProperties": false }
+      ]
+    }
+  },
+  "additionalProperties": false
+}

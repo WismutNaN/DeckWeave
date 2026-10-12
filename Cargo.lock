@@ -877,7 +877,23 @@ version = "0.1.0"
 dependencies = [
  "deckweave-domain",
  "serde",
+ "serde_json",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "deckweave-platform-windows"
+version = "0.1.0"
+dependencies = [
+ "deckweave-application",
+ "deckweave-domain",
+ "deckweave-platform-host",
+ "deckweave-plugin-supervisor",
+ "deckweave-protocol",
+ "deckweave-registry",
+ "serde_json",
+ "sha2",
+ "tempfile",
 ]
 
 [[package]]

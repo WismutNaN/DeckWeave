@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://deckweave.dev/schema/windows/audio-state/v1",
+  "type": "object",
+  "required": ["endpointRef", "scalar", "muted", "availability", "revision"],
+  "properties": {
+    "endpointRef": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "scalar": { "type": "number", "minimum": 0, "maximum": 1 },
+    "muted": { "type": "boolean" },
+    "availability": { "enum": ["available", "unavailable", "rebind"] },
+    "revision": { "type": "integer", "minimum": 1 }
+  },
+  "additionalProperties": false
+}

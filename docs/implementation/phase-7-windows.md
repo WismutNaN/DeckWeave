@@ -4,7 +4,7 @@
 
 ## Состояние
 
-Фаза начата. Срез 7.0 завершён документацией и source audit; production Windows package ещё не создан. Каждый следующий срез должен оставлять `npm run check` и workspace tests зелёными и не объявлять fake/manual result production capability.
+Фаза начата. Срезы 7.0 и 7.1 завершены: source audit, neutral input contracts, schemas, manifest template и исполняемые shells двух runtime groups проходят production process/supervisor boundary. Все endpoint-ы package пока честно объявлены `unavailable`: реальных Windows effects до среза 7.2 нет. Каждый следующий срез должен оставлять `npm run check` и workspace tests зелёными и не объявлять fake/manual result production capability.
 
 Phase 6 может сохранять отдельные открытые UI/E2E acceptance items: они не разрешают Windows package обходить Application Gateway или plugin lifecycle. Phase 7 использует существующий production composition и добавляет capabilities через общий package/runtime contract.
 
@@ -30,26 +30,30 @@ Phase 6 может сохранять отдельные открытые UI/E2E
 
 ## 7.1 — Contracts, schemas и package shell
 
+**Статус:** [x]
+
 Сначала добавляется исполняемый package shell и platform-neutral runtime vocabulary; реальные OS effects ещё заменены controlled adapters.
 
-- Добавить `InputObservation`, edge/repeat semantics, normalized key identity, `InputOrigin` и `PrivilegeStatus` в `deckweave-platform-input`. Не добавлять Win32 virtual-key/HWND в Shared Kernel.
-- Определить package schemas для audio commands/state, media transport, app target, window selector/ref, active-window state и keyboard observation.
-- Создать manifest с двумя artifacts/runtime groups, contribution → group mapping, минимальными Windows architecture filters и permissions:
+- [x] Добавить `InputObservation`, edge/repeat semantics, normalized key identity, `InputOrigin` и `PrivilegeStatus` в `deckweave-platform-input`. Не добавлять Win32 virtual-key/HWND в Shared Kernel.
+- [x] Определить package schemas для audio commands/state, media transport, app target, window selector/ref, active-window state и keyboard observation.
+- [x] Создать manifest с двумя artifacts/runtime groups, contribution → group mapping, минимальными Windows architecture filters и permissions:
   - `windows.audio.observe`, `windows.audio.control`;
   - `windows.window.observe`, `windows.window.activate`;
   - `windows.process.launch`, `windows.shell.open`;
   - `windows.media.control`;
   - `input.observe`.
-- Добавить stable unavailable/error mapping: unsupported OS/build, permission denied, no default endpoint, no media session, stale window reference, foreground denied, launch rejected, OS API unavailable, transient rebind.
-- Поднять обе runtime groups через production supervisor на fake adapters; activation commit предшествует signal/state publication.
+- [x] Добавить stable unavailable/error mapping: unsupported OS/build, permission denied, no default endpoint, no media session, stale window reference, foreground denied, launch rejected, OS API unavailable, transient rebind.
+- [x] Поднять обе runtime groups через production supervisor на controlled adapters; activation commit предшествует signal/state publication.
 
 Acceptance:
 
-- manifest/schema fixtures проходят validation без запуска executable;
-- permission revoke одной group не останавливает независимую group;
-- два одинаковых local endpoint IDs не конфликтуют благодаря полному `EndpointPath`;
-- Windows crate/dependency не появляется в domain/application/automation crates;
-- non-Windows workspace build либо исключает artifacts по target, либо компилирует явный unsupported shell без Win32 linkage.
+- [x] manifest/schema fixtures проходят validation без запуска executable;
+- [x] permission revoke одной group не останавливает независимую group;
+- [x] два одинаковых local endpoint IDs не конфликтуют благодаря полному `EndpointPath`;
+- [x] Windows crate/dependency не появляется в domain/application/automation crates;
+- [x] non-Windows workspace build компилирует явный unsupported shell без Win32 linkage.
+
+Evidence: `plugins/platform-windows/tests/package_shell.rs` собирает временный пакет из реальных binaries, индексирует его общим `PackageStager`, запускает обе группы через `ProcessRuntime` и проверяет scoped revoke через `RuntimeController`. `scripts/check-schemas.mjs` валидирует manifest template и восемь package schemas. Это проверка lifecycle и границ, а не доказательство готовности audio/window/media/input adapters.
 
 ## 7.2 — Core Audio vertical slice
 
