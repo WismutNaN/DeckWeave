@@ -58,6 +58,6 @@
 
 `deckweave-host` не реализует `ApplicationService`: Gateway создаётся отдельно в composition root и получает read-only lifecycle projection и bounded-context repositories.
 
-Текущая реализация содержит startup locks/status/autostart и D-срез planning seam. Production coordinator и durable apply ещё не подключены. `ApplyPlanningService` использует явно ограниченный fixture compiler; Фаза 5 заменяет его настоящим без изменения fencing/acceptance. В [gate C/E](../../implementation/roadmap.md#pre-apply-gate) Host ещё получает production runtime driver, commit repository и operation recovery. Путь command → virtual process → revoke/shutdown/recovery проверяется через composition приложения, включая работу при закрытом WebView.
+Текущая реализация содержит startup locks/status/autostart и D-срез planning seam. Profile adapter уже реализует port immutable apply intent/status/active commit, но production Host coordinator и публичный apply path ещё подключаются следующим срезом E1/C2. `ApplyPlanningService` использует явно ограниченный fixture compiler; Фаза 5 заменяет его настоящим без изменения fencing/acceptance. Путь command → virtual process → revoke/shutdown/recovery проверяется через composition приложения, включая работу при закрытом WebView.
 
 ArtifactBroker реализует узкий application port с injected temporary-storage adapter; engine не зависит от Host implementation. Limits и lifecycle: [automation artifacts](../../contracts/automation.md#artifact-и-доступ-к-данным). Это небольшой сервис host, не новый обязательный процесс или database.

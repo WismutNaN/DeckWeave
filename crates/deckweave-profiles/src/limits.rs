@@ -8,6 +8,7 @@ pub struct ProfileStoreLimits {
     pub maximum_draft_transactions: usize,
     pub maximum_mutation_receipts: usize,
     pub maximum_pending_mutations: usize,
+    pub maximum_apply_operations: usize,
     pub dedup_window_seconds: u64,
     pub maximum_export_bytes: u64,
 }
@@ -20,6 +21,7 @@ impl Default for ProfileStoreLimits {
             maximum_draft_transactions: 10_000,
             maximum_mutation_receipts: 100_000,
             maximum_pending_mutations: 128,
+            maximum_apply_operations: 10_000,
             dedup_window_seconds: 7 * 24 * 60 * 60,
             maximum_export_bytes: 512 * 1024 * 1024,
         }

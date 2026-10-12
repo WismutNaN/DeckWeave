@@ -4,20 +4,14 @@
 use deckweave_automation::{CompileFence, CompiledExecutionPlan, PlanCompileError, PlanCompiler};
 use deckweave_domain::ids::{
     DraftId, DraftVersion, GrantRevision, HostBootId, OperationId, RegistryRevision, WorkspaceId,
-    WorkspaceRevisionId,
 };
-use deckweave_workspace::{DraftRepository, DraftRepositoryError, WorkspaceCandidate};
+use deckweave_workspace::{
+    ActiveSelection, DraftRepository, DraftRepositoryError, WorkspaceCandidate,
+};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use thiserror::Error;
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ActiveSelection {
-    pub workspace_id: WorkspaceId,
-    pub revision_id: WorkspaceRevisionId,
-}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

@@ -2,7 +2,8 @@
 //! Immutable, validated input handed from Workspace Configuration to planning.
 
 use crate::{
-    AssetReference, PackageLockEntry, WorkspaceDraft, WorkspaceValidationError, validate_draft,
+    AssetReference, PackageLockEntry, WorkspaceDraft, WorkspaceRevision, WorkspaceValidationError,
+    validate_draft,
 };
 use deckweave_domain::ids::{DraftId, DraftVersion, WorkspaceId, WorkspaceRevisionId};
 use serde::Serialize;
@@ -87,6 +88,21 @@ impl WorkspaceCandidate {
     #[must_use]
     pub fn assets_sha256(&self) -> &str {
         &self.assets_sha256
+    }
+
+    #[must_use]
+    pub fn to_revision(&self, revision_id: WorkspaceRevisionId) -> WorkspaceRevision {
+        WorkspaceRevision {
+            schema_version: self.draft.schema_version,
+            workspace_id: self.draft.workspace_id.clone(),
+            revision_id,
+            package_lock: self.draft.package_lock.clone(),
+            document: self.draft.document.clone(),
+            assets: self.draft.assets.clone(),
+            private_section: self.draft.private_section.clone(),
+            extensions: self.draft.extensions.clone(),
+            unknown_fields: self.draft.unknown_fields.clone(),
+        }
     }
 }
 

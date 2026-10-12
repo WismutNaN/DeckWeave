@@ -25,6 +25,7 @@ pub mod export;
 pub use export::{ExportError, ImportResult};
 pub mod snapshot;
 pub use snapshot::SnapshotMetadata;
+mod apply;
 
 const STORAGE_VERSION: u32 = 1;
 

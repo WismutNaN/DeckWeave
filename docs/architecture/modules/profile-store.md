@@ -15,6 +15,7 @@
 | `ExportSelection` | struct | Public/private content selection |
 | `MigrationReport` | struct | Pure transform result |
 | `ApplyCommitRecord`, `MutationReceipt` | documents | Crash recovery и durable deduplication |
+| `ApplyOperationRepository` | port/adapter | Immutable apply intent, status, active commit и bounded recovery scan |
 | `MutationWindow` | document | Выданный Host срок действия dedup epoch для principal |
 | `PackageLock` | document | Exact versions/hashes/settings schemas |
 
@@ -38,6 +39,7 @@
 - Acknowledged draft mutation durable; undo stack v1 может потеряться после restart с явным сообщением.
 - Mutation key глобален для `(principal, epoch, key)`, а не локален одному draft; target входит в fingerprint.
 - До публикации draft head сохраняется immutable pending intent; recovery либо допубликовывает candidate/receipt, либо диагностирует divergence.
+- Apply intent сохраняется отдельно от status; единственный `active/commit.json` является точкой выбора revision. Потерянная запись status после commit не возвращает прежний выбор: startup выводит commit status из active record и завершает recovery.
 - Receipt lookup адресуется хешем полного mutation key и не сканирует draft history; receipt/pending имеют явные quotas.
 - Import не переносит grants и не сопоставляет CredentialRef локальному secret автоматически.
 - GC учитывает revisions/snapshots/drafts/operations/preview; missing migration сохраняет opaque settings.

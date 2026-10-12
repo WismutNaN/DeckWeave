@@ -7,6 +7,7 @@ use deckweave_platform::{HostLease, HostPlatform, PlatformError};
 use std::sync::{Arc, Mutex};
 
 mod planning;
+pub use deckweave_workspace::ActiveSelection;
 pub use planning::*;
 
 pub struct HostRuntime {
