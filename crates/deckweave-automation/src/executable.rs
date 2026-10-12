@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Immutable compiler output consumed by the scheduler and runtime binder.
 
-use crate::{GraphEdge, GraphFormatVersion, GraphNode};
+use crate::{GraphEdge, GraphFormatVersion, GraphNode, SchemaValueKind};
 use deckweave_domain::{
     automation::OperationDescriptor,
     capability::PortDescriptor,
@@ -22,6 +22,8 @@ pub struct ExecutableGraph {
     pub source_subscriptions: Vec<SourceSubscription>,
     pub state_slots: Vec<StateSlot>,
     pub endpoint_contracts: Vec<CompiledEndpointContract>,
+    #[serde(default)]
+    pub schema_contracts: Vec<CompiledSchemaContract>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -48,6 +50,13 @@ pub struct CompiledEndpointContract {
     pub endpoint: StableEndpointRef,
     pub port: PortDescriptor,
     pub operation: Option<OperationDescriptor>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CompiledSchemaContract {
+    pub schema: SchemaRef,
+    pub value_kind: SchemaValueKind,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

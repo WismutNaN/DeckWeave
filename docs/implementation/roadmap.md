@@ -326,7 +326,7 @@ checkpoint/compaction B2 пока отсутствует. Durable apply и produ
 **Цель:** выполнить deterministic source → action → feedback path.
 **Результат:** virtual button вызывает virtual action, меняет state и feedback; replay повторяет результат.
 **Трудоёмкость:** L
-**Статус:** [~] В процессе: 5.0–5.2 завершены; следующий срез 5.3
+**Статус:** [~] В процессе: 5.0–5.3 завершены; следующий срез 5.4
 
 ### Контекст для агента
 > Profile/API и isolated virtual apply дают основу интеграции. Три обнаруженных dedup/recovery дефекта закрываются в 5.0 до live effects; pure compiler/scheduler можно делать независимо. Реализуется узкий graph subset без schedules и complex UI.
@@ -350,24 +350,24 @@ checkpoint/compaction B2 пока отсутствует. Durable apply и produ
 - [x] Закрыть F5-R1–R3 до подключения effects (→ [срез 5.0](phase-5-automation.md#50--закрыть-обнаруженные-переходы-фазы-4)).
 - [x] Versioned typed graph, полный invocation target, required-feature ID, delivery vocabulary, limits и Rust/TS/domain fixtures реализованы; применение limits и feature fence живым dispatcher относится к 5.3–5.4 (→ [срез 5.1](phase-5-automation.md#51--graph-contract-и-адресуемый-invocation-protocol), [Capabilities](../contracts/capabilities.md)).
 - [x] Реализовать graph compiler для source/action/state/condition/feedback с immutable schema/descriptor catalog, DAG IR и structured diagnostics (→ [Модуль: Automation Engine](../architecture/modules/automation-engine.md)).
-- [~] Runtime/recovery JSON branches удалены: оба пути используют checksum-версию compiled requirements с точными package/group/contribution. Graph IR и чистый runtime binder готовы; подключение scheduler/binder к нескольким живым runtime groups остаётся в 5.3–5.5 (→ [срезы 5.2–5.5](phase-5-automation.md)).
-- [ ] Реализовать immutable ExecutionPlan и serialized workspace scheduler (→ [ADR-0010](../decisions/0010-compiled-automation-plan.md)).
-- [ ] Разделить edge queue и coalescing value lane (→ [Архитектура — Конкурентность и QoS](../architecture/overview.md#конкурентность-и-qos)).
+- [~] Runtime/recovery JSON branches удалены: оба пути используют checksum-версию compiled requirements с точными package/group/contribution. Graph IR, чистый runtime binder и scheduler готовы; подключение binder/scheduler к нескольким живым runtime groups остаётся в 5.4–5.5 (→ [срезы 5.2–5.5](phase-5-automation.md)).
+- [x] Реализовать immutable ExecutionPlan и serialized workspace scheduler (→ [ADR-0010](../decisions/0010-compiled-automation-plan.md)).
+- [x] Разделить edge queue и coalescing value lane (→ [Архитектура — Конкурентность и QoS](../architecture/overview.md#конкурентность-и-qos)).
 - [ ] Реализовать trace/correlation/causation и basic loop guard (→ [Модуль: Diagnostics & Test Lab](../architecture/modules/diagnostics-test-lab.md)).
 - [ ] Подключить compile/plan/apply к Host Runtime (→ [Модуль: Host Runtime](../architecture/modules/host-runtime.md)).
 - [ ] Реализовать execution epochs, held-output cleanup, bounded cancellation и unknown-outcome retry policy (→ [Lifecycle effects](../contracts/lifecycle.md#executions-cancellation-и-смена-плана)).
 - [ ] Создать минимальный opt-in recorder/replay с outcomes и без live dispatch; UI/расширенные fixtures следуют в Фазе 10 (→ [Diagnostics & Test Lab](../architecture/modules/diagnostics-test-lab.md)).
-- [ ] Реализовать typed invocation/reply, job correlation и duplicate/late completion guard; проверить mixed descriptor graph без special cases и negative schema edges (→ [Automation](../contracts/automation.md), [Сценарии](../product/scenarios.md)).
+- [~] Typed invocation/reply, job correlation, duplicate/late completion guard и negative schema edges реализованы в чистом scheduler; проверка через живой mixed-descriptor dispatcher остаётся в 5.4–5.5 (→ [Automation](../contracts/automation.md), [Сценарии](../product/scenarios.md)).
 
 ### Тесты
 
-- [ ] Юнит: graph validation, schema mismatch, cycle rejection.
-- [ ] Deterministic: один fixture + fake clock даёт identical final state.
+- [x] Юнит: graph validation, schema mismatch, cycle rejection.
+- [x] Deterministic: один fixture + fake clock даёт identical final state.
 - [ ] Performance baseline: virtual input → dispatch latency.
-- [ ] Ordering/fault: encoder +1,+1,-1 не теряется; axis-before-button не подменяется будущим axis; edge overflow освобождает held outputs; late completion после apply не запускает action.
-- [ ] Result: accepted job не считается success; два invocation получают свои outputs; malformed/oversized result отклоняется, duplicate terminal не создаёт второй effect.
+- [~] Ordering/fault: encoder +1,+1,-1 не теряется; axis-before-button не подменяется будущим axis; out-of-band overflow cleanup и late completion после deadline проверены. Apply epoch/barrier с живым dispatcher остаётся в 5.4.
+- [x] Result: accepted job не считается success; два invocation получают свои outputs; malformed/oversized result отклоняется, duplicate terminal не создаёт второй effect.
 - [ ] Cross-context: два одинаковых device instances и service с одинаковыми локальными ports; topology/schema change после plan, revoke во время job и старый completion после apply.
-- [ ] Recovery/dedup: один key между PatchDraft/ApplyDraft в обоих порядках и после restart; superseded committed operation; startup после более 256 terminal operations.
+- [x] Recovery/dedup: один key между PatchDraft/ApplyDraft в обоих порядках и после restart; superseded committed operation; startup после более 256 terminal operations.
 
 ### Ссылки
 

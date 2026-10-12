@@ -5,8 +5,8 @@ use super::{
     compiler::GraphCompileError,
 };
 use crate::{
-    CompileDiagnostic, CompileDiagnosticCode, CompiledEndpointContract, EndpointAvailabilityPolicy,
-    GraphNode, GraphNodeKind, GraphPortRole, RuntimeRequirement,
+    CompileDiagnostic, CompileDiagnosticCode, CompiledEndpointContract, CompiledSchemaContract,
+    EndpointAvailabilityPolicy, GraphNode, GraphNodeKind, GraphPortRole, RuntimeRequirement,
 };
 use deckweave_domain::{automation::OperationDescriptor, capability::PortAvailability};
 use deckweave_workspace::PackageLockEntry;
@@ -235,4 +235,55 @@ fn value_matches(value: &Value, kind: SchemaValueKind) -> bool {
         SchemaValueKind::String => value.is_string(),
         SchemaValueKind::Json => true,
     }
+}
+
+pub(super) fn compile_schema_contracts(
+    nodes: &[GraphNode],
+    catalog: &DescriptorCatalog,
+) -> Result<Vec<CompiledSchemaContract>, GraphCompileError> {
+    let mut contracts = Vec::new();
+    for node in nodes {
+        let mut references: Vec<_> = node
+            .inputs
+            .iter()
+            .chain(&node.outputs)
+            .map(|port| port.schema.clone())
+            .collect();
+        if let GraphNodeKind::Action { endpoint, .. } = &node.kind
+            && let Some(operation) = catalog
+                .endpoint(endpoint)
+                .and_then(|entry| entry.operation.as_ref())
+        {
+            references.extend([
+                operation.input_schema.clone(),
+                operation.result_schema.clone(),
+                operation.error_schema.clone(),
+            ]);
+        }
+        for reference in references {
+            if contracts
+                .iter()
+                .any(|entry: &CompiledSchemaContract| entry.schema == reference)
+            {
+                continue;
+            }
+            let schema =
+                catalog
+                    .schema(&reference)
+                    .ok_or_else(|| GraphCompileError::UnresolvedSchema {
+                        node_id: node.id.clone(),
+                    })?;
+            contracts.push(CompiledSchemaContract {
+                schema: schema.schema.clone(),
+                value_kind: schema.value_kind,
+            });
+        }
+    }
+    contracts.sort_by(|left, right| {
+        left.schema
+            .id
+            .cmp(&right.schema.id)
+            .then(left.schema.version.cmp(&right.schema.version))
+    });
+    Ok(contracts)
 }

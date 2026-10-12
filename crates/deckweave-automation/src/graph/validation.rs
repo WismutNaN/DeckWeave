@@ -14,6 +14,7 @@ const SUPPORTED_GRAPH_MINOR: u32 = 0;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct GraphLimits {
     pub maximum_document_bytes: usize,
+    pub maximum_payload_bytes: usize,
     pub maximum_nodes: usize,
     pub maximum_edges: usize,
     pub maximum_ports_per_node: usize,
@@ -28,6 +29,7 @@ impl Default for GraphLimits {
     fn default() -> Self {
         Self {
             maximum_document_bytes: 1024 * 1024,
+            maximum_payload_bytes: 1024 * 1024,
             maximum_nodes: 4_096,
             maximum_edges: 8_192,
             maximum_ports_per_node: 64,
@@ -43,6 +45,7 @@ impl Default for GraphLimits {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GraphLimitKind {
     DocumentBytes,
+    PayloadBytes,
     Nodes,
     Edges,
     PortsPerNode,
@@ -111,6 +114,7 @@ impl GraphLimits {
     pub fn validate(&self) -> Result<(), GraphValidationError> {
         for (kind, value) in [
             (GraphLimitKind::DocumentBytes, self.maximum_document_bytes),
+            (GraphLimitKind::PayloadBytes, self.maximum_payload_bytes),
             (GraphLimitKind::Nodes, self.maximum_nodes),
             (GraphLimitKind::Edges, self.maximum_edges),
             (GraphLimitKind::PortsPerNode, self.maximum_ports_per_node),

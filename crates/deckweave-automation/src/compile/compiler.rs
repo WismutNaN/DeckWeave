@@ -3,8 +3,9 @@
 use super::{
     catalog::{CatalogEndpoint, DescriptorCatalog},
     semantics::{
-        collect_availability, collect_runtime_requirement, contract, runtime_requirement_order,
-        validate_action_ports, validate_endpoint_ports, validate_node_values,
+        collect_availability, collect_runtime_requirement, compile_schema_contracts, contract,
+        runtime_requirement_order, validate_action_ports, validate_endpoint_ports,
+        validate_node_values,
     },
     topology::topological_order,
 };
@@ -234,6 +235,7 @@ impl GraphPlanCompiler {
         sources.sort_by(|left, right| left.node_id.cmp(&right.node_id));
         contracts.sort_by(|left, right| left.node_id.cmp(&right.node_id));
         requirements.sort_by(runtime_requirement_order);
+        let schema_contracts = compile_schema_contracts(&nodes, &self.catalog)?;
         let executable = ExecutableGraph {
             format: graph.schema_version,
             nodes,
@@ -242,6 +244,7 @@ impl GraphPlanCompiler {
             source_subscriptions: sources,
             state_slots: states,
             endpoint_contracts: contracts,
+            schema_contracts,
         };
         let semantic_sha256 =
             self.semantic_hash(&executable, &requirements, package_lock_sha256, fence)?;

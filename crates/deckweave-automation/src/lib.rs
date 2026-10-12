@@ -6,6 +6,7 @@ mod executable;
 mod fixture;
 mod graph;
 mod plan;
+mod scheduler;
 
 pub use compile::{
     CatalogEndpoint, CatalogError, CatalogSchema, CompileAccess, DescriptorCatalog,
@@ -13,7 +14,8 @@ pub use compile::{
 };
 pub use executable::{
     BoundEndpoint, BoundExecutionGraph, CompileDiagnostic, CompileDiagnosticCode,
-    CompiledEndpointContract, ExecutableGraph, RuntimeBinding, SourceSubscription, StateSlot,
+    CompiledEndpointContract, CompiledSchemaContract, ExecutableGraph, RuntimeBinding,
+    SourceSubscription, StateSlot,
 };
 pub use fixture::{
     RestrictedFixtureCompiler, VIRTUAL_FIXTURE_CONTRIBUTION_ID, VIRTUAL_FIXTURE_PACKAGE_ID,
@@ -28,4 +30,9 @@ pub use graph::{
 pub use plan::{
     COMPILED_PLAN_EXTENSION_ID, CompileFence, CompiledExecutionPlan, DurableExecutionPlan,
     PlanCompileError, PlanCompiler, RecoveryCompileInput, RuntimeRequirement,
+};
+pub use scheduler::{
+    IngressContext, IngressItem, IngressKind, IngressOverflow, IngressQueue, IngressReliability,
+    PendingInvocation, QueueAdmission, SchedulerFault, SchedulerIntent, SchedulerState,
+    SchedulerStep, SchedulerTransition, SchedulerTransitionError, WorkspaceScheduler, transition,
 };

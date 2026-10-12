@@ -1,6 +1,6 @@
 # Фаза 5: минимальный automation engine
 
-Статус: срезы 5.0–5.2 завершены; следующий срез — pure scheduler 5.3. Основание и исходные дефекты — [повторная проверка apply](../research/pre-apply-review.md#phase-5-readiness). Фаза 4 создала рабочую основу для apply и восстановления isolated fixture; общий command claim, superseded recovery и отдельный pending budget теперь закрывают найденные P1-переходы.
+Статус: срезы 5.0–5.3 завершены; следующий срез — production orchestration 5.4. Основание и исходные дефекты — [повторная проверка apply](../research/pre-apply-review.md#phase-5-readiness). Фаза 4 создала рабочую основу для apply и восстановления isolated fixture; общий command claim, superseded recovery и отдельный pending budget теперь закрывают найденные P1-переходы.
 
 ## Граница результата
 
@@ -56,10 +56,10 @@ Graph vocabulary принадлежит Automation; shared endpoint/IDs/schema r
 
 ### 5.3 — Детерминированный scheduler без I/O
 
-- [ ] Один owner обрабатывает `IngressItem`: signal, state update, timer, invocation outcome, topology/grant fault и barrier. У каждого есть host order и `(HostBootId, ActivationEpoch)`; source clock сохраняется отдельно.
-- [ ] Чистый transition принимает plan, state, item и time input, возвращает новый state плюс intents. Scheduler не делает filesystem/network/process calls и не ждёт plugin внутри transition.
-- [ ] Reliable edges/completions/cleanup и coalescible values имеют общую семантику порядка. Coalescing допускается только внутри сегмента до следующего edge/completion/timer/barrier; транспортная latest-value map не используется как модель scheduler.
-- [ ] Добавить run-local InvocationId/outcomes, один terminal outcome, rejection malformed/oversized result, deadline/cancel и budgets. Для overflow есть отдельный fault/cleanup path, которому не требуется место в уже заполненной event queue.
+- [x] Один `WorkspaceScheduler` обрабатывает `IngressItem`: signal, state update, timer, invocation outcome, topology/grant fault и barrier. У каждого есть host order и `(HostBootId, ActivationEpoch)`; source clock сохраняется отдельно.
+- [x] Чистый transition принимает plan, state, item и time input, возвращает новый state плюс intents. Scheduler не делает filesystem/network/process calls и не ждёт plugin внутри transition.
+- [x] Reliable edges/completions/cleanup и coalescible values имеют общую семантику порядка. Coalescing допускается только внутри сегмента до следующего edge/completion/timer/barrier; транспортная latest-value map не используется как модель scheduler.
+- [x] Добавлены run-local InvocationId/outcomes, один terminal outcome, rejection malformed/oversized result, deadline/cancel и budgets. Для overflow есть отдельный fault/cleanup path, которому не требуется место в уже заполненной event queue. Исполняемый plan несёт минимальные schema contracts, поэтому runtime result проверяется по типу, а не только по размеру JSON.
 
 Выход: fake clock проверяет `axis A → button → axis B`, encoder `+1,+1,-1`, duplicate terminal, два concurrent runs, stale epoch, timeout и overflow. Одинаковый ordered fixture даёт одинаковые state/intents. Для этого не нужны OS timers и настоящий child process.
 
