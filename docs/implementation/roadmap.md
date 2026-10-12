@@ -43,8 +43,8 @@
 | 3 | Plugin supervisor и virtual package | Foundations и virtual apply готовы; live dispatch/restart integration — в Фазе 5 | L | [~] |
 | 4 | Profile revisions и application API | Draft/validate/apply/rollback через API | L | [x] |
 | 5 | Минимальный automation engine | Source → action → feedback deterministic path | L | [x] |
-| 6 | Desktop workspace canvas | Устройства и bindings редактируются в UI | L | [ ] |
-| 7 | Windows base provider и Platform Input | Volume/media/app/active-window и обычная клавиатура работают | M | [ ] |
+| 6 | Desktop workspace canvas | Устройства и bindings редактируются в UI | L | [~] |
+| 7 | Windows base provider и Platform Input | Volume/media/app/active-window и обычная клавиатура работают | M | [~] |
 | 8 | N4 Pro hardware provider | Keys/encoders/touch/light/haptic доступны | L | [ ] |
 | 9 | Surface compositor | Полный экран N4 Pro без grid gaps | L | [ ] |
 | 10 | Gamepad и test lab | Второй класс hardware + replay/metrics | M | [ ] |
@@ -424,13 +424,14 @@ B2 добавил checkpoint/compaction, автоматический maintenanc
 **Цель:** обеспечить полезные системные actions/states без N4-specific logic.
 **Результат:** virtual controls меняют volume/mute/media и active window; штатная клавиатура создаёт triggers через bundled observe/pass-through provider.
 **Трудоёмкость:** M
-**Статус:** [ ] Не начата
+**Статус:** [~] Начата: Windows API/reuse audit, runtime groups и последовательные срезы зафиксированы; production package ещё не создан.
 
 ### Контекст для агента
 > Native plugin lifecycle и UI binding готовы. Windows functionality реализуется отдельным first-party control package.
 
 ### Задачи
 
+- [x] Зафиксировать Windows API, provenance референсов, границы прямого переиспользования и два независимых runtime groups (→ [план Фазы 7](phase-7-windows.md), [исследование](../research/phase-7-windows.md), [ADR-0020](../decisions/0020-windows-provider-runtime-groups.md)).
 - [ ] Реализовать Windows ActionProvider: volume/mute/media/app launch/focus (→ [Модуль: Platform Adapters](../architecture/modules/platform-adapters.md)).
 - [ ] Реализовать StateProvider active application/window и audio endpoint state (→ [Capabilities — State](../contracts/capabilities.md#state)).
 - [ ] Разделить platform contributions и scopes для window catalog/icons/activate, input emission и scripts; новые metrics/HTTP providers оценивать отдельными срезами после базового Windows path, не включать все integrations в один package (→ [platform catalog](../plugins/platform.md), [композиция](../contracts/plugin-composition.md)).
@@ -449,6 +450,7 @@ B2 добавил checkpoint/compaction, автоматический maintenanc
 
 ### Ссылки
 
+- [Последовательные срезы Фазы 7](phase-7-windows.md)
 - [Требования DW-IN-001](../product/requirements.md#системный-ввод-и-hardware-provisioning)
 - [Режимы — Режимы input](../product/modes.md#режимы-input)
 

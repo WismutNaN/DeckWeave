@@ -44,3 +44,5 @@
 > Первая Windows contribution: media commands, volume/mute, application launch/focus и active-window state. Full interception следует отдельной фазой после recovery design.
 
 Обычная клавиатура поставляется тем же first-party package и видна пользователю как базовая возможность, но не получает скрытого core API. Observe/pass-through включается как безопасный default; intercept и emit остаются отдельными grants.
+
+Принятое Windows-разбиение — один package с runtime groups `control` и `input-observe`. Это сохраняет lazy activation и не смешивает Raw Input message loop с Core Audio/window failures. Scripts, generic input emission и interception в эти groups не входят. Детали: [ADR-0020](../../decisions/0020-windows-provider-runtime-groups.md) и [план Фазы 7](../../implementation/phase-7-windows.md).

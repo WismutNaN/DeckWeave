@@ -34,8 +34,15 @@
 | [PipeWire objects](https://docs.pipewire.org/page_objects_design.html) | Media graph и session-management boundary |
 | [Android MediaProjection](https://developer.android.com/media/grow/media-projection) | Consent, session lifecycle и отзыв захвата |
 | [MCP Rust SDK](https://github.com/modelcontextprotocol/rust-sdk) | Optional внешний adapter к application API |
+| [Windows Raw Input](https://learn.microsoft.com/en-us/windows/win32/inputdev/about-raw-input), [LowLevelKeyboardProc](https://learn.microsoft.com/en-us/windows/win32/winmsg/lowlevelkeyboardproc) | Background observe/pass-through и граница будущего intercept helper |
+| [Windows Core Audio endpoint volume](https://learn.microsoft.com/en-us/windows/win32/coreaudio/endpointvolume-api), [device events](https://learn.microsoft.com/en-us/windows/win32/coreaudio/device-events) | Master volume/mute state, callback lifetime и default endpoint hotplug |
+| [Windows SetWinEventHook](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwineventhook), [SetForegroundWindow](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setforegroundwindow) | Foreground observation отдельно от ограниченного права activation |
+| [Windows SendInput](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput), [GSMTC](https://learn.microsoft.com/en-us/uwp/api/windows.media.control.globalsystemmediatransportcontrolssessionmanager.requestasync) | Media-key fallback, UIPI/origin ограничения и отдельный metadata compatibility spike |
+| [microsoft/windows-rs](https://github.com/microsoft/windows-rs) | Официальные Rust bindings к Win32/COM/WinRT; минимальные features в Windows package |
 
 Документация проверена 2026-10-12 без pin полного upstream website. Перед implementation обновляется конкретная версия SDK/API; эти источники не использовались как доказательство Windows driver support или hardware timing.
+
+Windows API choice, local `io_type_84` commit/file hashes и ограничения прямого переноса собраны в [исследовании Фазы 7](phase-7-windows.md). Код из локального проекта не заимствован: в выбранной metadata не обнаружена явная лицензия, поэтому он пока используется только как design/test reference.
 
 ## Как использовать референс
 

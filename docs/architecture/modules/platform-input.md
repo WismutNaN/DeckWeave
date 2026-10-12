@@ -27,6 +27,8 @@ Bundled provider доступен сразу после установки, но
 
 R4 реализует `InputSourceDescriptor`, `InputEmitterDescriptor`, `CapturePolicy` и проверки честной granularity/pass-through/fail-open. Runtime-типы `InputObservation`, decisions и synthetic leases остаются задачами Фазы 7.
 
+Windows baseline Фазы 7 использует Raw Input для фонового observe/pass-through без `RIDEV_NOLEGACY`. Первый descriptor остаётся `system_aggregate`; Raw Input handle/path не становится persisted physical identity без reconnect evidence. `WH_KEYBOARD_LL` зарезервирован для отдельного будущего intercept-helper, а не для базового наблюдения. Порядок и fault gates: [Фаза 7](../../implementation/phase-7-windows.md).
+
 ## Намеренно не обрабатывает
 
 - выбор automation route;
