@@ -76,6 +76,7 @@ pub struct PendingInvocation {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SchedulerState {
+    pub run_results: BTreeMap<ExecutionId, BTreeMap<GraphNodeId, Value>>,
     pub host_boot_id: HostBootId,
     pub activation_epoch: ActivationEpoch,
     pub last_ordinal: Option<IngressOrdinal>,
@@ -94,6 +95,7 @@ impl SchedulerState {
     #[must_use]
     pub fn new(host_boot_id: HostBootId, activation_epoch: ActivationEpoch) -> Self {
         Self {
+            run_results: BTreeMap::new(),
             host_boot_id,
             activation_epoch,
             last_ordinal: None,

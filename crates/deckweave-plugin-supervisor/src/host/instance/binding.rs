@@ -22,9 +22,18 @@ pub(super) fn runtime_bindings(
         .filter(|contract| {
             contract.endpoint.package_id == session.identity.package_id
                 && contract.runtime_group_id == session.identity.runtime_group_id
-                && contract.contribution_id == instance.contribution_id
+                && instance.contributions.contains(&contract.contribution_id)
         })
         .filter_map(|contract| {
+            let (_, _, owned) =
+                instance
+                    .activation_nodes
+                    .iter()
+                    .find(|(contribution, instance_id, _)| {
+                        *contribution == contract.contribution_id
+                            && *instance_id == contract.configured_instance_id
+                    })?;
+            find_port(owned, &contract.endpoint)?;
             find_port(&instance.nodes, &contract.endpoint).map(|port| RuntimeBinding {
                 endpoint: RuntimeEndpointRef {
                     stable: contract.endpoint.clone(),
@@ -33,7 +42,7 @@ pub(super) fn runtime_bindings(
                     session_generation: session.identity.generation,
                     descriptor_revision: instance.descriptor_revision,
                 },
-                contribution_id: instance.contribution_id.clone(),
+                contribution_id: contract.contribution_id.clone(),
                 port: port.clone(),
                 operation: contract.operation.clone(),
             })
@@ -41,7 +50,7 @@ pub(super) fn runtime_bindings(
         .collect())
 }
 
-fn find_port<'a>(
+pub(super) fn find_port<'a>(
     nodes: &'a [NodeDescriptor],
     endpoint: &StableEndpointRef,
 ) -> Option<&'a PortDescriptor> {

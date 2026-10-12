@@ -12,6 +12,7 @@ pub trait InteractionProvider: Send + Sync {
     fn page(
         &self,
         request: &InteractionRequest,
+        fence: &crate::QueryFence,
         query: &serde_json::Value,
         cursor: Option<&str>,
     ) -> Result<InteractionPage, InteractionError>;

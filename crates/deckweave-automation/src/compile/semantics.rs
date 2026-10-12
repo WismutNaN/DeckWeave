@@ -10,7 +10,6 @@ use crate::{
 };
 use deckweave_domain::{automation::OperationDescriptor, capability::PortAvailability};
 use deckweave_workspace::PackageLockEntry;
-use serde_json::Value;
 use std::collections::BTreeSet;
 
 pub(super) fn validate_node_values(
@@ -36,7 +35,7 @@ pub(super) fn validate_node_values(
             ..
         } => {
             let schema = schema_for_first_output(node, catalog)?;
-            if !value_matches(value, schema.value_kind) {
+            if !schema.accepts(value) {
                 return Err(GraphCompileError::InvalidValue {
                     node_id: node.id.clone(),
                 });
@@ -60,13 +59,11 @@ pub(super) fn validate_node_values(
                 }
                 crate::ConditionOperator::GreaterThan | crate::ConditionOperator::LessThan => {
                     schema.value_kind == SchemaValueKind::Number
-                        && operand
-                            .as_ref()
-                            .is_some_and(|value| value_matches(value, schema.value_kind))
+                        && operand.as_ref().is_some_and(|value| schema.accepts(value))
                 }
-                crate::ConditionOperator::Equals | crate::ConditionOperator::NotEquals => operand
-                    .as_ref()
-                    .is_some_and(|value| value_matches(value, schema.value_kind)),
+                crate::ConditionOperator::Equals | crate::ConditionOperator::NotEquals => {
+                    operand.as_ref().is_some_and(|value| schema.accepts(value))
+                }
             };
             if !valid {
                 return Err(GraphCompileError::InvalidValue {
@@ -107,6 +104,7 @@ pub(super) fn validate_action_ports(
     node: &GraphNode,
     operation: &OperationDescriptor,
     catalog: &DescriptorCatalog,
+    arguments: Option<&crate::ActionArguments>,
 ) -> Result<(), GraphCompileError> {
     for port in node.inputs.iter().chain(&node.outputs) {
         let schema =
@@ -119,6 +117,9 @@ pub(super) fn validate_action_ports(
             return Err(GraphCompileError::SchemaConstraintMismatch {
                 node_id: node.id.clone(),
             });
+        }
+        if arguments.is_some_and(|arguments| arguments.trigger_port == port.id) {
+            continue;
         }
         let expected = match port.role {
             GraphPortRole::Trigger => continue,
@@ -165,7 +166,7 @@ pub(super) fn collect_availability(
 pub(super) fn collect_runtime_requirement(
     endpoint: &CatalogEndpoint,
     package_lock: &[PackageLockEntry],
-    keys: &mut BTreeSet<(String, String, String, String, String)>,
+    keys: &mut BTreeSet<(String, String, String, String, String, String)>,
     requirements: &mut Vec<RuntimeRequirement>,
 ) -> Result<(), GraphCompileError> {
     let requirement = &endpoint.runtime_requirement;
@@ -184,6 +185,11 @@ pub(super) fn collect_runtime_requirement(
         requirement.artifact_sha256.clone(),
         requirement.runtime_group_id.to_string(),
         requirement.contribution_id.to_string(),
+        requirement
+            .configuration
+            .as_ref()
+            .map(|value| value.instance_id.to_string())
+            .unwrap_or_default(),
     );
     if keys.insert(key) {
         requirements.push(requirement.clone());
@@ -193,6 +199,11 @@ pub(super) fn collect_runtime_requirement(
 
 pub(super) fn contract(node: &GraphNode, endpoint: &CatalogEndpoint) -> CompiledEndpointContract {
     CompiledEndpointContract {
+        configured_instance_id: endpoint
+            .runtime_requirement
+            .configuration
+            .as_ref()
+            .map(|c| c.instance_id.clone()),
         node_id: node.id.clone(),
         endpoint: endpoint.endpoint.clone(),
         runtime_group_id: endpoint.runtime_requirement.runtime_group_id.clone(),
@@ -210,6 +221,12 @@ pub(super) fn runtime_requirement_order(
         .cmp(&right.package_id)
         .then(left.runtime_group_id.cmp(&right.runtime_group_id))
         .then(left.contribution_id.cmp(&right.contribution_id))
+        .then(
+            left.configuration
+                .as_ref()
+                .map(|c| &c.instance_id)
+                .cmp(&right.configuration.as_ref().map(|c| &c.instance_id)),
+        )
 }
 
 fn schema_for_first_output<'a>(
@@ -227,16 +244,6 @@ fn schema_for_first_output<'a>(
         .ok_or_else(|| GraphCompileError::UnresolvedSchema {
             node_id: node.id.clone(),
         })
-}
-
-fn value_matches(value: &Value, kind: SchemaValueKind) -> bool {
-    match kind {
-        SchemaValueKind::Unit => value.is_null(),
-        SchemaValueKind::Boolean => value.is_boolean(),
-        SchemaValueKind::Number => value.is_number(),
-        SchemaValueKind::String => value.is_string(),
-        SchemaValueKind::Json => true,
-    }
 }
 
 pub(super) fn compile_schema_contracts(
@@ -277,7 +284,15 @@ pub(super) fn compile_schema_contracts(
                     })?;
             contracts.push(CompiledSchemaContract {
                 schema: schema.schema.clone(),
-                value_kind: schema.value_kind,
+                value_kind: match (&schema.value_kind, &schema.range) {
+                    (SchemaValueKind::Number, Some(range)) => SchemaValueKind::Structured(
+                        deckweave_domain::schema::PayloadSchema::Number {
+                            minimum: range.minimum,
+                            maximum: range.maximum,
+                        },
+                    ),
+                    _ => schema.value_kind.clone(),
+                },
             });
         }
     }

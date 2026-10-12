@@ -17,9 +17,13 @@ mod apply;
 pub use apply::*;
 mod authorization;
 pub use authorization::DenyAllAuthorizationStore;
+mod scoped_authorization;
+pub use scoped_authorization::ScopedAuthorizationStore;
 mod gateway;
 pub use gateway::{ApplicationGateway, HostStatusSource, InMemoryApiAuthorizer};
 mod diagnostics;
+pub mod plugin_data;
+pub mod plugin_services;
 pub use diagnostics::*;
 // Compatibility export while downstream SDK users migrate to deckweave-platform.
 pub use deckweave_platform::*;
@@ -53,8 +57,22 @@ pub enum CredentialError {
 /// Broker выдаёт только scoped opaque lease. Конкретный adapter может
 /// выполнить операцию с secret, не раскрывая plaintext вызывающему plugin.
 pub trait CredentialBroker: Send + Sync {
+    /// Read-only preflight; it never exposes a secret or implies a runtime lease.
+    fn check_reference(&self, _request: &CredentialRequest) -> Result<(), CredentialError> {
+        Err(CredentialError::Unresolved)
+    }
     fn acquire(&self, request: &CredentialRequest) -> Result<CredentialLease, CredentialError>;
     fn revoke(&self, lease_id: &CredentialLeaseId) -> Result<(), CredentialError>;
+}
+
+pub struct UnresolvedCredentialBroker;
+impl CredentialBroker for UnresolvedCredentialBroker {
+    fn acquire(&self, _request: &CredentialRequest) -> Result<CredentialLease, CredentialError> {
+        Err(CredentialError::Unresolved)
+    }
+    fn revoke(&self, _lease_id: &CredentialLeaseId) -> Result<(), CredentialError> {
+        Err(CredentialError::InvalidLease)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]

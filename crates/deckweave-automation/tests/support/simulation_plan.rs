@@ -54,8 +54,11 @@ fn graph() -> Result<GraphDocument, Box<dyn Error>> {
     let event = schema("org.deckweave.schema.event")?;
     let text = schema("org.deckweave.schema.text")?;
     Ok(GraphDocument {
+        plugin_instances: Default::default(),
         schema_version: GraphFormatVersion { major: 1, minor: 0 },
         graph: GraphDefinition {
+            node_instances: Default::default(),
+            action_arguments: Default::default(),
             nodes: vec![
                 node(
                     "source",
@@ -217,6 +220,7 @@ fn catalog_endpoint(
     Ok(CatalogEndpoint {
         endpoint,
         runtime_requirement: RuntimeRequirement {
+            configuration: None,
             package_id: PackageId::try_new("org.deckweave.virtual")?,
             package_version: "1.0.0".into(),
             artifact_sha256: "a".repeat(64),

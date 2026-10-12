@@ -86,6 +86,22 @@ message ActivationRequest {
   string runtime_lease_id = 1;
   string contribution_id = 2;
   OpaquePayload settings = 3;
+  LocaleContext locale = 4;
+  optional string configured_instance_id = 5;
+  uint64 settings_revision = 6;
+  map<string, string> credential_refs = 7;
+}
+
+// Providers negotiating activation_commit remain silent until host routes are published.
+message ActivationCommitted {
+  uint64 activation_epoch = 1;
+  uint64 host_ticks = 2;
+}
+
+message LocaleContext {
+  uint64 revision = 1;
+  string requested_locale = 2;
+  string time_zone = 3;
 }
 
 message ActivationReply {
@@ -149,6 +165,22 @@ message InvocationRequest {
   // Required when `org.deckweave.invocation.endpoint_path` is negotiated.
   // Package/runtime session remain authenticated transport context.
   EndpointPath target = 9;
+  // Relative budget at send time; plugins must not compare host ticks with their own clock.
+  optional uint64 remaining_budget_ms = 10;
+}
+
+message OwnerCleanup {
+  string cleanup_id = 1;
+  uint64 activation_epoch = 2;
+  // Absent means every owner of this activation in the authenticated session.
+  optional string run_id = 3;
+  string reason = 4;
+}
+
+message OwnerCleanupReceipt {
+  string cleanup_id = 1;
+  uint64 activation_epoch = 2;
+  bool released = 3;
 }
 
 enum ErrorCategory {
@@ -231,7 +263,7 @@ message BackpressureNotice {
 }
 
 message FramePacket {
-  string target_port_id = 1;
+  string target_port_id = 1 [deprecated = true];
   uint64 activation_epoch = 2;
   uint64 descriptor_revision = 3;
   uint64 frame_id = 4;
@@ -239,14 +271,18 @@ message FramePacket {
   uint32 chunk_index = 6;
   uint32 chunk_count = 7;
   OpaquePayload chunk = 8;
+  EndpointPath target = 9;
 }
 
 message FrameReceipt {
-  string target_port_id = 1;
+  string target_port_id = 1 [deprecated = true];
   uint64 frame_id = 2;
   bool accepted = 3;
   bool applied = 4;
   optional StructuredError error = 5;
+  EndpointPath target = 6;
+  uint64 activation_epoch = 7;
+  uint64 descriptor_revision = 8;
 }
 
 message ProtocolEnvelope {
@@ -273,5 +309,9 @@ message ProtocolEnvelope {
     FramePacket frame = 25;
     FrameReceipt frame_receipt = 26;
     ValueWrite value_write = 27;
+    OwnerCleanup owner_cleanup = 28;
+    OwnerCleanupReceipt owner_cleanup_receipt = 29;
+    LocaleContext locale_context = 30;
+    ActivationCommitted activation_committed = 31;
   }
 }

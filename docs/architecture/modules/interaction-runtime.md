@@ -13,6 +13,8 @@
 
 ## Публичная граница
 
+Текущий Rust contract использует `InteractionPage` и `QueryFence` (session/activation/provider/query generations), structured result schema и host monotonic deadline. Реализованы owner/provider cancellation, bounded pages и terminal retention. `presentation` содержит общие ItemRef/hit/slot models; `DesktopViews` отдельно управляет bounded persistent-view leases, renew/expire/revoke и отклоняет late close. Эти pure models пока находятся в crate Interaction Runtime; rendering, scene execution и durable data adapters не становятся частью Interaction aggregate. При расширении compositor они выделяются по [DDD ownership](../ddd.md), без переноса private documents в sessions.
+
 | Символ | Роль |
 |---|---|
 | `InteractionRequest` | тип view, query schema, initial state и policy |

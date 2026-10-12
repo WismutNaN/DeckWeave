@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file deckweave/v1/control.proto.
  */
 export const file_deckweave_v1_control: GenFile = /*@__PURE__*/
-  fileDesc("ChpkZWNrd2VhdmUvdjEvY29udHJvbC5wcm90bxIMZGVja3dlYXZlLnYxIi8KD1Byb3RvY29sVmVyc2lvbhINCgVtYWpvchgBIAEoDRINCgVtaW5vchgCIAEoDSJ2ChRQcm90b2NvbFZlcnNpb25SYW5nZRIuCgdtaW5pbXVtGAEgASgLMh0uZGVja3dlYXZlLnYxLlByb3RvY29sVmVyc2lvbhIuCgdtYXhpbXVtGAIgASgLMh0uZGVja3dlYXZlLnYxLlByb3RvY29sVmVyc2lvbiI7Cg9TY2hlbWFSZWZlcmVuY2USCgoCaWQYASABKAkSDQoFbWFqb3IYAiABKA0SDQoFbWlub3IYAyABKA0ijQEKEVNjaGVtYVJlcXVpcmVtZW50EgoKAmlkGAEgASgJEhUKDW1pbmltdW1fbWFqb3IYAiABKA0SFQoNbWluaW11bV9taW5vchgDIAEoDRIVCg1tYXhpbXVtX21ham9yGAQgASgNEhUKDW1heGltdW1fbWlub3IYBSABKA0SEAoIcmVxdWlyZWQYBiABKAgiQQoQTmVnb3RpYXRlZFNjaGVtYRItCgZzY2hlbWEYASABKAsyHS5kZWNrd2VhdmUudjEuU2NoZW1hUmVmZXJlbmNlImQKEkZlYXR1cmVSZXF1aXJlbWVudBIKCgJpZBgBIAEoCRIXCg9taW5pbXVtX3ZlcnNpb24YAiABKA0SFwoPbWF4aW11bV92ZXJzaW9uGAMgASgNEhAKCHJlcXVpcmVkGAQgASgIIjAKEU5lZ290aWF0ZWRGZWF0dXJlEgoKAmlkGAEgASgJEg8KB3ZlcnNpb24YAiABKA0isAEKDlByb3RvY29sTGltaXRzEh0KFW1heGltdW1fbWVzc2FnZV9ieXRlcxgBIAEoBBIbChNtYXhpbXVtX2NodW5rX2J5dGVzGAIgASgEEh8KF21heGltdW1fY29uY3VycmVudF9qb2JzGAMgASgNEh4KFm1heGltdW1fYXJ0aWZhY3RfYnl0ZXMYBCABKAQSIQoZbWF4aW11bV9ldmVudHNfcGVyX3NlY29uZBgFIAEoDSJ8CgxUcmFjZUNvbnRleHQSEAoIdHJhY2VfaWQYASABKAkSGwoOY29ycmVsYXRpb25faWQYAiABKAlIAIgBARIZCgxjYXVzYXRpb25faWQYAyABKAlIAYgBAUIRCg9fY29ycmVsYXRpb25faWRCDwoNX2NhdXNhdGlvbl9pZCJNCg1PcGFxdWVQYXlsb2FkEi0KBnNjaGVtYRgBIAEoCzIdLmRlY2t3ZWF2ZS52MS5TY2hlbWFSZWZlcmVuY2USDQoFdmFsdWUYAiABKAwilAIKBUhlbGxvEjQKCHByb3RvY29sGAEgASgLMiIuZGVja3dlYXZlLnYxLlByb3RvY29sVmVyc2lvblJhbmdlEhIKCnBhY2thZ2VfaWQYAiABKAkSFQoNcnVudGltZV9ncm91cBgDIAEoCRIWCg5vbmVfdGltZV90b2tlbhgEIAEoDBIyCghmZWF0dXJlcxgFIAMoCzIgLmRlY2t3ZWF2ZS52MS5GZWF0dXJlUmVxdWlyZW1lbnQSMAoHc2NoZW1hcxgGIAMoCzIfLmRlY2t3ZWF2ZS52MS5TY2hlbWFSZXF1aXJlbWVudBIsCgZsaW1pdHMYByABKAsyHC5kZWNrd2VhdmUudjEuUHJvdG9jb2xMaW1pdHMi8QEKCEhlbGxvQWNrEjgKEXNlbGVjdGVkX3Byb3RvY29sGAEgASgLMh0uZGVja3dlYXZlLnYxLlByb3RvY29sVmVyc2lvbhIZChFwbHVnaW5fc2Vzc2lvbl9pZBgCIAEoCRIxCghmZWF0dXJlcxgDIAMoCzIfLmRlY2t3ZWF2ZS52MS5OZWdvdGlhdGVkRmVhdHVyZRIvCgdzY2hlbWFzGAQgAygLMh4uZGVja3dlYXZlLnYxLk5lZ290aWF0ZWRTY2hlbWESLAoGbGltaXRzGAUgASgLMhwuZGVja3dlYXZlLnYxLlByb3RvY29sTGltaXRzInUKEUFjdGl2YXRpb25SZXF1ZXN0EhgKEHJ1bnRpbWVfbGVhc2VfaWQYASABKAkSFwoPY29udHJpYnV0aW9uX2lkGAIgASgJEi0KCHNldHRpbmdzGAMgASgLMhsuZGVja3dlYXZlLnYxLk9wYXF1ZVBheWxvYWQieQoPQWN0aXZhdGlvblJlcGx5EhgKEHJ1bnRpbWVfbGVhc2VfaWQYASABKAkSGwoTZGVzY3JpcHRvcl9yZXZpc2lvbhgCIAEoBBIvCgpkZXNjcmlwdG9yGAMgASgLMhsuZGVja3dlYXZlLnYxLk9wYXF1ZVBheWxvYWQiPwoTRGVhY3RpdmF0aW9uUmVxdWVzdBIYChBydW50aW1lX2xlYXNlX2lkGAEgASgJEg4KBnJlYXNvbhgCIAEoCSJiChJEZXNjcmlwdG9yU25hcHNob3QSGwoTZGVzY3JpcHRvcl9yZXZpc2lvbhgBIAEoBBIvCgpkZXNjcmlwdG9yGAIgASgLMhsuZGVja3dlYXZlLnYxLk9wYXF1ZVBheWxvYWQiiAEKD0Rlc2NyaXB0b3JEZWx0YRIVCg1iYXNlX3JldmlzaW9uGAEgASgEEhsKE2Rlc2NyaXB0b3JfcmV2aXNpb24YAiABKAQSLAoHdXBzZXJ0cxgDIAMoCzIbLmRlY2t3ZWF2ZS52MS5PcGFxdWVQYXlsb2FkEhMKC3JlbW92ZWRfaWRzGAQgAygJIqsBCgxFbmRwb2ludFBhdGgSDwoHbm9kZV9pZBgBIAEoCRITCgtwcm92aWRlcl9pZBgCIAEoCRIZCg9kZXZpY2VfaWRlbnRpdHkYAyABKAlIABIUCgpzZXJ2aWNlX2lkGAQgASgJSAASEgoKZWxlbWVudF9pZBgFIAEoCRIVCg1jYXBhYmlsaXR5X2lkGAYgASgJEg8KB3BvcnRfaWQYByABKAlCCAoGdGFyZ2V0IpwCCgZTaWduYWwSGgoOc291cmNlX3BvcnRfaWQYASABKAlCAhgBEiEKGWRldmljZV9zZXNzaW9uX2dlbmVyYXRpb24YAiABKAQSEAoIc2VxdWVuY2UYAyABKAQSFgoOY2FwdHVyZWRfdGlja3MYBCABKAQSFwoPY2xvY2tfZG9tYWluX2lkGAUgASgJEh8KEndhbGxfY2xvY2tfcmZjMzMzORgGIAEoCUgAiAEBEiwKB3BheWxvYWQYByABKAsyGy5kZWNrd2VhdmUudjEuT3BhcXVlUGF5bG9hZBIqCgZzb3VyY2UYCCABKAsyGi5kZWNrd2VhdmUudjEuRW5kcG9pbnRQYXRoQhUKE193YWxsX2Nsb2NrX3JmYzMzMzkirgIKEUludm9jYXRpb25SZXF1ZXN0EhUKDWludm9jYXRpb25faWQYASABKAkSDgoGcnVuX2lkGAIgASgJEhQKDG9wZXJhdGlvbl9pZBgDIAEoCRIYChBhY3RpdmF0aW9uX2Vwb2NoGAQgASgEEhsKE2Rlc2NyaXB0b3JfcmV2aXNpb24YBSABKAQSGwoTZGVhZGxpbmVfaG9zdF90aWNrcxgGIAEoBBIcCg9pZGVtcG90ZW5jeV9rZXkYByABKAlIAIgBARIqCgVpbnB1dBgIIAEoCzIbLmRlY2t3ZWF2ZS52MS5PcGFxdWVQYXlsb2FkEioKBnRhcmdldBgJIAEoCzIaLmRlY2t3ZWF2ZS52MS5FbmRwb2ludFBhdGhCEgoQX2lkZW1wb3RlbmN5X2tleSKUAgoPU3RydWN0dXJlZEVycm9yEi0KCGNhdGVnb3J5GAEgASgOMhsuZGVja3dlYXZlLnYxLkVycm9yQ2F0ZWdvcnkSDAoEY29kZRgCIAEoCRITCgttZXNzYWdlX2tleRgDIAEoCRI7CgdkZXRhaWxzGAQgAygLMiouZGVja3dlYXZlLnYxLlN0cnVjdHVyZWRFcnJvci5EZXRhaWxzRW50cnkSJQoYZGlhZ25vc3RpY19hdHRhY2htZW50X2lkGAUgASgJSACIAQEaLgoMRGV0YWlsc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAFCGwoZX2RpYWdub3N0aWNfYXR0YWNobWVudF9pZCKDAgoPVGVybWluYWxPdXRjb21lEhUKDWludm9jYXRpb25faWQYASABKAkSMAoJc3VjY2VlZGVkGAIgASgLMhsuZGVja3dlYXZlLnYxLk9wYXF1ZVBheWxvYWRIABIvCgZmYWlsZWQYAyABKAsyHS5kZWNrd2VhdmUudjEuU3RydWN0dXJlZEVycm9ySAASMgoJY2FuY2VsbGVkGAQgASgLMh0uZGVja3dlYXZlLnYxLlN0cnVjdHVyZWRFcnJvckgAEjgKD3Vua25vd25fb3V0Y29tZRgFIAEoCzIdLmRlY2t3ZWF2ZS52MS5TdHJ1Y3R1cmVkRXJyb3JIAEIICgZyZXN1bHQisgEKD0ludm9jYXRpb25SZXBseRIVCg1pbnZvY2F0aW9uX2lkGAEgASgJEjEKCHRlcm1pbmFsGAIgASgLMh0uZGVja3dlYXZlLnYxLlRlcm1pbmFsT3V0Y29tZUgAEhkKD2FjY2VwdGVkX2pvYl9pZBgDIAEoCUgAEjEKCHJlamVjdGVkGAQgASgLMh0uZGVja3dlYXZlLnYxLlN0cnVjdHVyZWRFcnJvckgAQgcKBXJlcGx5IpgBCgtKb2JQcm9ncmVzcxIVCg1pbnZvY2F0aW9uX2lkGAEgASgJEg4KBmpvYl9pZBgCIAEoCRIQCghzZXF1ZW5jZRgDIAEoDRIVCghmcmFjdGlvbhgEIAEoAUgAiAEBEiwKB2RldGFpbHMYBSABKAsyGy5kZWNrd2VhdmUudjEuT3BhcXVlUGF5bG9hZEILCglfZnJhY3Rpb24iVgoNQ2FuY2VsUmVxdWVzdBIVCg1pbnZvY2F0aW9uX2lkGAEgASgJEhMKBmpvYl9pZBgCIAEoCUgAiAEBEg4KBnJlYXNvbhgDIAEoCUIJCgdfam9iX2lkIsIBCgpWYWx1ZVdyaXRlEg4KBnJ1bl9pZBgBIAEoCRIVCg1ncmFwaF9ub2RlX2lkGAIgASgJEhgKEGFjdGl2YXRpb25fZXBvY2gYAyABKAQSGwoTZGVzY3JpcHRvcl9yZXZpc2lvbhgEIAEoBBIqCgZ0YXJnZXQYBSABKAsyGi5kZWNrd2VhdmUudjEuRW5kcG9pbnRQYXRoEioKBXZhbHVlGAYgASgLMhsuZGVja3dlYXZlLnYxLk9wYXF1ZVBheWxvYWQiNAoJSGVhcnRiZWF0EhIKCmhvc3RfdGlja3MYASABKAQSEwoLYWN0aXZlX2pvYnMYAiABKA0iUAoSQmFja3ByZXNzdXJlTm90aWNlEgwKBGxhbmUYASABKAkSHAoUZHJvcHBlZF9vcl9jb2FsZXNjZWQYAiABKAQSDgoGcG9saWN5GAMgASgJIvIBCgtGcmFtZVBhY2tldBIWCg50YXJnZXRfcG9ydF9pZBgBIAEoCRIYChBhY3RpdmF0aW9uX2Vwb2NoGAIgASgEEhsKE2Rlc2NyaXB0b3JfcmV2aXNpb24YAyABKAQSEAoIZnJhbWVfaWQYBCABKAQSGgoNYmFzZV9mcmFtZV9pZBgFIAEoBEgAiAEBEhMKC2NodW5rX2luZGV4GAYgASgNEhMKC2NodW5rX2NvdW50GAcgASgNEioKBWNodW5rGAggASgLMhsuZGVja3dlYXZlLnYxLk9wYXF1ZVBheWxvYWRCEAoOX2Jhc2VfZnJhbWVfaWQimAEKDEZyYW1lUmVjZWlwdBIWCg50YXJnZXRfcG9ydF9pZBgBIAEoCRIQCghmcmFtZV9pZBgCIAEoBBIQCghhY2NlcHRlZBgDIAEoCBIPCgdhcHBsaWVkGAQgASgIEjEKBWVycm9yGAUgASgLMh0uZGVja3dlYXZlLnYxLlN0cnVjdHVyZWRFcnJvckgAiAEBQggKBl9lcnJvciLDCAoQUHJvdG9jb2xFbnZlbG9wZRIzCgx3aXJlX3ZlcnNpb24YASABKAsyHS5kZWNrd2VhdmUudjEuUHJvdG9jb2xWZXJzaW9uEhoKEnNlc3Npb25fZ2VuZXJhdGlvbhgCIAEoBBISCgptZXNzYWdlX2lkGAMgASgEEikKBXRyYWNlGAQgASgLMhouZGVja3dlYXZlLnYxLlRyYWNlQ29udGV4dBIkCgVoZWxsbxgKIAEoCzITLmRlY2t3ZWF2ZS52MS5IZWxsb0gAEisKCWhlbGxvX2FjaxgLIAEoCzIWLmRlY2t3ZWF2ZS52MS5IZWxsb0Fja0gAEjMKCGFjdGl2YXRlGAwgASgLMh8uZGVja3dlYXZlLnYxLkFjdGl2YXRpb25SZXF1ZXN0SAASMgoJYWN0aXZhdGVkGA0gASgLMh0uZGVja3dlYXZlLnYxLkFjdGl2YXRpb25SZXBseUgAEjcKCmRlYWN0aXZhdGUYDiABKAsyIS5kZWNrd2VhdmUudjEuRGVhY3RpdmF0aW9uUmVxdWVzdEgAEj8KE2Rlc2NyaXB0b3Jfc25hcHNob3QYDyABKAsyIC5kZWNrd2VhdmUudjEuRGVzY3JpcHRvclNuYXBzaG90SAASOQoQZGVzY3JpcHRvcl9kZWx0YRgQIAEoCzIdLmRlY2t3ZWF2ZS52MS5EZXNjcmlwdG9yRGVsdGFIABImCgZzaWduYWwYESABKAsyFC5kZWNrd2VhdmUudjEuU2lnbmFsSAASMQoGaW52b2tlGBIgASgLMh8uZGVja3dlYXZlLnYxLkludm9jYXRpb25SZXF1ZXN0SAASOQoQaW52b2NhdGlvbl9yZXBseRgTIAEoCzIdLmRlY2t3ZWF2ZS52MS5JbnZvY2F0aW9uUmVwbHlIABIxCgxqb2JfcHJvZ3Jlc3MYFCABKAsyGS5kZWNrd2VhdmUudjEuSm9iUHJvZ3Jlc3NIABI0Cgtqb2Jfb3V0Y29tZRgVIAEoCzIdLmRlY2t3ZWF2ZS52MS5UZXJtaW5hbE91dGNvbWVIABItCgZjYW5jZWwYFiABKAsyGy5kZWNrd2VhdmUudjEuQ2FuY2VsUmVxdWVzdEgAEiwKCWhlYXJ0YmVhdBgXIAEoCzIXLmRlY2t3ZWF2ZS52MS5IZWFydGJlYXRIABI4CgxiYWNrcHJlc3N1cmUYGCABKAsyIC5kZWNrd2VhdmUudjEuQmFja3ByZXNzdXJlTm90aWNlSAASKgoFZnJhbWUYGSABKAsyGS5kZWNrd2VhdmUudjEuRnJhbWVQYWNrZXRIABIzCg1mcmFtZV9yZWNlaXB0GBogASgLMhouZGVja3dlYXZlLnYxLkZyYW1lUmVjZWlwdEgAEi8KC3ZhbHVlX3dyaXRlGBsgASgLMhguZGVja3dlYXZlLnYxLlZhbHVlV3JpdGVIAEIGCgRib2R5KqwDCg1FcnJvckNhdGVnb3J5Eh4KGkVSUk9SX0NBVEVHT1JZX1VOU1BFQ0lGSUVEEAASIAocRVJST1JfQ0FURUdPUllfSU5WQUxJRF9JTlBVVBABEh4KGkVSUk9SX0NBVEVHT1JZX1VOU1VQUE9SVEVEEAISHgoaRVJST1JfQ0FURUdPUllfVU5BVkFJTEFCTEUQAxIkCiBFUlJPUl9DQVRFR09SWV9QRVJNSVNTSU9OX0RFTklFRBAEEiAKHEVSUk9SX0NBVEVHT1JZX1JFU09VUkNFX0JVU1kQBRIkCiBFUlJPUl9DQVRFR09SWV9ERUFETElORV9FWENFRURFRBAGEhwKGEVSUk9SX0NBVEVHT1JZX0NBTkNFTExFRBAHEiUKIUVSUk9SX0NBVEVHT1JZX1RSQU5TSUVOVF9FWFRFUk5BTBAIEiUKIUVSUk9SX0NBVEVHT1JZX1BFUk1BTkVOVF9FWFRFUk5BTBAJEiIKHkVSUk9SX0NBVEVHT1JZX1VOS05PV05fT1VUQ09NRRAKEhsKF0VSUk9SX0NBVEVHT1JZX0lOVEVSTkFMEAtiBnByb3RvMw");
+  fileDesc("ChpkZWNrd2VhdmUvdjEvY29udHJvbC5wcm90bxIMZGVja3dlYXZlLnYxIi8KD1Byb3RvY29sVmVyc2lvbhINCgVtYWpvchgBIAEoDRINCgVtaW5vchgCIAEoDSJ2ChRQcm90b2NvbFZlcnNpb25SYW5nZRIuCgdtaW5pbXVtGAEgASgLMh0uZGVja3dlYXZlLnYxLlByb3RvY29sVmVyc2lvbhIuCgdtYXhpbXVtGAIgASgLMh0uZGVja3dlYXZlLnYxLlByb3RvY29sVmVyc2lvbiI7Cg9TY2hlbWFSZWZlcmVuY2USCgoCaWQYASABKAkSDQoFbWFqb3IYAiABKA0SDQoFbWlub3IYAyABKA0ijQEKEVNjaGVtYVJlcXVpcmVtZW50EgoKAmlkGAEgASgJEhUKDW1pbmltdW1fbWFqb3IYAiABKA0SFQoNbWluaW11bV9taW5vchgDIAEoDRIVCg1tYXhpbXVtX21ham9yGAQgASgNEhUKDW1heGltdW1fbWlub3IYBSABKA0SEAoIcmVxdWlyZWQYBiABKAgiQQoQTmVnb3RpYXRlZFNjaGVtYRItCgZzY2hlbWEYASABKAsyHS5kZWNrd2VhdmUudjEuU2NoZW1hUmVmZXJlbmNlImQKEkZlYXR1cmVSZXF1aXJlbWVudBIKCgJpZBgBIAEoCRIXCg9taW5pbXVtX3ZlcnNpb24YAiABKA0SFwoPbWF4aW11bV92ZXJzaW9uGAMgASgNEhAKCHJlcXVpcmVkGAQgASgIIjAKEU5lZ290aWF0ZWRGZWF0dXJlEgoKAmlkGAEgASgJEg8KB3ZlcnNpb24YAiABKA0isAEKDlByb3RvY29sTGltaXRzEh0KFW1heGltdW1fbWVzc2FnZV9ieXRlcxgBIAEoBBIbChNtYXhpbXVtX2NodW5rX2J5dGVzGAIgASgEEh8KF21heGltdW1fY29uY3VycmVudF9qb2JzGAMgASgNEh4KFm1heGltdW1fYXJ0aWZhY3RfYnl0ZXMYBCABKAQSIQoZbWF4aW11bV9ldmVudHNfcGVyX3NlY29uZBgFIAEoDSJ8CgxUcmFjZUNvbnRleHQSEAoIdHJhY2VfaWQYASABKAkSGwoOY29ycmVsYXRpb25faWQYAiABKAlIAIgBARIZCgxjYXVzYXRpb25faWQYAyABKAlIAYgBAUIRCg9fY29ycmVsYXRpb25faWRCDwoNX2NhdXNhdGlvbl9pZCJNCg1PcGFxdWVQYXlsb2FkEi0KBnNjaGVtYRgBIAEoCzIdLmRlY2t3ZWF2ZS52MS5TY2hlbWFSZWZlcmVuY2USDQoFdmFsdWUYAiABKAwilAIKBUhlbGxvEjQKCHByb3RvY29sGAEgASgLMiIuZGVja3dlYXZlLnYxLlByb3RvY29sVmVyc2lvblJhbmdlEhIKCnBhY2thZ2VfaWQYAiABKAkSFQoNcnVudGltZV9ncm91cBgDIAEoCRIWCg5vbmVfdGltZV90b2tlbhgEIAEoDBIyCghmZWF0dXJlcxgFIAMoCzIgLmRlY2t3ZWF2ZS52MS5GZWF0dXJlUmVxdWlyZW1lbnQSMAoHc2NoZW1hcxgGIAMoCzIfLmRlY2t3ZWF2ZS52MS5TY2hlbWFSZXF1aXJlbWVudBIsCgZsaW1pdHMYByABKAsyHC5kZWNrd2VhdmUudjEuUHJvdG9jb2xMaW1pdHMi8QEKCEhlbGxvQWNrEjgKEXNlbGVjdGVkX3Byb3RvY29sGAEgASgLMh0uZGVja3dlYXZlLnYxLlByb3RvY29sVmVyc2lvbhIZChFwbHVnaW5fc2Vzc2lvbl9pZBgCIAEoCRIxCghmZWF0dXJlcxgDIAMoCzIfLmRlY2t3ZWF2ZS52MS5OZWdvdGlhdGVkRmVhdHVyZRIvCgdzY2hlbWFzGAQgAygLMh4uZGVja3dlYXZlLnYxLk5lZ290aWF0ZWRTY2hlbWESLAoGbGltaXRzGAUgASgLMhwuZGVja3dlYXZlLnYxLlByb3RvY29sTGltaXRzIoIDChFBY3RpdmF0aW9uUmVxdWVzdBIYChBydW50aW1lX2xlYXNlX2lkGAEgASgJEhcKD2NvbnRyaWJ1dGlvbl9pZBgCIAEoCRItCghzZXR0aW5ncxgDIAEoCzIbLmRlY2t3ZWF2ZS52MS5PcGFxdWVQYXlsb2FkEisKBmxvY2FsZRgEIAEoCzIbLmRlY2t3ZWF2ZS52MS5Mb2NhbGVDb250ZXh0EiMKFmNvbmZpZ3VyZWRfaW5zdGFuY2VfaWQYBSABKAlIAIgBARIZChFzZXR0aW5nc19yZXZpc2lvbhgGIAEoBBJMCg9jcmVkZW50aWFsX3JlZnMYByADKAsyMy5kZWNrd2VhdmUudjEuQWN0aXZhdGlvblJlcXVlc3QuQ3JlZGVudGlhbFJlZnNFbnRyeRo1ChNDcmVkZW50aWFsUmVmc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAFCGQoXX2NvbmZpZ3VyZWRfaW5zdGFuY2VfaWQiQwoTQWN0aXZhdGlvbkNvbW1pdHRlZBIYChBhY3RpdmF0aW9uX2Vwb2NoGAEgASgEEhIKCmhvc3RfdGlja3MYAiABKAQiTgoNTG9jYWxlQ29udGV4dBIQCghyZXZpc2lvbhgBIAEoBBIYChByZXF1ZXN0ZWRfbG9jYWxlGAIgASgJEhEKCXRpbWVfem9uZRgDIAEoCSJ5Cg9BY3RpdmF0aW9uUmVwbHkSGAoQcnVudGltZV9sZWFzZV9pZBgBIAEoCRIbChNkZXNjcmlwdG9yX3JldmlzaW9uGAIgASgEEi8KCmRlc2NyaXB0b3IYAyABKAsyGy5kZWNrd2VhdmUudjEuT3BhcXVlUGF5bG9hZCI/ChNEZWFjdGl2YXRpb25SZXF1ZXN0EhgKEHJ1bnRpbWVfbGVhc2VfaWQYASABKAkSDgoGcmVhc29uGAIgASgJImIKEkRlc2NyaXB0b3JTbmFwc2hvdBIbChNkZXNjcmlwdG9yX3JldmlzaW9uGAEgASgEEi8KCmRlc2NyaXB0b3IYAiABKAsyGy5kZWNrd2VhdmUudjEuT3BhcXVlUGF5bG9hZCKIAQoPRGVzY3JpcHRvckRlbHRhEhUKDWJhc2VfcmV2aXNpb24YASABKAQSGwoTZGVzY3JpcHRvcl9yZXZpc2lvbhgCIAEoBBIsCgd1cHNlcnRzGAMgAygLMhsuZGVja3dlYXZlLnYxLk9wYXF1ZVBheWxvYWQSEwoLcmVtb3ZlZF9pZHMYBCADKAkiqwEKDEVuZHBvaW50UGF0aBIPCgdub2RlX2lkGAEgASgJEhMKC3Byb3ZpZGVyX2lkGAIgASgJEhkKD2RldmljZV9pZGVudGl0eRgDIAEoCUgAEhQKCnNlcnZpY2VfaWQYBCABKAlIABISCgplbGVtZW50X2lkGAUgASgJEhUKDWNhcGFiaWxpdHlfaWQYBiABKAkSDwoHcG9ydF9pZBgHIAEoCUIICgZ0YXJnZXQinAIKBlNpZ25hbBIaCg5zb3VyY2VfcG9ydF9pZBgBIAEoCUICGAESIQoZZGV2aWNlX3Nlc3Npb25fZ2VuZXJhdGlvbhgCIAEoBBIQCghzZXF1ZW5jZRgDIAEoBBIWCg5jYXB0dXJlZF90aWNrcxgEIAEoBBIXCg9jbG9ja19kb21haW5faWQYBSABKAkSHwoSd2FsbF9jbG9ja19yZmMzMzM5GAYgASgJSACIAQESLAoHcGF5bG9hZBgHIAEoCzIbLmRlY2t3ZWF2ZS52MS5PcGFxdWVQYXlsb2FkEioKBnNvdXJjZRgIIAEoCzIaLmRlY2t3ZWF2ZS52MS5FbmRwb2ludFBhdGhCFQoTX3dhbGxfY2xvY2tfcmZjMzMzOSLoAgoRSW52b2NhdGlvblJlcXVlc3QSFQoNaW52b2NhdGlvbl9pZBgBIAEoCRIOCgZydW5faWQYAiABKAkSFAoMb3BlcmF0aW9uX2lkGAMgASgJEhgKEGFjdGl2YXRpb25fZXBvY2gYBCABKAQSGwoTZGVzY3JpcHRvcl9yZXZpc2lvbhgFIAEoBBIbChNkZWFkbGluZV9ob3N0X3RpY2tzGAYgASgEEhwKD2lkZW1wb3RlbmN5X2tleRgHIAEoCUgAiAEBEioKBWlucHV0GAggASgLMhsuZGVja3dlYXZlLnYxLk9wYXF1ZVBheWxvYWQSKgoGdGFyZ2V0GAkgASgLMhouZGVja3dlYXZlLnYxLkVuZHBvaW50UGF0aBIgChNyZW1haW5pbmdfYnVkZ2V0X21zGAogASgESAGIAQFCEgoQX2lkZW1wb3RlbmN5X2tleUIWChRfcmVtYWluaW5nX2J1ZGdldF9tcyJsCgxPd25lckNsZWFudXASEgoKY2xlYW51cF9pZBgBIAEoCRIYChBhY3RpdmF0aW9uX2Vwb2NoGAIgASgEEhMKBnJ1bl9pZBgDIAEoCUgAiAEBEg4KBnJlYXNvbhgEIAEoCUIJCgdfcnVuX2lkIlUKE093bmVyQ2xlYW51cFJlY2VpcHQSEgoKY2xlYW51cF9pZBgBIAEoCRIYChBhY3RpdmF0aW9uX2Vwb2NoGAIgASgEEhAKCHJlbGVhc2VkGAMgASgIIpQCCg9TdHJ1Y3R1cmVkRXJyb3ISLQoIY2F0ZWdvcnkYASABKA4yGy5kZWNrd2VhdmUudjEuRXJyb3JDYXRlZ29yeRIMCgRjb2RlGAIgASgJEhMKC21lc3NhZ2Vfa2V5GAMgASgJEjsKB2RldGFpbHMYBCADKAsyKi5kZWNrd2VhdmUudjEuU3RydWN0dXJlZEVycm9yLkRldGFpbHNFbnRyeRIlChhkaWFnbm9zdGljX2F0dGFjaG1lbnRfaWQYBSABKAlIAIgBARouCgxEZXRhaWxzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUIbChlfZGlhZ25vc3RpY19hdHRhY2htZW50X2lkIoMCCg9UZXJtaW5hbE91dGNvbWUSFQoNaW52b2NhdGlvbl9pZBgBIAEoCRIwCglzdWNjZWVkZWQYAiABKAsyGy5kZWNrd2VhdmUudjEuT3BhcXVlUGF5bG9hZEgAEi8KBmZhaWxlZBgDIAEoCzIdLmRlY2t3ZWF2ZS52MS5TdHJ1Y3R1cmVkRXJyb3JIABIyCgljYW5jZWxsZWQYBCABKAsyHS5kZWNrd2VhdmUudjEuU3RydWN0dXJlZEVycm9ySAASOAoPdW5rbm93bl9vdXRjb21lGAUgASgLMh0uZGVja3dlYXZlLnYxLlN0cnVjdHVyZWRFcnJvckgAQggKBnJlc3VsdCKyAQoPSW52b2NhdGlvblJlcGx5EhUKDWludm9jYXRpb25faWQYASABKAkSMQoIdGVybWluYWwYAiABKAsyHS5kZWNrd2VhdmUudjEuVGVybWluYWxPdXRjb21lSAASGQoPYWNjZXB0ZWRfam9iX2lkGAMgASgJSAASMQoIcmVqZWN0ZWQYBCABKAsyHS5kZWNrd2VhdmUudjEuU3RydWN0dXJlZEVycm9ySABCBwoFcmVwbHkimAEKC0pvYlByb2dyZXNzEhUKDWludm9jYXRpb25faWQYASABKAkSDgoGam9iX2lkGAIgASgJEhAKCHNlcXVlbmNlGAMgASgNEhUKCGZyYWN0aW9uGAQgASgBSACIAQESLAoHZGV0YWlscxgFIAEoCzIbLmRlY2t3ZWF2ZS52MS5PcGFxdWVQYXlsb2FkQgsKCV9mcmFjdGlvbiJWCg1DYW5jZWxSZXF1ZXN0EhUKDWludm9jYXRpb25faWQYASABKAkSEwoGam9iX2lkGAIgASgJSACIAQESDgoGcmVhc29uGAMgASgJQgkKB19qb2JfaWQiwgEKClZhbHVlV3JpdGUSDgoGcnVuX2lkGAEgASgJEhUKDWdyYXBoX25vZGVfaWQYAiABKAkSGAoQYWN0aXZhdGlvbl9lcG9jaBgDIAEoBBIbChNkZXNjcmlwdG9yX3JldmlzaW9uGAQgASgEEioKBnRhcmdldBgFIAEoCzIaLmRlY2t3ZWF2ZS52MS5FbmRwb2ludFBhdGgSKgoFdmFsdWUYBiABKAsyGy5kZWNrd2VhdmUudjEuT3BhcXVlUGF5bG9hZCI0CglIZWFydGJlYXQSEgoKaG9zdF90aWNrcxgBIAEoBBITCgthY3RpdmVfam9icxgCIAEoDSJQChJCYWNrcHJlc3N1cmVOb3RpY2USDAoEbGFuZRgBIAEoCRIcChRkcm9wcGVkX29yX2NvYWxlc2NlZBgCIAEoBBIOCgZwb2xpY3kYAyABKAkiogIKC0ZyYW1lUGFja2V0EhoKDnRhcmdldF9wb3J0X2lkGAEgASgJQgIYARIYChBhY3RpdmF0aW9uX2Vwb2NoGAIgASgEEhsKE2Rlc2NyaXB0b3JfcmV2aXNpb24YAyABKAQSEAoIZnJhbWVfaWQYBCABKAQSGgoNYmFzZV9mcmFtZV9pZBgFIAEoBEgAiAEBEhMKC2NodW5rX2luZGV4GAYgASgNEhMKC2NodW5rX2NvdW50GAcgASgNEioKBWNodW5rGAggASgLMhsuZGVja3dlYXZlLnYxLk9wYXF1ZVBheWxvYWQSKgoGdGFyZ2V0GAkgASgLMhouZGVja3dlYXZlLnYxLkVuZHBvaW50UGF0aEIQCg5fYmFzZV9mcmFtZV9pZCL/AQoMRnJhbWVSZWNlaXB0EhoKDnRhcmdldF9wb3J0X2lkGAEgASgJQgIYARIQCghmcmFtZV9pZBgCIAEoBBIQCghhY2NlcHRlZBgDIAEoCBIPCgdhcHBsaWVkGAQgASgIEjEKBWVycm9yGAUgASgLMh0uZGVja3dlYXZlLnYxLlN0cnVjdHVyZWRFcnJvckgAiAEBEioKBnRhcmdldBgGIAEoCzIaLmRlY2t3ZWF2ZS52MS5FbmRwb2ludFBhdGgSGAoQYWN0aXZhdGlvbl9lcG9jaBgHIAEoBBIbChNkZXNjcmlwdG9yX3JldmlzaW9uGAggASgEQggKBl9lcnJvciK2CgoQUHJvdG9jb2xFbnZlbG9wZRIzCgx3aXJlX3ZlcnNpb24YASABKAsyHS5kZWNrd2VhdmUudjEuUHJvdG9jb2xWZXJzaW9uEhoKEnNlc3Npb25fZ2VuZXJhdGlvbhgCIAEoBBISCgptZXNzYWdlX2lkGAMgASgEEikKBXRyYWNlGAQgASgLMhouZGVja3dlYXZlLnYxLlRyYWNlQ29udGV4dBIkCgVoZWxsbxgKIAEoCzITLmRlY2t3ZWF2ZS52MS5IZWxsb0gAEisKCWhlbGxvX2FjaxgLIAEoCzIWLmRlY2t3ZWF2ZS52MS5IZWxsb0Fja0gAEjMKCGFjdGl2YXRlGAwgASgLMh8uZGVja3dlYXZlLnYxLkFjdGl2YXRpb25SZXF1ZXN0SAASMgoJYWN0aXZhdGVkGA0gASgLMh0uZGVja3dlYXZlLnYxLkFjdGl2YXRpb25SZXBseUgAEjcKCmRlYWN0aXZhdGUYDiABKAsyIS5kZWNrd2VhdmUudjEuRGVhY3RpdmF0aW9uUmVxdWVzdEgAEj8KE2Rlc2NyaXB0b3Jfc25hcHNob3QYDyABKAsyIC5kZWNrd2VhdmUudjEuRGVzY3JpcHRvclNuYXBzaG90SAASOQoQZGVzY3JpcHRvcl9kZWx0YRgQIAEoCzIdLmRlY2t3ZWF2ZS52MS5EZXNjcmlwdG9yRGVsdGFIABImCgZzaWduYWwYESABKAsyFC5kZWNrd2VhdmUudjEuU2lnbmFsSAASMQoGaW52b2tlGBIgASgLMh8uZGVja3dlYXZlLnYxLkludm9jYXRpb25SZXF1ZXN0SAASOQoQaW52b2NhdGlvbl9yZXBseRgTIAEoCzIdLmRlY2t3ZWF2ZS52MS5JbnZvY2F0aW9uUmVwbHlIABIxCgxqb2JfcHJvZ3Jlc3MYFCABKAsyGS5kZWNrd2VhdmUudjEuSm9iUHJvZ3Jlc3NIABI0Cgtqb2Jfb3V0Y29tZRgVIAEoCzIdLmRlY2t3ZWF2ZS52MS5UZXJtaW5hbE91dGNvbWVIABItCgZjYW5jZWwYFiABKAsyGy5kZWNrd2VhdmUudjEuQ2FuY2VsUmVxdWVzdEgAEiwKCWhlYXJ0YmVhdBgXIAEoCzIXLmRlY2t3ZWF2ZS52MS5IZWFydGJlYXRIABI4CgxiYWNrcHJlc3N1cmUYGCABKAsyIC5kZWNrd2VhdmUudjEuQmFja3ByZXNzdXJlTm90aWNlSAASKgoFZnJhbWUYGSABKAsyGS5kZWNrd2VhdmUudjEuRnJhbWVQYWNrZXRIABIzCg1mcmFtZV9yZWNlaXB0GBogASgLMhouZGVja3dlYXZlLnYxLkZyYW1lUmVjZWlwdEgAEi8KC3ZhbHVlX3dyaXRlGBsgASgLMhguZGVja3dlYXZlLnYxLlZhbHVlV3JpdGVIABIzCg1vd25lcl9jbGVhbnVwGBwgASgLMhouZGVja3dlYXZlLnYxLk93bmVyQ2xlYW51cEgAEkIKFW93bmVyX2NsZWFudXBfcmVjZWlwdBgdIAEoCzIhLmRlY2t3ZWF2ZS52MS5Pd25lckNsZWFudXBSZWNlaXB0SAASNQoObG9jYWxlX2NvbnRleHQYHiABKAsyGy5kZWNrd2VhdmUudjEuTG9jYWxlQ29udGV4dEgAEkEKFGFjdGl2YXRpb25fY29tbWl0dGVkGB8gASgLMiEuZGVja3dlYXZlLnYxLkFjdGl2YXRpb25Db21taXR0ZWRIAEIGCgRib2R5KqwDCg1FcnJvckNhdGVnb3J5Eh4KGkVSUk9SX0NBVEVHT1JZX1VOU1BFQ0lGSUVEEAASIAocRVJST1JfQ0FURUdPUllfSU5WQUxJRF9JTlBVVBABEh4KGkVSUk9SX0NBVEVHT1JZX1VOU1VQUE9SVEVEEAISHgoaRVJST1JfQ0FURUdPUllfVU5BVkFJTEFCTEUQAxIkCiBFUlJPUl9DQVRFR09SWV9QRVJNSVNTSU9OX0RFTklFRBAEEiAKHEVSUk9SX0NBVEVHT1JZX1JFU09VUkNFX0JVU1kQBRIkCiBFUlJPUl9DQVRFR09SWV9ERUFETElORV9FWENFRURFRBAGEhwKGEVSUk9SX0NBVEVHT1JZX0NBTkNFTExFRBAHEiUKIUVSUk9SX0NBVEVHT1JZX1RSQU5TSUVOVF9FWFRFUk5BTBAIEiUKIUVSUk9SX0NBVEVHT1JZX1BFUk1BTkVOVF9FWFRFUk5BTBAJEiIKHkVSUk9SX0NBVEVHT1JZX1VOS05PV05fT1VUQ09NRRAKEhsKF0VSUk9SX0NBVEVHT1JZX0lOVEVSTkFMEAtiBnByb3RvMw");
 
 /**
  * The control protocol never carries raw audio or video buffers.
@@ -388,6 +388,26 @@ export type ActivationRequest = Message<"deckweave.v1.ActivationRequest"> & {
    * @generated from field: deckweave.v1.OpaquePayload settings = 3;
    */
   settings?: OpaquePayload | undefined;
+
+  /**
+   * @generated from field: deckweave.v1.LocaleContext locale = 4;
+   */
+  locale?: LocaleContext | undefined;
+
+  /**
+   * @generated from field: optional string configured_instance_id = 5;
+   */
+  configuredInstanceId?: string | undefined;
+
+  /**
+   * @generated from field: uint64 settings_revision = 6;
+   */
+  settingsRevision: bigint;
+
+  /**
+   * @generated from field: map<string, string> credential_refs = 7;
+   */
+  credentialRefs: { [key: string]: string };
 };
 
 /**
@@ -396,6 +416,57 @@ export type ActivationRequest = Message<"deckweave.v1.ActivationRequest"> & {
  */
 export const ActivationRequestSchema: GenMessage<ActivationRequest> = /*@__PURE__*/
   messageDesc(file_deckweave_v1_control, 12);
+
+/**
+ * Providers negotiating activation_commit remain silent until host routes are published.
+ *
+ * @generated from message deckweave.v1.ActivationCommitted
+ */
+export type ActivationCommitted = Message<"deckweave.v1.ActivationCommitted"> & {
+  /**
+   * @generated from field: uint64 activation_epoch = 1;
+   */
+  activationEpoch: bigint;
+
+  /**
+   * @generated from field: uint64 host_ticks = 2;
+   */
+  hostTicks: bigint;
+};
+
+/**
+ * Describes the message deckweave.v1.ActivationCommitted.
+ * Use `create(ActivationCommittedSchema)` to create a new message.
+ */
+export const ActivationCommittedSchema: GenMessage<ActivationCommitted> = /*@__PURE__*/
+  messageDesc(file_deckweave_v1_control, 13);
+
+/**
+ * @generated from message deckweave.v1.LocaleContext
+ */
+export type LocaleContext = Message<"deckweave.v1.LocaleContext"> & {
+  /**
+   * @generated from field: uint64 revision = 1;
+   */
+  revision: bigint;
+
+  /**
+   * @generated from field: string requested_locale = 2;
+   */
+  requestedLocale: string;
+
+  /**
+   * @generated from field: string time_zone = 3;
+   */
+  timeZone: string;
+};
+
+/**
+ * Describes the message deckweave.v1.LocaleContext.
+ * Use `create(LocaleContextSchema)` to create a new message.
+ */
+export const LocaleContextSchema: GenMessage<LocaleContext> = /*@__PURE__*/
+  messageDesc(file_deckweave_v1_control, 14);
 
 /**
  * @generated from message deckweave.v1.ActivationReply
@@ -422,7 +493,7 @@ export type ActivationReply = Message<"deckweave.v1.ActivationReply"> & {
  * Use `create(ActivationReplySchema)` to create a new message.
  */
 export const ActivationReplySchema: GenMessage<ActivationReply> = /*@__PURE__*/
-  messageDesc(file_deckweave_v1_control, 13);
+  messageDesc(file_deckweave_v1_control, 15);
 
 /**
  * @generated from message deckweave.v1.DeactivationRequest
@@ -444,7 +515,7 @@ export type DeactivationRequest = Message<"deckweave.v1.DeactivationRequest"> & 
  * Use `create(DeactivationRequestSchema)` to create a new message.
  */
 export const DeactivationRequestSchema: GenMessage<DeactivationRequest> = /*@__PURE__*/
-  messageDesc(file_deckweave_v1_control, 14);
+  messageDesc(file_deckweave_v1_control, 16);
 
 /**
  * @generated from message deckweave.v1.DescriptorSnapshot
@@ -466,7 +537,7 @@ export type DescriptorSnapshot = Message<"deckweave.v1.DescriptorSnapshot"> & {
  * Use `create(DescriptorSnapshotSchema)` to create a new message.
  */
 export const DescriptorSnapshotSchema: GenMessage<DescriptorSnapshot> = /*@__PURE__*/
-  messageDesc(file_deckweave_v1_control, 15);
+  messageDesc(file_deckweave_v1_control, 17);
 
 /**
  * @generated from message deckweave.v1.DescriptorDelta
@@ -498,7 +569,7 @@ export type DescriptorDelta = Message<"deckweave.v1.DescriptorDelta"> & {
  * Use `create(DescriptorDeltaSchema)` to create a new message.
  */
 export const DescriptorDeltaSchema: GenMessage<DescriptorDelta> = /*@__PURE__*/
-  messageDesc(file_deckweave_v1_control, 16);
+  messageDesc(file_deckweave_v1_control, 18);
 
 /**
  * Package and runtime session are supplied by the authenticated transport.
@@ -556,7 +627,7 @@ export type EndpointPath = Message<"deckweave.v1.EndpointPath"> & {
  * Use `create(EndpointPathSchema)` to create a new message.
  */
 export const EndpointPathSchema: GenMessage<EndpointPath> = /*@__PURE__*/
-  messageDesc(file_deckweave_v1_control, 17);
+  messageDesc(file_deckweave_v1_control, 19);
 
 /**
  * @generated from message deckweave.v1.Signal
@@ -609,7 +680,7 @@ export type Signal = Message<"deckweave.v1.Signal"> & {
  * Use `create(SignalSchema)` to create a new message.
  */
 export const SignalSchema: GenMessage<Signal> = /*@__PURE__*/
-  messageDesc(file_deckweave_v1_control, 18);
+  messageDesc(file_deckweave_v1_control, 20);
 
 /**
  * @generated from message deckweave.v1.InvocationRequest
@@ -662,6 +733,13 @@ export type InvocationRequest = Message<"deckweave.v1.InvocationRequest"> & {
    * @generated from field: deckweave.v1.EndpointPath target = 9;
    */
   target?: EndpointPath | undefined;
+
+  /**
+   * Relative budget at send time; plugins must not compare host ticks with their own clock.
+   *
+   * @generated from field: optional uint64 remaining_budget_ms = 10;
+   */
+  remainingBudgetMs?: bigint | undefined;
 };
 
 /**
@@ -669,7 +747,68 @@ export type InvocationRequest = Message<"deckweave.v1.InvocationRequest"> & {
  * Use `create(InvocationRequestSchema)` to create a new message.
  */
 export const InvocationRequestSchema: GenMessage<InvocationRequest> = /*@__PURE__*/
-  messageDesc(file_deckweave_v1_control, 19);
+  messageDesc(file_deckweave_v1_control, 21);
+
+/**
+ * @generated from message deckweave.v1.OwnerCleanup
+ */
+export type OwnerCleanup = Message<"deckweave.v1.OwnerCleanup"> & {
+  /**
+   * @generated from field: string cleanup_id = 1;
+   */
+  cleanupId: string;
+
+  /**
+   * @generated from field: uint64 activation_epoch = 2;
+   */
+  activationEpoch: bigint;
+
+  /**
+   * Absent means every owner of this activation in the authenticated session.
+   *
+   * @generated from field: optional string run_id = 3;
+   */
+  runId?: string | undefined;
+
+  /**
+   * @generated from field: string reason = 4;
+   */
+  reason: string;
+};
+
+/**
+ * Describes the message deckweave.v1.OwnerCleanup.
+ * Use `create(OwnerCleanupSchema)` to create a new message.
+ */
+export const OwnerCleanupSchema: GenMessage<OwnerCleanup> = /*@__PURE__*/
+  messageDesc(file_deckweave_v1_control, 22);
+
+/**
+ * @generated from message deckweave.v1.OwnerCleanupReceipt
+ */
+export type OwnerCleanupReceipt = Message<"deckweave.v1.OwnerCleanupReceipt"> & {
+  /**
+   * @generated from field: string cleanup_id = 1;
+   */
+  cleanupId: string;
+
+  /**
+   * @generated from field: uint64 activation_epoch = 2;
+   */
+  activationEpoch: bigint;
+
+  /**
+   * @generated from field: bool released = 3;
+   */
+  released: boolean;
+};
+
+/**
+ * Describes the message deckweave.v1.OwnerCleanupReceipt.
+ * Use `create(OwnerCleanupReceiptSchema)` to create a new message.
+ */
+export const OwnerCleanupReceiptSchema: GenMessage<OwnerCleanupReceipt> = /*@__PURE__*/
+  messageDesc(file_deckweave_v1_control, 23);
 
 /**
  * @generated from message deckweave.v1.StructuredError
@@ -706,7 +845,7 @@ export type StructuredError = Message<"deckweave.v1.StructuredError"> & {
  * Use `create(StructuredErrorSchema)` to create a new message.
  */
 export const StructuredErrorSchema: GenMessage<StructuredError> = /*@__PURE__*/
-  messageDesc(file_deckweave_v1_control, 20);
+  messageDesc(file_deckweave_v1_control, 24);
 
 /**
  * @generated from message deckweave.v1.TerminalOutcome
@@ -752,7 +891,7 @@ export type TerminalOutcome = Message<"deckweave.v1.TerminalOutcome"> & {
  * Use `create(TerminalOutcomeSchema)` to create a new message.
  */
 export const TerminalOutcomeSchema: GenMessage<TerminalOutcome> = /*@__PURE__*/
-  messageDesc(file_deckweave_v1_control, 21);
+  messageDesc(file_deckweave_v1_control, 25);
 
 /**
  * @generated from message deckweave.v1.InvocationReply
@@ -792,7 +931,7 @@ export type InvocationReply = Message<"deckweave.v1.InvocationReply"> & {
  * Use `create(InvocationReplySchema)` to create a new message.
  */
 export const InvocationReplySchema: GenMessage<InvocationReply> = /*@__PURE__*/
-  messageDesc(file_deckweave_v1_control, 22);
+  messageDesc(file_deckweave_v1_control, 26);
 
 /**
  * @generated from message deckweave.v1.JobProgress
@@ -829,7 +968,7 @@ export type JobProgress = Message<"deckweave.v1.JobProgress"> & {
  * Use `create(JobProgressSchema)` to create a new message.
  */
 export const JobProgressSchema: GenMessage<JobProgress> = /*@__PURE__*/
-  messageDesc(file_deckweave_v1_control, 23);
+  messageDesc(file_deckweave_v1_control, 27);
 
 /**
  * @generated from message deckweave.v1.CancelRequest
@@ -856,7 +995,7 @@ export type CancelRequest = Message<"deckweave.v1.CancelRequest"> & {
  * Use `create(CancelRequestSchema)` to create a new message.
  */
 export const CancelRequestSchema: GenMessage<CancelRequest> = /*@__PURE__*/
-  messageDesc(file_deckweave_v1_control, 24);
+  messageDesc(file_deckweave_v1_control, 28);
 
 /**
  * Typed value delivery to an addressable input/feedback port. The runtime
@@ -902,7 +1041,7 @@ export type ValueWrite = Message<"deckweave.v1.ValueWrite"> & {
  * Use `create(ValueWriteSchema)` to create a new message.
  */
 export const ValueWriteSchema: GenMessage<ValueWrite> = /*@__PURE__*/
-  messageDesc(file_deckweave_v1_control, 25);
+  messageDesc(file_deckweave_v1_control, 29);
 
 /**
  * @generated from message deckweave.v1.Heartbeat
@@ -924,7 +1063,7 @@ export type Heartbeat = Message<"deckweave.v1.Heartbeat"> & {
  * Use `create(HeartbeatSchema)` to create a new message.
  */
 export const HeartbeatSchema: GenMessage<Heartbeat> = /*@__PURE__*/
-  messageDesc(file_deckweave_v1_control, 26);
+  messageDesc(file_deckweave_v1_control, 30);
 
 /**
  * @generated from message deckweave.v1.BackpressureNotice
@@ -951,14 +1090,15 @@ export type BackpressureNotice = Message<"deckweave.v1.BackpressureNotice"> & {
  * Use `create(BackpressureNoticeSchema)` to create a new message.
  */
 export const BackpressureNoticeSchema: GenMessage<BackpressureNotice> = /*@__PURE__*/
-  messageDesc(file_deckweave_v1_control, 27);
+  messageDesc(file_deckweave_v1_control, 31);
 
 /**
  * @generated from message deckweave.v1.FramePacket
  */
 export type FramePacket = Message<"deckweave.v1.FramePacket"> & {
   /**
-   * @generated from field: string target_port_id = 1;
+   * @generated from field: string target_port_id = 1 [deprecated = true];
+   * @deprecated
    */
   targetPortId: string;
 
@@ -996,6 +1136,11 @@ export type FramePacket = Message<"deckweave.v1.FramePacket"> & {
    * @generated from field: deckweave.v1.OpaquePayload chunk = 8;
    */
   chunk?: OpaquePayload | undefined;
+
+  /**
+   * @generated from field: deckweave.v1.EndpointPath target = 9;
+   */
+  target?: EndpointPath | undefined;
 };
 
 /**
@@ -1003,14 +1148,15 @@ export type FramePacket = Message<"deckweave.v1.FramePacket"> & {
  * Use `create(FramePacketSchema)` to create a new message.
  */
 export const FramePacketSchema: GenMessage<FramePacket> = /*@__PURE__*/
-  messageDesc(file_deckweave_v1_control, 28);
+  messageDesc(file_deckweave_v1_control, 32);
 
 /**
  * @generated from message deckweave.v1.FrameReceipt
  */
 export type FrameReceipt = Message<"deckweave.v1.FrameReceipt"> & {
   /**
-   * @generated from field: string target_port_id = 1;
+   * @generated from field: string target_port_id = 1 [deprecated = true];
+   * @deprecated
    */
   targetPortId: string;
 
@@ -1033,6 +1179,21 @@ export type FrameReceipt = Message<"deckweave.v1.FrameReceipt"> & {
    * @generated from field: optional deckweave.v1.StructuredError error = 5;
    */
   error?: StructuredError | undefined;
+
+  /**
+   * @generated from field: deckweave.v1.EndpointPath target = 6;
+   */
+  target?: EndpointPath | undefined;
+
+  /**
+   * @generated from field: uint64 activation_epoch = 7;
+   */
+  activationEpoch: bigint;
+
+  /**
+   * @generated from field: uint64 descriptor_revision = 8;
+   */
+  descriptorRevision: bigint;
 };
 
 /**
@@ -1040,7 +1201,7 @@ export type FrameReceipt = Message<"deckweave.v1.FrameReceipt"> & {
  * Use `create(FrameReceiptSchema)` to create a new message.
  */
 export const FrameReceiptSchema: GenMessage<FrameReceipt> = /*@__PURE__*/
-  messageDesc(file_deckweave_v1_control, 29);
+  messageDesc(file_deckweave_v1_control, 33);
 
 /**
  * @generated from message deckweave.v1.ProtocolEnvelope
@@ -1177,6 +1338,30 @@ export type ProtocolEnvelope = Message<"deckweave.v1.ProtocolEnvelope"> & {
      */
     value: ValueWrite;
     case: "valueWrite";
+  } | {
+    /**
+     * @generated from field: deckweave.v1.OwnerCleanup owner_cleanup = 28;
+     */
+    value: OwnerCleanup;
+    case: "ownerCleanup";
+  } | {
+    /**
+     * @generated from field: deckweave.v1.OwnerCleanupReceipt owner_cleanup_receipt = 29;
+     */
+    value: OwnerCleanupReceipt;
+    case: "ownerCleanupReceipt";
+  } | {
+    /**
+     * @generated from field: deckweave.v1.LocaleContext locale_context = 30;
+     */
+    value: LocaleContext;
+    case: "localeContext";
+  } | {
+    /**
+     * @generated from field: deckweave.v1.ActivationCommitted activation_committed = 31;
+     */
+    value: ActivationCommitted;
+    case: "activationCommitted";
   } | { case: undefined; value?: undefined };
 };
 
@@ -1185,7 +1370,7 @@ export type ProtocolEnvelope = Message<"deckweave.v1.ProtocolEnvelope"> & {
  * Use `create(ProtocolEnvelopeSchema)` to create a new message.
  */
 export const ProtocolEnvelopeSchema: GenMessage<ProtocolEnvelope> = /*@__PURE__*/
-  messageDesc(file_deckweave_v1_control, 30);
+  messageDesc(file_deckweave_v1_control, 34);
 
 /**
  * @generated from enum deckweave.v1.ErrorCategory

@@ -5,6 +5,10 @@
 
 ## Публичный интерфейс
 
+Реализованы `JsonProfileStore::compact_draft`, `compact_command_claims` и `archive_terminal_operations`. Checkpoint публикуется до удаления старых transaction snapshots; активные receipt snapshots и backup head сохраняются. GC допускается после подтверждённой ротации dedup epoch, а не только по wall-clock expiration. Pending apply защищает claim. Terminal operations переносятся атомарным rename в `operations/archive`, сохраняют historical query и не входят в обычный recovery scan. Оба commit heads защищены; revisions/assets не удаляются. Квоты используют rebuildable cached counts под mutation lock и сбрасывают cache после неопределённого write outcome. Это предполагает один adapter под существующим host process lock; внешние writers не поддерживаются.
+
+Desktop выполняет archive/claim maintenance после recovery; quota pressure также запускает соответствующее освобождение. Автоматический checkpoint budget долгой editor session и ограничение размера archive ещё требуют acceptance в [6G.0](../../implementation/pre-phase-6.md). Archive сохраняется до явной retention/export policy; перемещение истории не ограничивает её общий объём на диске. Fault tests подтверждают process-level recovery, а не power-loss durability.
+
 | Символ | Тип | Описание |
 |---|---|---|
 | `ProfileStore` | trait/service | Load/save/query revisions |

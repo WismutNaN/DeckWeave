@@ -15,6 +15,8 @@ use serde_json::Value;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExecutableGraph {
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub action_arguments: std::collections::BTreeMap<GraphNodeId, crate::ActionArguments>,
     pub format: GraphFormatVersion,
     pub nodes: Vec<GraphNode>,
     pub edges: Vec<GraphEdge>,
@@ -46,6 +48,8 @@ pub struct StateSlot {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompiledEndpointContract {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub configured_instance_id: Option<deckweave_domain::ids::PluginInstanceId>,
     pub node_id: GraphNodeId,
     pub endpoint: StableEndpointRef,
     pub runtime_group_id: RuntimeGroupId,
@@ -54,7 +58,7 @@ pub struct CompiledEndpointContract {
     pub operation: Option<OperationDescriptor>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompiledSchemaContract {
     pub schema: SchemaRef,

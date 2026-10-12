@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! JSON adapter for durable apply intents, status and the active commit pointer.
 
+mod recovery;
 use super::*;
 use deckweave_domain::ids::OperationId;
 use deckweave_platform::PublicationOutcome;
@@ -10,6 +11,7 @@ use deckweave_workspace::{
     ApplyRuntimeHealth, WorkspaceRevision,
 };
 mod document;
+mod maintenance;
 mod validation;
 use validation::{validate_commit, validate_finish, validate_intent};
 
@@ -57,12 +59,29 @@ impl ApplyOperationRepository for JsonProfileStore {
             }
             true
         } else {
-            if operation_directory_count(&self.apply_operations_directory())?
+            if self
+                .counted_entries(&self.apply_operations_directory())
+                .map_err(map_profile_error)?
                 >= self.limits.maximum_apply_operations
             {
-                return Err(ApplyRepositoryError::CapacityExceeded);
+                self.archive_terminal_operations_locked()?;
+                if self
+                    .counted_entries(&self.apply_operations_directory())
+                    .map_err(map_profile_error)?
+                    >= self.limits.maximum_apply_operations
+                {
+                    return Err(ApplyRepositoryError::CapacityExceeded);
+                }
             }
-            self.write_apply_document(&intent_path, intent, None)?;
+            let directory = intent_path
+                .parent()
+                .ok_or_else(|| ApplyRepositoryError::InvalidDocument("operation path".into()))?;
+            if let Err(error) = self.write_apply_document(&intent_path, intent, None) {
+                self.invalidate_count(directory);
+                return Err(error);
+            }
+            self.account_entry(directory, 1)
+                .map_err(map_profile_error)?;
             false
         };
         let status_path = self.apply_status_path(&intent.operation_id);
@@ -243,49 +262,7 @@ impl ApplyOperationRepository for JsonProfileStore {
         maximum: usize,
     ) -> Result<Vec<ApplyOperationSnapshot>, ApplyRepositoryError> {
         let _guard = self.lock_apply_store()?;
-        let directory = self.apply_operations_directory();
-        let entries = match fs::read_dir(&directory) {
-            Ok(entries) => entries,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
-            Err(error) => return Err(ApplyRepositoryError::Unavailable(error.to_string())),
-        };
-        let active = self.active_commit_inner()?;
-        let mut pending = Vec::new();
-        for entry in entries {
-            let entry =
-                entry.map_err(|error| ApplyRepositoryError::Unavailable(error.to_string()))?;
-            if !entry
-                .file_type()
-                .map_err(|error| ApplyRepositoryError::Unavailable(error.to_string()))?
-                .is_dir()
-            {
-                return Err(ApplyRepositoryError::InvalidDocument(
-                    "unexpected file in apply operations directory".into(),
-                ));
-            }
-            let intent_path = entry.path().join("intent.json");
-            let intent: ApplyOperationIntent = self.read_apply_document(&intent_path)?;
-            let mut snapshot = self.operation_inner(&intent.operation_id)?;
-            if snapshot.state.is_terminal() {
-                continue;
-            }
-            // Migration repair for data written before the previous-head
-            // sealing rule: the current commit still proves that its direct
-            // predecessor selection was once durably committed.
-            if active
-                .as_ref()
-                .and_then(|commit| commit.previous_active.as_ref())
-                .is_some_and(|selection| *selection == snapshot.intent.candidate)
-            {
-                snapshot.commit_status = ApplyCommitStatus::Committed;
-            }
-            pending.push(snapshot);
-            if pending.len() > maximum {
-                return Err(ApplyRepositoryError::CapacityExceeded);
-            }
-        }
-        pending.sort_by(|left, right| left.intent.operation_id.cmp(&right.intent.operation_id));
-        Ok(pending)
+        self.recoverable_operations_locked(maximum)
     }
 }
 
@@ -372,19 +349,6 @@ impl JsonProfileStore {
             Err(ApplyRepositoryError::NotFound) => Ok(None),
             Err(error) => Err(error),
         }
-    }
-}
-
-fn operation_directory_count(path: &Path) -> Result<usize, ApplyRepositoryError> {
-    match fs::read_dir(path) {
-        Ok(entries) => entries
-            .map(|entry| {
-                entry.map_err(|error| ApplyRepositoryError::Unavailable(error.to_string()))
-            })
-            .collect::<Result<Vec<_>, _>>()
-            .map(|entries| entries.len()),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(0),
-        Err(error) => Err(ApplyRepositoryError::Unavailable(error.to_string())),
     }
 }
 

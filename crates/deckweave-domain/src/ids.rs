@@ -234,6 +234,7 @@ impl<'de> Deserialize<'de> for AssetId {
 }
 
 counter_id!(DraftVersion);
+text_id!(PluginInstanceId);
 counter_id!(ActivationEpoch);
 counter_id!(IngressOrdinal);
 counter_id!(SessionGeneration);

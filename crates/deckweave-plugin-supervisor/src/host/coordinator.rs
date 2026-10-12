@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Ownership and lifecycle of prepared and active runtime generations.
 
+mod locale;
 use super::{
     config::{HostRuntimeConfig, HostRuntimeError},
     dispatch::RuntimeDispatchHub,
@@ -22,7 +23,9 @@ use std::{
     time::Instant,
 };
 
+mod launch;
 mod plan;
+use super::instance::WorkerCommand;
 mod query;
 use plan::{bind_instances, validate_distinct_runtime_groups};
 
@@ -54,6 +57,9 @@ pub(super) struct RuntimeState {
 }
 
 pub struct ProductionRuntimeCoordinator {
+    credential_broker: Arc<dyn deckweave_application::CredentialBroker>,
+    locale: Mutex<deckweave_domain::localization::LocaleContext>,
+    _timer_pump: deckweave_host::ExecutionTimerPump,
     pub(super) packages: Arc<PackageIndex>,
     pub(super) operations: Arc<dyn ApplyOperationRepository>,
     pub(super) authorization: Arc<dyn AuthorizationStore>,
@@ -83,11 +89,18 @@ impl ProductionRuntimeCoordinator {
     ) -> Self {
         let dispatcher = Arc::new(RuntimeDispatchHub::new(Arc::clone(&authorization)));
         let execution_dispatcher: Arc<dyn RuntimeIntentDispatcher> = dispatcher.clone();
-        let execution = Arc::new(LiveExecutionOwner::new(
+        let clock = Instant::now();
+        let execution = Arc::new(LiveExecutionOwner::with_clock(
             host_boot_id.clone(),
             execution_dispatcher,
+            Arc::new(deckweave_host::MonotonicExecutionClock(clock)),
         ));
+        let timer_pump =
+            deckweave_host::ExecutionTimerPump::start(&execution, config.monitor_interval);
         Self {
+            credential_broker: Arc::new(deckweave_application::UnresolvedCredentialBroker),
+            locale: Mutex::new(config.locale.clone()),
+            _timer_pump: timer_pump,
             packages,
             operations,
             authorization,
@@ -96,7 +109,7 @@ impl ProductionRuntimeCoordinator {
             principal,
             host_boot_id,
             config,
-            clock: Instant::now(),
+            clock,
             state: Mutex::new(RuntimeState {
                 dispatcher_closed: true,
                 ..RuntimeState::default()
@@ -118,7 +131,7 @@ impl ProductionRuntimeCoordinator {
     pub fn shutdown(&self) -> Result<(), HostRuntimeError> {
         self.dispatcher.close();
         self.execution
-            .deactivate()
+            .close_barrier(elapsed_millis(self.clock))
             .map_err(|error| HostRuntimeError::State(error.to_string()))?;
         let (prepared, active) = {
             let mut state = self.lock_state()?;
@@ -128,8 +141,13 @@ impl ProductionRuntimeCoordinator {
         };
         let prepared_result = prepared.map_or(Ok(()), |prepared| self.stop_prepared(prepared));
         let active_result = self.shutdown_workers(active);
+        self.execution
+            .deactivate()
+            .map_err(|error| HostRuntimeError::State(error.to_string()))?;
         self.dispatcher.clear();
-        self.health.mark_all_stopped();
+        if prepared_result.is_ok() && active_result.is_ok() {
+            self.health.mark_all_stopped();
+        }
         prepared_result.and(active_result)
     }
 
@@ -158,8 +176,22 @@ impl ProductionRuntimeCoordinator {
     ) -> Result<PreparedRuntime, HostRuntimeError> {
         let requirements = plan.runtime_requirements();
         validate_distinct_runtime_groups(requirements)?;
-        let mut instances = Vec::with_capacity(requirements.len());
+        let mut instances: Vec<RuntimeInstance> = Vec::with_capacity(requirements.len());
         for requirement in requirements {
+            if let Err(error) = self.resolve_requirement(requirement) {
+                let _cleanup = self.stop_instances(instances);
+                return Err(error);
+            }
+            if let Some(instance) = instances
+                .iter_mut()
+                .find(|instance| instance.belongs_to(requirement))
+            {
+                if let Err(error) = instance.activate_additional(requirement, &self.config) {
+                    let _cleanup = self.stop_instances(instances);
+                    return Err(error);
+                }
+                continue;
+            }
             let launched = self.launch_requirement(requirement);
             match launched {
                 Ok(instance) => instances.push(instance),
@@ -186,68 +218,6 @@ impl ProductionRuntimeCoordinator {
             bound_graph,
             executable_graph: plan.executable_graph().cloned(),
         })
-    }
-
-    fn launch_requirement(
-        &self,
-        requirement: &RuntimeRequirement,
-    ) -> Result<RuntimeInstance, HostRuntimeError> {
-        let (package, group, contribution) = self.resolve_requirement(requirement)?;
-        RuntimeInstance::launch(
-            package,
-            group,
-            contribution,
-            self.allocate_generation()?,
-            &self.config,
-            Arc::clone(&self.authorization),
-            self.principal.clone(),
-            self.process_policy.as_ref(),
-            elapsed_millis(self.clock),
-        )
-    }
-
-    fn resolve_requirement(
-        &self,
-        requirement: &RuntimeRequirement,
-    ) -> Result<(Arc<IndexedPackage>, RuntimeGroupId, ContributionId), HostRuntimeError> {
-        let package = self
-            .packages
-            .resolve_artifact(
-                &requirement.package_id,
-                &requirement.package_version,
-                &requirement.artifact_sha256,
-            )
-            .cloned()
-            .map(Arc::new)
-            .ok_or_else(|| HostRuntimeError::Package(requirement.package_id.to_string()))?;
-        if !package
-            .runtime_groups
-            .contains_key(&requirement.runtime_group_id)
-        {
-            return Err(HostRuntimeError::Package(format!(
-                "runtime group {} is absent from package {}",
-                requirement.runtime_group_id, requirement.package_id
-            )));
-        }
-        let contribution = package
-            .contributions
-            .get(&requirement.contribution_id)
-            .ok_or_else(|| {
-                HostRuntimeError::Package(format!(
-                    "contribution {} is absent from package {}",
-                    requirement.contribution_id, requirement.package_id
-                ))
-            })?;
-        if contribution.runtime_group_id != requirement.runtime_group_id {
-            return Err(HostRuntimeError::Package(
-                "compiled runtime group does not own the required contribution".into(),
-            ));
-        }
-        Ok((
-            package,
-            requirement.runtime_group_id.clone(),
-            requirement.contribution_id.clone(),
-        ))
     }
 
     pub(super) fn stop_prepared(&self, prepared: PreparedRuntime) -> Result<(), HostRuntimeError> {
@@ -309,6 +279,17 @@ impl ProductionRuntimeCoordinator {
         self.dispatcher
             .activate(Some(epoch), &workers)
             .map_err(|failure| HostRuntimeError::State(failure.error.code))?;
+        let locale = self
+            .locale
+            .lock()
+            .map_err(|_| HostRuntimeError::State("locale lock poisoned".into()))?;
+        for worker in &workers {
+            worker
+                .sender()
+                .try_send(WorkerCommand::Locale(locale.clone()))
+                .and_then(|()| worker.sender().try_send(WorkerCommand::Start))
+                .map_err(|_| HostRuntimeError::State("worker start queue unavailable".into()))?;
+        }
         let mut state = self.lock_state()?;
         state.active = workers;
         state.active_binding = bound_graph;

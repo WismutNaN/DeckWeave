@@ -13,15 +13,17 @@ impl InteractionProvider for FakeProvider {
     fn page(
         &self,
         request: &InteractionRequest,
+        fence: &deckweave_interaction::QueryFence,
         query: &serde_json::Value,
         cursor: Option<&str>,
     ) -> Result<InteractionPage, InteractionError> {
         Ok(InteractionPage {
+            fence: fence.clone(),
             session_id: request.session_id.clone(),
             items: vec![InteractionItem {
                 item_id: cursor.unwrap_or("first").into(),
                 label: query["text"].as_str().unwrap_or_default().into(),
-                value: serde_json::json!({"provider": request.provider_id.as_str()}),
+                value: serde_json::json!({"key": "selected"}),
             }],
             next_cursor: None,
         })
@@ -68,10 +70,17 @@ fn request(
         session_id: InteractionSessionId::try_new(session)?,
         owner_invocation_id: InvocationId::try_new(invocation)?,
         provider_id: ProviderId::try_new("fixture-provider")?,
+        activation_epoch: deckweave_domain::ids::ActivationEpoch::try_new(1)?,
+        provider_generation: deckweave_domain::ids::SessionGeneration::try_new(1)?,
         view: InteractionViewKind::SearchList,
         initial_query: serde_json::json!({"text": "rock"}),
-        result_schema: "fixture.item-ref.v1".into(),
-        deadline_unix_ms: deadline,
+        result_schema: serde_json::from_value(
+            serde_json::json!({"id":"fixture.item-ref","version":{"major":1,"minor":0}}),
+        )?,
+        result_shape: serde_json::from_value(
+            serde_json::json!({"type":"record","fields":{"key":{"schema":{"type":"string","maximumBytes":128}}}}),
+        )?,
+        deadline_host_ticks: deadline,
     })
 }
 
@@ -82,25 +91,40 @@ fn concurrent_search_pages_and_results_remain_isolated() -> Result<(), Box<dyn E
     let second = request("session-b", "invocation-b", 300)?;
     sessions.open(first.clone())?;
     sessions.open(second.clone())?;
-    sessions.publish_page(InteractionPage {
-        session_id: first.session_id.clone(),
-        items: vec![InteractionItem {
-            item_id: "a".into(),
-            label: "Article A".into(),
-            value: serde_json::json!({"key": "a"}),
-        }],
-        next_cursor: Some("cursor-a".into()),
-    })?;
-    sessions.publish_page(InteractionPage {
-        session_id: second.session_id.clone(),
-        items: vec![InteractionItem {
-            item_id: "b".into(),
-            label: "Article B".into(),
-            value: serde_json::json!({"key": "b"}),
-        }],
-        next_cursor: None,
-    })?;
-    sessions.select(&first.session_id, serde_json::json!({"key": "a"}))?;
+    let first_fence = sessions.begin_query(&first.session_id, 0)?;
+    let second_fence = sessions.begin_query(&second.session_id, 0)?;
+    sessions.publish_page(
+        InteractionPage {
+            fence: first_fence.clone(),
+            session_id: first.session_id.clone(),
+            items: vec![InteractionItem {
+                item_id: "a".into(),
+                label: "Article A".into(),
+                value: serde_json::json!({"key": "a"}),
+            }],
+            next_cursor: Some("cursor-a".into()),
+        },
+        0,
+    )?;
+    sessions.publish_page(
+        InteractionPage {
+            fence: second_fence,
+            session_id: second.session_id.clone(),
+            items: vec![InteractionItem {
+                item_id: "b".into(),
+                label: "Article B".into(),
+                value: serde_json::json!({"key": "b"}),
+            }],
+            next_cursor: None,
+        },
+        0,
+    )?;
+    sessions.select(
+        &first.session_id,
+        serde_json::json!({"key": "a"}),
+        &first_fence,
+        0,
+    )?;
     sessions.cancel(&second.session_id, CancelReason::Escape)?;
     assert_eq!(
         sessions
@@ -158,14 +182,20 @@ fn provider_pages_and_presenter_lifecycle_stay_behind_ports() -> Result<(), Box<
             .get(&request.session_id)
             .ok_or(InteractionError::NotFound)?,
     )?;
-    let page = provider.page(&request, &request.initial_query, Some("second"))?;
-    sessions.publish_page(page)?;
+    let fence = sessions.begin_query(&request.session_id, 0)?;
+    let page = provider.page(&request, &fence, &request.initial_query, Some("second"))?;
+    sessions.publish_page(page, 0)?;
     presenter.update(
         sessions
             .get(&request.session_id)
             .ok_or(InteractionError::NotFound)?,
     )?;
-    sessions.select(&request.session_id, serde_json::json!({"key": "selected"}))?;
+    sessions.select(
+        &request.session_id,
+        serde_json::json!({"key": "selected"}),
+        &fence,
+        0,
+    )?;
     presenter.close(&request.session_id)?;
     assert_eq!(
         *presenter
@@ -178,5 +208,66 @@ fn provider_pages_and_presenter_lifecycle_stay_behind_ports() -> Result<(), Box<
             "close:session-ports"
         ]
     );
+    Ok(())
+}
+
+#[test]
+fn stale_query_reused_session_and_lost_provider_are_fenced() -> Result<(), Box<dyn Error>> {
+    let mut sessions = InteractionSessions::new();
+    let first = request("reusable", "owner", 1000)?;
+    sessions.open(first.clone())?;
+    let old = sessions.begin_query(&first.session_id, 0)?;
+    let latest = sessions.begin_query(&first.session_id, 0)?;
+    let stale = FakeProvider.page(&first, &old, &first.initial_query, None)?;
+    assert_eq!(
+        sessions.publish_page(stale, 0),
+        Err(InteractionError::StaleQuery)
+    );
+    sessions.publish_page(
+        FakeProvider.page(&first, &latest, &first.initial_query, None)?,
+        0,
+    )?;
+    assert_eq!(
+        sessions.select(
+            &first.session_id,
+            serde_json::json!({"key":"selected"}),
+            &old,
+            0
+        ),
+        Err(InteractionError::StaleQuery)
+    );
+    sessions.cancel_owner(&first.owner_invocation_id, CancelReason::Apply);
+    for n in 0..64 {
+        let request = request(&format!("temporary-{n}"), "other", 1000)?;
+        sessions.open(request.clone())?;
+        sessions.cancel(&request.session_id, CancelReason::UserClosed)?;
+    }
+    assert!(sessions.get(&first.session_id).is_none());
+    sessions.open(first.clone())?;
+    let fresh = sessions.begin_query(&first.session_id, 0)?;
+    sessions.publish_page(
+        FakeProvider.page(&first, &fresh, &first.initial_query, None)?,
+        0,
+    )?;
+    assert_eq!(old.query_generation, fresh.query_generation);
+    assert_eq!(
+        sessions.select(
+            &first.session_id,
+            serde_json::json!({"key":"selected"}),
+            &old,
+            0
+        ),
+        Err(InteractionError::StaleQuery)
+    );
+    assert_eq!(
+        sessions.provider_lost(&first.provider_id, first.provider_generation),
+        vec![first.session_id.clone()]
+    );
+    assert!(matches!(
+        sessions
+            .get(&first.session_id)
+            .and_then(|s| s.result.as_ref()),
+        Some(InteractionResult::Cancelled(CancelReason::ProviderLost))
+    ));
     Ok(())
 }

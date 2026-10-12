@@ -66,6 +66,30 @@ fn main() -> Result<(), Box<dyn Error>> {
             one_time_token: token,
             features: vec![
                 FeatureRequirement {
+                    id: deckweave_protocol::FEATURE_ACTIVATION_COMMIT.into(),
+                    minimum_version: 1,
+                    maximum_version: 1,
+                    required: false,
+                },
+                FeatureRequirement {
+                    id: deckweave_protocol::FEATURE_CONFIGURED_INSTANCES.into(),
+                    minimum_version: 1,
+                    maximum_version: 1,
+                    required: false,
+                },
+                FeatureRequirement {
+                    id: deckweave_protocol::FEATURE_LOCALE_CONTEXT.into(),
+                    minimum_version: 1,
+                    maximum_version: 1,
+                    required: false,
+                },
+                FeatureRequirement {
+                    id: deckweave_protocol::FEATURE_OWNER_CLEANUP.into(),
+                    minimum_version: 1,
+                    maximum_version: 1,
+                    required: false,
+                },
+                FeatureRequirement {
                     id: deckweave_protocol::FEATURE_INVOCATION_ENDPOINT_PATH.into(),
                     minimum_version: 1,
                     maximum_version: 1,
@@ -118,11 +142,57 @@ fn main() -> Result<(), Box<dyn Error>> {
         return Err("intentional crash".into());
     }
 
+    let mut pending_signals: Vec<Signal> = Vec::new();
     loop {
         let Some(envelope) = read_envelope(&mut stdin, maximum)? else {
             return Ok(());
         };
         match envelope.body {
+            Some(protocol_envelope::Body::ActivationCommitted(_commit)) => {
+                for signal in pending_signals.drain(..) {
+                    message_id += 1;
+                    send(
+                        &mut stdout,
+                        maximum,
+                        generation,
+                        message_id,
+                        protocol_envelope::Body::Signal(signal),
+                    )?;
+                }
+            }
+            Some(protocol_envelope::Body::LocaleContext(context)) => {
+                std::fs::write(
+                    std::env::current_exe()?.with_file_name("locale.json"),
+                    serde_json::to_vec(
+                        &serde_json::json!({"revision":context.revision,"locale":context.requested_locale,"timeZone":context.time_zone}),
+                    )?,
+                )?;
+            }
+            Some(protocol_envelope::Body::OwnerCleanup(request)) => {
+                let cleanup_mode = if request.run_id.is_none() {
+                    std::fs::read_to_string(std::env::current_exe()?.with_file_name("cleanup-mode"))
+                        .unwrap_or_default()
+                } else {
+                    String::new()
+                };
+                if cleanup_mode == "ignore" {
+                    continue;
+                }
+                message_id += 1;
+                send(
+                    &mut stdout,
+                    maximum,
+                    generation,
+                    message_id,
+                    protocol_envelope::Body::OwnerCleanupReceipt(
+                        deckweave_protocol::v1::OwnerCleanupReceipt {
+                            cleanup_id: request.cleanup_id,
+                            activation_epoch: request.activation_epoch,
+                            released: cleanup_mode != "reject",
+                        },
+                    ),
+                )?;
+            }
             Some(protocol_envelope::Body::HelloAck(_)) => {}
             Some(protocol_envelope::Body::Activate(request)) => {
                 if mode == "spawn_grandchild" {
@@ -132,7 +202,25 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
                 message_id += 1;
                 let contribution = request.contribution_id.clone();
-                let descriptors = descriptors(&contribution)?;
+                let mut descriptors = descriptors(&contribution)?;
+                if let Some(id) = &request.configured_instance_id {
+                    let mut value: serde_json::Value = serde_json::from_slice(&descriptors)?;
+                    value[0]["devices"][0]["identity"] = serde_json::json!(id);
+                    descriptors = serde_json::to_vec(&value)?;
+                    use std::io::Write;
+                    let mut log = std::fs::OpenOptions::new()
+                        .create(true)
+                        .append(true)
+                        .open(std::env::current_exe()?.with_file_name("activations.jsonl"))?;
+                    let settings: serde_json::Value = serde_json::from_slice(
+                        &request.settings.as_ref().ok_or("settings")?.value,
+                    )?;
+                    writeln!(
+                        log,
+                        "{}",
+                        serde_json::json!({"id":id,"settings":settings,"revision":request.settings_revision,"pid":std::process::id()})
+                    )?;
+                }
                 send(
                     &mut stdout,
                     maximum,
@@ -152,16 +240,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     }),
                 )?;
                 if contribution == "m1-source" {
-                    for signal in m1_signals()? {
-                        message_id += 1;
-                        send(
-                            &mut stdout,
-                            maximum,
-                            generation,
-                            message_id,
-                            protocol_envelope::Body::Signal(signal),
-                        )?;
-                    }
+                    pending_signals.extend(m1_signals()?);
                 }
                 message_id += 1;
                 send(

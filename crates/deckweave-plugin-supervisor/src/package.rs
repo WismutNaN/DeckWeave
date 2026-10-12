@@ -17,7 +17,10 @@ use thiserror::Error;
 
 const MANIFEST_NAME: &str = "deckweave-plugin.json";
 const MAX_MANIFEST_BYTES: u64 = 1024 * 1024;
+mod catalog;
 mod lookup;
+mod planning;
+pub use planning::PackageGraphCompiler;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StagingLimits {
     pub maximum_files: usize,
@@ -78,47 +81,6 @@ pub struct IndexedPackage {
     pub runtime_groups: BTreeMap<RuntimeGroupId, IndexedRuntimeGroup>,
     pub contributions: BTreeMap<ContributionId, IndexedContribution>,
     pub requested_permissions: Vec<RequestedPermission>,
-}
-
-impl IndexedPackage {
-    pub fn artifact_for_current_platform(
-        &self,
-        runtime_group: &RuntimeGroupId,
-    ) -> Result<&IndexedArtifact, PackageError> {
-        let group = self
-            .runtime_groups
-            .get(runtime_group)
-            .ok_or_else(|| PackageError::UnknownRuntimeGroup(runtime_group.to_string()))?;
-        let artifact = self
-            .artifacts
-            .get(&group.artifact_id)
-            .ok_or_else(|| PackageError::UnknownArtifact(group.artifact_id.to_string()))?;
-        let operating_system = std::env::consts::OS;
-        let architecture = std::env::consts::ARCH;
-        if artifact.operating_system != operating_system || artifact.architecture != architecture {
-            return Err(PackageError::UnsupportedPlatform {
-                operating_system: operating_system.into(),
-                architecture: architecture.into(),
-            });
-        }
-        Ok(artifact)
-    }
-
-    /// Revalidates the immutable artifact immediately before execution. The
-    /// index is metadata, not authority to execute bytes changed afterwards.
-    pub fn verify_artifact_for_current_platform(
-        &self,
-        runtime_group: &RuntimeGroupId,
-        maximum_artifact_bytes: u64,
-    ) -> Result<&IndexedArtifact, PackageError> {
-        let artifact = self.artifact_for_current_platform(runtime_group)?;
-        verify_hash(
-            &artifact.entrypoint,
-            &artifact.sha256,
-            maximum_artifact_bytes,
-        )?;
-        Ok(artifact)
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

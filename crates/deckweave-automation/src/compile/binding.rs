@@ -45,9 +45,8 @@ impl RuntimeBinder {
     ) -> Result<BoundExecutionGraph, RuntimeBindError> {
         let mut by_endpoint: BTreeMap<StableEndpointRef, &RuntimeBinding> = BTreeMap::new();
         for binding in bindings {
-            if by_endpoint
-                .insert(binding.endpoint.stable.clone(), binding)
-                .is_some()
+            if let Some(previous) = by_endpoint.insert(binding.endpoint.stable.clone(), binding)
+                && previous != binding
             {
                 return Err(RuntimeBindError::DuplicateEndpoint);
             }

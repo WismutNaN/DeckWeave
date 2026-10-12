@@ -181,6 +181,7 @@ fn cleanup_all(state: &mut SchedulerState, reason: &str, intents: &mut Vec<Sched
         });
     }
     state.active_runs.clear();
+    state.run_results.clear();
     intents.push(SchedulerIntent::CleanupAll {
         reason: reason.into(),
     });

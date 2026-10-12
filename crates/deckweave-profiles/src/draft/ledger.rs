@@ -5,6 +5,7 @@ use super::*;
 use std::{ffi::OsStr, fs};
 
 const LEDGER_DOCUMENT_LIMIT: u64 = 1024 * 1024;
+mod maintenance;
 mod window;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -70,14 +71,14 @@ impl JsonProfileStore {
         if receipt_path.exists() {
             return self.require_same_ledger_document(&receipt_path, record);
         }
-        if directory_entry_count(&self.mutation_receipts_directory())?
+        if self.counted_entries(&self.mutation_receipts_directory())?
             >= self.limits.maximum_mutation_receipts
         {
             return Err(DraftMutationError::ReceiptQuota);
         }
         let pending_path = self.pending_mutation_path(&record.key)?;
         if !pending_path.exists()
-            && directory_entry_count(&self.pending_mutations_directory())?
+            && self.counted_entries(&self.pending_mutations_directory())?
                 >= self.limits.maximum_pending_mutations
         {
             return Err(DraftMutationError::ReceiptQuota);
@@ -283,11 +284,19 @@ impl JsonProfileStore {
         }
         let bytes = canonical_json(value).map_err(ProfileStoreError::from)?;
         match self.atomic_files.write_atomic(path, &bytes, None) {
-            Ok(()) => Ok(()),
-            Err(write_error) if path.exists() => self
-                .require_same_ledger_document(path, value)
-                .map_err(|_| DraftMutationError::Store(ProfileStoreError::Storage(write_error))),
-            Err(error) => Err(ProfileStoreError::Storage(error).into()),
+            Ok(()) => {
+                self.account_entry(path, 1)?;
+                Ok(())
+            }
+            Err(write_error) if path.exists() => {
+                self.invalidate_count(path);
+                self.require_same_ledger_document(path, value)
+                    .map_err(|_| DraftMutationError::Store(ProfileStoreError::Storage(write_error)))
+            }
+            Err(error) => {
+                self.invalidate_count(path);
+                Err(ProfileStoreError::Storage(error).into())
+            }
         }
     }
 
@@ -307,7 +316,10 @@ impl JsonProfileStore {
     fn remove_pending_mutation(&self, key: &MutationKey) -> Result<(), DraftMutationError> {
         let path = self.pending_mutation_path(key)?;
         match fs::remove_file(&path) {
-            Ok(()) => Ok(()),
+            Ok(()) => {
+                self.account_entry(&path, -1)?;
+                Ok(())
+            }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
             Err(source) => Err(ProfileStoreError::Io { path, source }.into()),
         }
@@ -318,25 +330,4 @@ fn mutation_key_digest(key: &MutationKey) -> Result<String, DraftMutationError> 
     Ok(digest(
         &canonical_json(key).map_err(ProfileStoreError::from)?,
     ))
-}
-
-fn directory_entry_count(path: &Path) -> Result<usize, DraftMutationError> {
-    match fs::read_dir(path) {
-        Ok(entries) => entries
-            .map(|entry| {
-                entry.map_err(|source| ProfileStoreError::Io {
-                    path: path.to_path_buf(),
-                    source,
-                })
-            })
-            .collect::<Result<Vec<_>, _>>()
-            .map(|entries| entries.len())
-            .map_err(DraftMutationError::from),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(0),
-        Err(source) => Err(ProfileStoreError::Io {
-            path: path.to_path_buf(),
-            source,
-        }
-        .into()),
-    }
 }

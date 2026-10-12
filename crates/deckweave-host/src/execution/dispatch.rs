@@ -12,6 +12,10 @@ use serde_json::Value;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RuntimeEventKind {
+    CleanupReceipt {
+        cleanup_id: String,
+        released: bool,
+    },
     Signal {
         source: RuntimeEndpointRef,
         payload: Value,
@@ -71,6 +75,8 @@ pub struct RuntimeDispatchFailure {
     pub possibly_sent: bool,
 }
 
+/// Non-blocking admission only. Implementations enqueue commands and must never
+/// synchronously call the event sink; provider replies arrive on a separate worker.
 pub trait RuntimeIntentDispatcher: Send + Sync {
     fn dispatch(&self, command: RuntimeCommand) -> Result<(), RuntimeDispatchFailure>;
 }

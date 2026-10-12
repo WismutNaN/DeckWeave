@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-
+mod access;
 use super::{
     catalog::{CatalogEndpoint, DescriptorCatalog},
     semantics::{
@@ -38,6 +38,8 @@ pub struct GraphPlanCompiler {
 
 #[derive(Debug, Clone, Default)]
 pub struct CompileAccess {
+    pub endpoint_permissions:
+        std::collections::BTreeMap<StableEndpointRef, BTreeSet<NamespacedKind>>,
     pub granted_permissions: BTreeSet<NamespacedKind>,
     pub available_resources: BTreeSet<NamespacedKind>,
 }
@@ -90,6 +92,9 @@ pub enum GraphCompileError {
 }
 
 impl GraphPlanCompiler {
+    pub fn catalog(&self) -> &DescriptorCatalog {
+        &self.catalog
+    }
     pub fn new(catalog: DescriptorCatalog, limits: GraphLimits) -> Result<Self, GraphCompileError> {
         Self::with_access(catalog, limits, CompileAccess::default())
     }
@@ -142,6 +147,15 @@ impl GraphPlanCompiler {
 
         for node in &nodes {
             validate_node_values(node, &self.catalog)?;
+            let configure = |entry| {
+                super::instances::configure_endpoint(
+                    node,
+                    entry,
+                    &self.catalog,
+                    &graph.plugin_instances,
+                    graph.graph.node_instances.get(&node.id),
+                )
+            };
             match &node.kind {
                 GraphNodeKind::Source {
                     endpoint,
@@ -153,6 +167,7 @@ impl GraphPlanCompiler {
                         PortDirection::Output,
                         *availability,
                     )?;
+                    let entry = &configure(entry)?;
                     validate_endpoint_ports(node, entry, &self.catalog)?;
                     collect_runtime_requirement(
                         entry,
@@ -174,6 +189,7 @@ impl GraphPlanCompiler {
                 } => {
                     let entry =
                         self.require_endpoint(node, endpoint, PortDirection::Input, *availability)?;
+                    let entry = &configure(entry)?;
                     let operation = entry.operation.as_ref().ok_or_else(|| {
                         GraphCompileError::OperationMismatch {
                             node_id: node.id.clone(),
@@ -184,7 +200,15 @@ impl GraphPlanCompiler {
                             node_id: node.id.clone(),
                         });
                     }
-                    validate_action_ports(node, operation, &self.catalog)?;
+                    validate_action_ports(
+                        node,
+                        operation,
+                        &self.catalog,
+                        graph.graph.action_arguments.get(&node.id),
+                    )?;
+                    if let Some(arguments) = graph.graph.action_arguments.get(&node.id) {
+                        super::arguments::validate(node, arguments, &nodes, entry, &self.catalog)?;
+                    }
                     collect_runtime_requirement(
                         entry,
                         package_lock,
@@ -200,6 +224,7 @@ impl GraphPlanCompiler {
                 } => {
                     let entry =
                         self.require_endpoint(node, endpoint, PortDirection::Input, *availability)?;
+                    let entry = &configure(entry)?;
                     validate_endpoint_ports(node, entry, &self.catalog)?;
                     collect_runtime_requirement(
                         entry,
@@ -237,6 +262,7 @@ impl GraphPlanCompiler {
         requirements.sort_by(runtime_requirement_order);
         let schema_contracts = compile_schema_contracts(&nodes, &self.catalog)?;
         let executable = ExecutableGraph {
+            action_arguments: graph.graph.action_arguments,
             format: graph.schema_version,
             nodes,
             edges,
@@ -290,32 +316,6 @@ impl GraphPlanCompiler {
         }
         self.validate_access(node, entry)?;
         Ok(entry)
-    }
-
-    fn validate_access(
-        &self,
-        node: &GraphNode,
-        endpoint: &CatalogEndpoint,
-    ) -> Result<(), GraphCompileError> {
-        for permission in &endpoint.port.required_permissions {
-            if !self.access.granted_permissions.contains(permission) {
-                return Err(GraphCompileError::MissingPermission {
-                    node_id: node.id.clone(),
-                    scope: permission.clone(),
-                });
-            }
-        }
-        if let Some(operation) = &endpoint.operation {
-            for resource in &operation.resources {
-                if !self.access.available_resources.contains(&resource.scope) {
-                    return Err(GraphCompileError::MissingResource {
-                        node_id: node.id.clone(),
-                        scope: resource.scope.clone(),
-                    });
-                }
-            }
-        }
-        Ok(())
     }
 
     fn semantic_hash(

@@ -23,10 +23,10 @@ pub use fixture::{
     VIRTUAL_FIXTURE_RUNTIME_GROUP_ID,
 };
 pub use graph::{
-    ConditionOperator, EndpointAvailabilityPolicy, GraphDefinition, GraphDocument, GraphEdge,
-    GraphEdgeId, GraphEdgeKind, GraphFormatVersion, GraphIdentityError, GraphLayout,
+    ActionArguments, ConditionOperator, EndpointAvailabilityPolicy, GraphDefinition, GraphDocument,
+    GraphEdge, GraphEdgeId, GraphEdgeKind, GraphFormatVersion, GraphIdentityError, GraphLayout,
     GraphLimitKind, GraphLimits, GraphNode, GraphNodeKind, GraphNodePlacement, GraphPort,
-    GraphPortId, GraphPortKind, GraphPortRef, GraphPortRole, GraphValidationError,
+    GraphPortId, GraphPortKind, GraphPortRef, GraphPortRole, GraphValidationError, ValueBinding,
 };
 pub use plan::{
     COMPILED_PLAN_EXTENSION_ID, CompileFence, CompiledExecutionPlan, DurableExecutionPlan,

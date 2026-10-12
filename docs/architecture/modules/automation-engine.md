@@ -1,7 +1,7 @@
 # Модуль: Automation Engine
 
 **Ответственность:** валидирует и компилирует workspace graph в immutable plan, затем детерминированно исполняет events, state, layers, schedules и effects.
-**Расположение:** `crates/deckweave-automation/`. Planning contract и ограниченный fixture compiler созданы в Фазе 4; scheduler/runtime появляются в Фазе 5.
+**Расположение:** `crates/deckweave-automation/`. Planning contract создан в Фазе 4; compiler/scheduler/runtime работают с Фазы 5, structural bindings расширены в pre-6.
 
 ## Публичный интерфейс
 
@@ -71,7 +71,7 @@ M1 не доказывает готовность сложных plugin workflow
 
 Живой scheduler не переехал в Plugin Runtime: Host-owned owner хранит `WorkspaceScheduler`, назначает `(HostBootId, ActivationEpoch, IngressOrdinal)` и выполняет возвращённые intents через injected dispatcher. `WorkspaceScheduler::reopen_after_barrier` применяется только при pre-commit abort: pending effects уже отменены и никогда не replay; semantic plan и state slots остаются прежними.
 
-Временный `RestrictedFixtureCompiler` остаётся только в desktop composition до появления graph editor Фазы 6: он принимает пустой workspace либо точную virtual fixture и не маскирует произвольный graph пустым plan. Production `GraphPlanCompiler` уже получает immutable descriptor/schema catalog, compile access, package lock и revision fence и выдаёт полный executable IR. Оба compiler проходят общий `PlanCompiler` boundary; Host и Plugin Runtime не интерпретируют JSON nodes. Checksum-версия `DurableExecutionPlan` входит в apply intent/commit и используется prepare/recovery. Для старого commit без extension `PlanCompiler::compile_recovery` принимает immutable revision и сохранённые hashes; присутствующий повреждённый plan всегда отклоняется, а не перекомпилируется.
+`RestrictedFixtureCompiler` остаётся в совместимых test harness. Desktop composition использует `PackageGraphCompiler`: он читает manifest-hashed static catalog из пакетов выбранного lock и передаёт его `GraphPlanCompiler`. Metadata inspection не запускает plugin code. Production `GraphPlanCompiler` уже получает immutable descriptor/schema catalog, compile access, package lock и revision fence и выдаёт полный executable IR. Оба compiler проходят общий `PlanCompiler` boundary; Host и Plugin Runtime не интерпретируют JSON nodes. Checksum-версия `DurableExecutionPlan` входит в apply intent/commit и используется prepare/recovery. Для старого commit без extension `PlanCompiler::compile_recovery` принимает immutable revision и сохранённые hashes; присутствующий повреждённый plan всегда отклоняется, а не перекомпилируется.
 
 Input/result/job schemas закладываются в Фазе 2; начальный invocation path — в Фазе 5, композиция и artifact/collection fixtures — в Фазе 11. [Automation contract](../../contracts/automation.md) является источником правил передачи результатов и работы слоёв; [сценарии](../../product/scenarios.md) задают сквозную приёмку.
 

@@ -258,17 +258,24 @@ impl PortDescriptor {
     pub fn validate(&self) -> Result<(), DescriptorError> {
         self.compatible_versions.validate()?;
         if self.range.as_ref().is_some_and(|range| {
-            range.minimum > range.maximum
+            !range.minimum.is_finite()
+                || !range.maximum.is_finite()
+                || range.minimum > range.maximum
+                || range.center.is_some_and(|center| {
+                    !center.is_finite() || center < range.minimum || center > range.maximum
+                })
                 || range
-                    .center
-                    .is_some_and(|center| center < range.minimum || center > range.maximum)
-                || range.precision.is_some_and(|precision| precision <= 0.0)
+                    .precision
+                    .is_some_and(|precision| !precision.is_finite() || precision <= 0.0)
         }) {
             return Err(DescriptorError::InvalidRange);
         }
         if self.rate.as_ref().is_some_and(|rate| {
-            rate.preferred_hz.is_some_and(|value| value <= 0.0)
-                || rate.maximum_hz.is_some_and(|value| value <= 0.0)
+            rate.preferred_hz
+                .is_some_and(|value| !value.is_finite() || value <= 0.0)
+                || rate
+                    .maximum_hz
+                    .is_some_and(|value| !value.is_finite() || value <= 0.0)
                 || rate.maximum_latency_ms == Some(0)
                 || rate
                     .preferred_hz

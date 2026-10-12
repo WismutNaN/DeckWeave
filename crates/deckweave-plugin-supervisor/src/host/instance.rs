@@ -28,16 +28,28 @@ use std::{
     time::{Duration, Instant},
 };
 
+mod activation;
 mod binding;
+mod endpoints;
 mod wire;
 mod worker;
 pub(super) use worker::{ActiveWorker, WorkerCommand, WorkerKey};
 
 pub(super) struct RuntimeInstance {
+    replies: wire::ReplyContracts,
+    cleanups: BTreeMap<String, Instant>,
+    cleanup_failed: bool,
+    failed_release: Arc<std::sync::atomic::AtomicBool>,
+    activation_nodes: Vec<(
+        ContributionId,
+        Option<deckweave_domain::ids::PluginInstanceId>,
+        Vec<NodeDescriptor>,
+    )>,
     controller: RuntimeController,
     process: ProcessRuntime,
-    lease_id: RuntimeLeaseId,
     contribution_id: ContributionId,
+    contributions: Vec<ContributionId>,
+    activation_leases: Vec<RuntimeLeaseId>,
     descriptor_revision: DescriptorRevision,
     nodes: Vec<NodeDescriptor>,
     generation: u64,
@@ -53,6 +65,7 @@ impl RuntimeInstance {
         package: Arc<IndexedPackage>,
         runtime_group: RuntimeGroupId,
         contribution: ContributionId,
+        configuration: Option<&deckweave_workspace::PluginInstanceConfiguration>,
         generation: u64,
         config: &HostRuntimeConfig,
         authorization: Arc<dyn AuthorizationStore>,
@@ -60,6 +73,10 @@ impl RuntimeInstance {
         process_policy: &dyn ChildProcessPolicy,
         now: u64,
     ) -> Result<Self, HostRuntimeError> {
+        config
+            .locale
+            .validate()
+            .map_err(|e| HostRuntimeError::Protocol(e.into()))?;
         let mut controller = RuntimeController::new_after_generation(
             Arc::clone(&package),
             runtime_group.clone(),
@@ -105,6 +122,7 @@ impl RuntimeInstance {
         .map_err(|error| HostRuntimeError::Protocol(error.to_string()))?;
         process.constrain_maximum_message_bytes(maximum)?;
         let mut next_message_id = 0;
+        activation::validate_features(&controller, configuration)?;
         process.send(&envelope(
             generation,
             &mut next_message_id,
@@ -116,7 +134,18 @@ impl RuntimeInstance {
             protocol_envelope::Body::Activate(ActivationRequest {
                 runtime_lease_id: lease.lease_id.to_string(),
                 contribution_id: contribution.to_string(),
-                settings: None,
+                settings: activation::settings_payload(configuration)?,
+                locale: Some(wire::locale_context(&config.locale)),
+                configured_instance_id: configuration.map(|c| c.instance_id.to_string()),
+                settings_revision: configuration.map_or(0, |c| c.settings_revision),
+                credential_refs: configuration
+                    .map(|c| {
+                        c.credentials
+                            .iter()
+                            .map(|(key, value)| (key.clone(), value.to_string()))
+                            .collect()
+                    })
+                    .unwrap_or_default(),
             }),
         )?)?;
         let activated = process.receive(config.handshake_timeout)?;
@@ -133,15 +162,24 @@ impl RuntimeInstance {
         let descriptor = activated
             .descriptor
             .ok_or_else(|| HostRuntimeError::Protocol("activation has no descriptor".into()))?;
-        let nodes = serde_json::from_slice(&descriptor.value)
-            .map_err(|error| HostRuntimeError::Protocol(error.to_string()))?;
+        let nodes = activation::decode_nodes(&descriptor)?;
         let descriptor_revision = DescriptorRevision::try_new(activated.descriptor_revision)
             .map_err(|error| HostRuntimeError::Protocol(error.to_string()))?;
         let grant_revision = authorization.revision()?;
         Ok(Self {
+            replies: wire::ReplyContracts::default(),
+            cleanups: BTreeMap::new(),
+            cleanup_failed: false,
+            failed_release: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            activation_nodes: vec![(
+                contribution.clone(),
+                configuration.map(|c| c.instance_id.clone()),
+                nodes.clone(),
+            )],
             controller,
             process,
-            lease_id: lease.lease_id,
+            activation_leases: vec![lease.lease_id.clone()],
+            contributions: vec![contribution.clone()],
             contribution_id: contribution,
             descriptor_revision,
             nodes,
@@ -189,15 +227,19 @@ impl RuntimeInstance {
         timeout: Duration,
         now: u64,
     ) -> Result<(), HostRuntimeError> {
-        let request = envelope(
-            self.generation,
-            &mut self.next_message_id,
-            protocol_envelope::Body::Deactivate(DeactivationRequest {
-                runtime_lease_id: self.lease_id.to_string(),
-                reason: "host shutdown".into(),
-            }),
-        )?;
-        if self.process.send(&request).is_ok() {
+        let mut sent = true;
+        for lease in &self.activation_leases {
+            let request = envelope(
+                self.generation,
+                &mut self.next_message_id,
+                protocol_envelope::Body::Deactivate(DeactivationRequest {
+                    runtime_lease_id: lease.to_string(),
+                    reason: "host shutdown".into(),
+                }),
+            )?;
+            sent &= self.process.send(&request).is_ok();
+        }
+        if sent {
             if self.process.wait_timeout(timeout)?.is_none() {
                 self.process.terminate()?;
             }
@@ -258,108 +300,6 @@ impl RuntimeInstance {
             status,
             detail,
         }
-    }
-
-    fn stable_endpoints(&self) -> Vec<deckweave_domain::endpoint::StableEndpointRef> {
-        self.nodes
-            .iter()
-            .flat_map(|node| {
-                let package_id = self.controller.health().key.package_id;
-                let node_id = node.node_id.clone();
-                node.devices
-                    .iter()
-                    .flat_map({
-                        let package_id = package_id.clone();
-                        let node_id = node_id.clone();
-                        move |device| {
-                            let target = deckweave_domain::endpoint::EndpointTargetRef::Device {
-                                provider_id: device.provider_id.clone(),
-                                device_identity: device.identity.clone(),
-                            };
-                            device.elements.iter().flat_map({
-                                let package_id = package_id.clone();
-                                let node_id = node_id.clone();
-                                move |element| {
-                                    element.capabilities.iter().flat_map({
-                                        let package_id = package_id.clone();
-                                        let node_id = node_id.clone();
-                                        let target = target.clone();
-                                        move |capability| {
-                                            capability.ports.iter().map({
-                                                let package_id = package_id.clone();
-                                                let node_id = node_id.clone();
-                                                let target = target.clone();
-                                                let element_id = element.element_id.clone();
-                                                let capability_id =
-                                                    capability.capability_id.clone();
-                                                move |port| {
-                                                    deckweave_domain::endpoint::StableEndpointRef {
-                                                        package_id: package_id.clone(),
-                                                        node_id: node_id.clone(),
-                                                        target: target.clone(),
-                                                        port:
-                                                            deckweave_domain::endpoint::PortPath {
-                                                                element_id: element_id.clone(),
-                                                                capability_id: capability_id
-                                                                    .clone(),
-                                                                port_id: port.port_id.clone(),
-                                                            },
-                                                    }
-                                                }
-                                            })
-                                        }
-                                    })
-                                }
-                            })
-                        }
-                    })
-                    .chain(node.services.iter().flat_map({
-                        let package_id = package_id.clone();
-                        let node_id = node_id.clone();
-                        move |service| {
-                            let target = deckweave_domain::endpoint::EndpointTargetRef::Service {
-                                provider_id: service.provider_id.clone(),
-                                service_id: service.service_id.clone(),
-                            };
-                            service.elements.iter().flat_map({
-                                let package_id = package_id.clone();
-                                let node_id = node_id.clone();
-                                move |element| {
-                                    element.capabilities.iter().flat_map({
-                                        let package_id = package_id.clone();
-                                        let node_id = node_id.clone();
-                                        let target = target.clone();
-                                        move |capability| {
-                                            capability.ports.iter().map({
-                                                let package_id = package_id.clone();
-                                                let node_id = node_id.clone();
-                                                let target = target.clone();
-                                                let element_id = element.element_id.clone();
-                                                let capability_id =
-                                                    capability.capability_id.clone();
-                                                move |port| {
-                                                    deckweave_domain::endpoint::StableEndpointRef {
-                                                        package_id: package_id.clone(),
-                                                        node_id: node_id.clone(),
-                                                        target: target.clone(),
-                                                        port:
-                                                            deckweave_domain::endpoint::PortPath {
-                                                                element_id: element_id.clone(),
-                                                                capability_id: capability_id
-                                                                    .clone(),
-                                                                port_id: port.port_id.clone(),
-                                                            },
-                                                    }
-                                                }
-                                            })
-                                        }
-                                    })
-                                }
-                            })
-                        }
-                    }))
-            })
-            .collect()
     }
 }
 

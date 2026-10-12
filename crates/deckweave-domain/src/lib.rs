@@ -6,6 +6,7 @@ pub mod capability;
 pub mod endpoint;
 pub mod ids;
 pub mod lighting;
+pub mod localization;
 pub mod media;
 pub mod remote;
 pub mod schema;

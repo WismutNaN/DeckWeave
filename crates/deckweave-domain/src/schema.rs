@@ -5,6 +5,9 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 use thiserror::Error;
 
+mod payload;
+pub use payload::*;
+
 pub type ExtensionMap = BTreeMap<String, Value>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]

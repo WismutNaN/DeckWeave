@@ -97,13 +97,43 @@ impl RuntimeDispatchHub {
 impl RuntimeIntentDispatcher for RuntimeDispatchHub {
     fn dispatch(&self, command: RuntimeCommand) -> Result<(), RuntimeDispatchFailure> {
         let Some((epoch, target, feature)) = route(&command) else {
-            return Ok(());
+            let epoch = match &command {
+                RuntimeCommand::CleanupRun {
+                    activation_epoch, ..
+                }
+                | RuntimeCommand::CleanupAll {
+                    activation_epoch, ..
+                } => *activation_epoch,
+                _ => return Err(rejected("missing_command_route")),
+            };
+            let state = self
+                .state
+                .lock()
+                .map_err(|_| rejected("dispatch_state_poisoned"))?;
+            if state.epoch != Some(epoch) {
+                return Err(rejected("stale_cleanup_activation"));
+            }
+            let mut failure = None;
+            for worker in state.workers.values() {
+                if worker
+                    .features
+                    .get(deckweave_protocol::FEATURE_OWNER_CLEANUP)
+                    .copied()
+                    != Some(1)
+                {
+                    failure = Some(rejected("owner_cleanup_not_negotiated"));
+                } else if worker.sender.try_send(command.clone().into()).is_err() {
+                    failure = Some(rejected("owner_cleanup_queue_unavailable"));
+                }
+            }
+            return failure.map_or(Ok(()), Err);
         };
         let state = self
             .state
             .lock()
             .map_err(|_| rejected("dispatch_state_poisoned"))?;
-        if state.closed || state.epoch != Some(epoch) {
+        let releasing = matches!(command, RuntimeCommand::Cancel { .. });
+        if (state.closed && !releasing) || state.epoch != Some(epoch) {
             return Err(rejected("stale_or_closed_activation"));
         }
         let key = WorkerKey::from_endpoint(target);
@@ -114,11 +144,20 @@ impl RuntimeIntentDispatcher for RuntimeDispatchHub {
         if worker.features.get(feature).copied() != Some(1) {
             return Err(rejected("required_endpoint_feature_not_negotiated"));
         }
+        if matches!(&command, RuntimeCommand::Invoke { operation, .. } if operation.resources.iter().any(|resource| resource.hold_until_cleanup))
+            && worker
+                .features
+                .get(deckweave_protocol::FEATURE_OWNER_CLEANUP)
+                .copied()
+                != Some(1)
+        {
+            return Err(rejected("held_output_requires_owner_cleanup"));
+        }
         let current_revision = self
             .authorization
             .revision()
             .map_err(|_| rejected("grant_revision_unavailable"))?;
-        if current_revision != worker.grant_revision {
+        if current_revision != worker.grant_revision && !releasing {
             return Err(permission_denied("grant_revision_changed"));
         }
         worker

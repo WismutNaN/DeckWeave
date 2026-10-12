@@ -10,17 +10,52 @@ use std::collections::BTreeSet;
 pub(super) fn validate_distinct_runtime_groups(
     requirements: &[RuntimeRequirement],
 ) -> Result<(), HostRuntimeError> {
-    let mut groups = BTreeSet::new();
+    let mut groups = std::collections::BTreeMap::new();
+    let mut activations = BTreeSet::new();
+    let mut versions = std::collections::BTreeMap::new();
     for requirement in requirements {
+        if versions
+            .insert(&requirement.package_id, &requirement.package_version)
+            .is_some_and(|previous| previous != &requirement.package_version)
+        {
+            return Err(HostRuntimeError::Package(
+                "multiple active versions of one package".into(),
+            ));
+        }
+        if let Some(config) = &requirement.configuration {
+            config
+                .validate()
+                .map_err(|e| HostRuntimeError::Package(e.into()))?;
+            if config.package_id != requirement.package_id
+                || config.contribution_id != requirement.contribution_id
+            {
+                return Err(HostRuntimeError::Package(
+                    "configured instance identity mismatch".into(),
+                ));
+            }
+        }
         let group = (
             requirement.package_id.clone(),
             requirement.runtime_group_id.clone(),
         );
-        if !groups.insert(group) {
+        let artifact = (&requirement.package_version, &requirement.artifact_sha256);
+        if groups
+            .insert(group.clone(), artifact)
+            .is_some_and(|previous| previous != artifact)
+        {
             return Err(HostRuntimeError::Package(format!(
-                "runtime group {} has multiple compiled contributions; grouped activation is not supported yet",
+                "runtime group {} has conflicting locked artifacts",
                 requirement.runtime_group_id
             )));
+        }
+        if !activations.insert((
+            group,
+            &requirement.contribution_id,
+            requirement.configuration.as_ref().map(|c| &c.instance_id),
+        )) {
+            return Err(HostRuntimeError::Package(
+                "duplicate configured activation".into(),
+            ));
         }
     }
     Ok(())
@@ -53,6 +88,7 @@ mod tests {
         contribution: &str,
     ) -> Result<RuntimeRequirement, Box<dyn std::error::Error>> {
         Ok(RuntimeRequirement {
+            configuration: None,
             package_id: PackageId::try_new(package)?,
             package_version: "1.0.0".into(),
             artifact_sha256: "a".repeat(64),
@@ -71,14 +107,15 @@ mod tests {
     }
 
     #[test]
-    fn two_contributions_cannot_start_duplicate_processes_for_one_group()
+    fn two_contributions_share_one_group_but_duplicate_activation_is_rejected()
     -> Result<(), Box<dyn std::error::Error>> {
         let requirements = [
             requirement("org.deckweave.first", "control", "device")?,
             requirement("org.deckweave.first", "control", "service")?,
         ];
+        validate_distinct_runtime_groups(&requirements)?;
         assert!(matches!(
-            validate_distinct_runtime_groups(&requirements),
+            validate_distinct_runtime_groups(&[requirements[0].clone(), requirements[0].clone()]),
             Err(HostRuntimeError::Package(_))
         ));
         Ok(())

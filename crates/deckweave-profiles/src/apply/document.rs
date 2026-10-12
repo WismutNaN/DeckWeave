@@ -88,8 +88,14 @@ impl JsonProfileStore {
     }
 
     fn apply_operation_directory(&self, operation_id: &OperationId) -> PathBuf {
-        self.apply_operations_directory()
-            .join(opaque_key(operation_id.as_str()))
+        let name = opaque_key(operation_id.as_str());
+        let active = self.apply_operations_directory().join(&name);
+        let archive = self.root.join("operations/archive").join(name);
+        if !active.exists() && archive.is_dir() {
+            archive
+        } else {
+            active
+        }
     }
 
     pub(super) fn apply_intent_path(&self, operation_id: &OperationId) -> PathBuf {

@@ -15,6 +15,21 @@ struct StoredMutationWindow {
 }
 
 impl JsonProfileStore {
+    pub(crate) fn mutation_epoch_retired(
+        &self,
+        key: &MutationKey,
+    ) -> Result<bool, DraftMutationError> {
+        let path = self.mutation_window_path(&key.principal_id);
+        let stored: StoredMutationWindow = match self.read_ledger_document(&path) {
+            Ok(stored) => stored,
+            Err(ProfileStoreError::NotFound) => return Ok(false),
+            Err(error) => return Err(error.into()),
+        };
+        self.validate_stored_window(&stored, &key.principal_id)?;
+        // Истечение wall clock обратимо при переводе часов. Только новая issued epoch
+        // доказывает, что прежний ключ больше никогда не будет допущен.
+        Ok(stored.window.dedup_epoch != key.dedup_epoch)
+    }
     pub(in crate::draft) fn open_mutation_window_locked(
         &self,
         principal_id: &PrincipalId,

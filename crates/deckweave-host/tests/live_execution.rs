@@ -29,6 +29,11 @@ use deckweave_host::{
     RuntimeEventSink, RuntimeIntentDispatcher,
 };
 use serde_json::json;
+
+#[path = "support/live_clock.rs"]
+mod live_clock;
+#[path = "support/ordering.rs"]
+mod ordering;
 use std::{
     error::Error,
     sync::{Arc, Mutex},
@@ -218,6 +223,7 @@ fn fixture() -> Result<(ExecutableGraph, BoundExecutionGraph, RuntimeEndpointRef
     let source_node = GraphNodeId::try_new("source")?;
     let feedback_node = GraphNodeId::try_new("feedback")?;
     let graph = ExecutableGraph {
+        action_arguments: Default::default(),
         format: GraphFormatVersion { major: 1, minor: 0 },
         nodes: vec![
             GraphNode {
@@ -358,6 +364,7 @@ fn contract(
     schema: SchemaRef,
 ) -> Result<CompiledEndpointContract, Box<dyn Error>> {
     Ok(CompiledEndpointContract {
+        configured_instance_id: None,
         node_id,
         endpoint: endpoint.clone(),
         runtime_group_id: RuntimeGroupId::try_new("control")?,

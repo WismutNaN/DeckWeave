@@ -296,6 +296,10 @@ fn isolated_process_completes_handshake_activation_and_stop() -> Result<(), Box<
             runtime_lease_id: lease.lease_id.to_string(),
             contribution_id: "virtual-device".into(),
             settings: None,
+            locale: None,
+            configured_instance_id: None,
+            settings_revision: 0,
+            credential_refs: Default::default(),
         }),
     ))?;
 
@@ -535,6 +539,10 @@ fn termination_cleans_up_the_plugin_process_tree() -> Result<(), Box<dyn Error>>
             runtime_lease_id: "lease-tree".into(),
             contribution_id: "virtual-device".into(),
             settings: None,
+            locale: None,
+            configured_instance_id: None,
+            settings_revision: 0,
+            credential_refs: Default::default(),
         }),
     ))?;
     let _activated = process.receive(Duration::from_secs(2))?;

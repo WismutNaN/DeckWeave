@@ -31,6 +31,24 @@ impl Default for TraceBuffer {
 }
 
 impl TraceBuffer {
+    pub(super) fn cleanup_receipt(
+        &mut self,
+        epoch: ActivationEpoch,
+        cleanup_id: &str,
+        released: bool,
+    ) {
+        let mut value = entry(Some(epoch), RuntimeTraceEventKind::Cleanup);
+        value.correlation_id = Some(cleanup_id.into());
+        value.outcome = Some(
+            if released {
+                "released"
+            } else {
+                "release_unconfirmed"
+            }
+            .into(),
+        );
+        self.push(value);
+    }
     pub(super) fn activate(
         &mut self,
         plan_hash: &str,

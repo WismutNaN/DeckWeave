@@ -111,6 +111,7 @@ fn compile_document(
             }
             (
                 vec![RuntimeRequirement {
+                    configuration: None,
                     package_id: package.package_id.clone(),
                     package_version: package.version.clone(),
                     artifact_sha256: package.artifact_sha256.clone(),

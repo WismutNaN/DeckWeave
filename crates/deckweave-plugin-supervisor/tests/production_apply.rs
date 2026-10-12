@@ -51,6 +51,10 @@ use std::{
 
 const FIXTURE: &str = env!("CARGO_BIN_EXE_deckweave-virtual-plugin-fixture");
 
+#[path = "support/cleanup_receipts.rs"]
+mod cleanup_receipts;
+#[path = "support/configured_instances.rs"]
+mod configured_instances;
 #[path = "support/m1_fixture.rs"]
 mod m1_fixture;
 #[path = "support/production_apply_crash.rs"]
@@ -250,6 +254,7 @@ fn multi_runtime_fixture(
     for (index, (package, group, contribution, hash)) in entries.into_iter().enumerate() {
         let endpoint = observed_key_endpoint(package)?;
         let requirement = RuntimeRequirement {
+            configuration: None,
             package_id: endpoint.package_id.clone(),
             package_version: "0.1.0".into(),
             artifact_sha256: hash.clone(),
@@ -288,8 +293,11 @@ fn multi_runtime_fixture(
         });
     }
     let graph = GraphDocument {
+        plugin_instances: Default::default(),
         schema_version: GraphFormatVersion { major: 1, minor: 0 },
         graph: GraphDefinition {
+            node_instances: Default::default(),
+            action_arguments: Default::default(),
             nodes,
             edges: vec![],
             extensions: BTreeMap::new(),

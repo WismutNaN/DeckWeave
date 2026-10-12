@@ -2,15 +2,14 @@
 //! Desktop production composition. Business invariants remain in their owners.
 
 use deckweave_application::{
-    ApiAuthScope, ApplicationGateway, DenyAllAuthorizationStore, InMemoryApiAuthorizer,
+    ApiAuthScope, ApplicationGateway, InMemoryApiAuthorizer, ScopedAuthorizationStore,
 };
-use deckweave_automation::RestrictedFixtureCompiler;
 use deckweave_domain::ids::{HostBootId, PrincipalId};
 use deckweave_host::{ApplyCoordinator, ApplyPlanningService, HostRuntime};
 use deckweave_platform_host::{NativeAtomicFileStore, NativeChildProcessPolicy};
 use deckweave_plugin_supervisor::{
     host::{HostRuntimeConfig, ProductionRuntimeCoordinator},
-    package::{PackageIndex, StagingLimits},
+    package::{PackageGraphCompiler, PackageIndex, StagingLimits},
 };
 use deckweave_profiles::{JsonProfileStore, ProfileStoreLimits};
 use deckweave_registry::CapabilityRegistry;
@@ -42,9 +41,11 @@ pub(crate) fn compose(
         Arc::new(NativeAtomicFileStore),
         ProfileStoreLimits::default(),
     ));
-    let authorization = Arc::new(DenyAllAuthorizationStore);
+    let authorization = Arc::new(ScopedAuthorizationStore::default());
     let registry = Arc::new(Mutex::new(CapabilityRegistry::default()));
     let principal = PrincipalId::try_new("desktop-ui")?;
+    let compiler = PackageGraphCompiler::new(Arc::clone(&packages))
+        .with_authorization(authorization.clone(), principal.clone());
     let runtime = Arc::new(ProductionRuntimeCoordinator::new(
         packages,
         Arc::clone(&profiles) as Arc<dyn ApplyOperationRepository>,
@@ -57,7 +58,7 @@ pub(crate) fn compose(
     ));
     let planning = ApplyPlanningService::new(
         Arc::clone(&profiles) as Arc<dyn DraftRepository>,
-        Arc::new(RestrictedFixtureCompiler),
+        Arc::new(compiler),
         Arc::clone(&runtime) as Arc<dyn deckweave_host::PlanningEvidenceSource>,
         Arc::clone(&runtime) as Arc<dyn deckweave_host::RuntimeActivation>,
         Arc::clone(&runtime) as Arc<dyn deckweave_host::PlanningClock>,
@@ -71,6 +72,8 @@ pub(crate) fn compose(
         64,
     )?);
     apply.recover(256)?;
+    profiles.archive_terminal_operations()?;
+    profiles.compact_command_claims()?;
 
     let authorizer = Arc::new(InMemoryApiAuthorizer::new());
     authorizer.grant(

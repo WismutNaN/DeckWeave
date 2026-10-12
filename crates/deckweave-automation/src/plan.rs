@@ -30,6 +30,8 @@ pub struct RecoveryCompileInput<'a> {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeRequirement {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub configuration: Option<deckweave_workspace::PluginInstanceConfiguration>,
     pub package_id: PackageId,
     pub package_version: String,
     pub artifact_sha256: String,

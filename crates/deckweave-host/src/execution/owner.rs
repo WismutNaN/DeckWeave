@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Ordered live owner that connects runtime events to the pure scheduler.
 
+mod activation;
 use super::trace::TraceBuffer;
+use super::{ExecutionClock, MonotonicExecutionClock};
 use super::{
     RuntimeCommand, RuntimeDispatchFailure, RuntimeEvent, RuntimeEventKind, RuntimeEventSink,
     RuntimeIntentDispatcher,
 };
 use deckweave_application::{RuntimeDiagnosticsSource, RuntimeTraceSnapshot};
+mod timers;
 mod translate;
 use deckweave_automation::{
     BoundExecutionGraph, ExecutableGraph, GraphLimits, IngressContext, IngressItem, IngressKind,
@@ -58,6 +61,8 @@ struct OwnerState {
 /// One instance owns all live ingress ordering for a workspace. Runtime
 /// processes only publish normalized events and execute returned commands.
 pub struct LiveExecutionOwner {
+    transition_order: Mutex<()>,
+    clock: Arc<dyn ExecutionClock>,
     host_boot_id: HostBootId,
     dispatcher: Arc<dyn RuntimeIntentDispatcher>,
     state: Mutex<OwnerState>,
@@ -67,7 +72,21 @@ pub struct LiveExecutionOwner {
 impl LiveExecutionOwner {
     #[must_use]
     pub fn new(host_boot_id: HostBootId, dispatcher: Arc<dyn RuntimeIntentDispatcher>) -> Self {
+        Self::with_clock(
+            host_boot_id,
+            dispatcher,
+            Arc::new(MonotonicExecutionClock(std::time::Instant::now())),
+        )
+    }
+
+    pub fn with_clock(
+        host_boot_id: HostBootId,
+        dispatcher: Arc<dyn RuntimeIntentDispatcher>,
+        clock: Arc<dyn ExecutionClock>,
+    ) -> Self {
         Self {
+            transition_order: Mutex::new(()),
+            clock,
             host_boot_id,
             dispatcher,
             state: Mutex::new(OwnerState::default()),
@@ -75,61 +94,15 @@ impl LiveExecutionOwner {
         }
     }
 
-    pub fn activate(
-        &self,
-        plan_hash: &str,
-        graph: Option<&ExecutableGraph>,
-        binding: Option<&BoundExecutionGraph>,
-        limits: GraphLimits,
-    ) -> Result<ActivationEpoch, LiveExecutionError> {
-        let mut state = self
-            .state
-            .lock()
-            .map_err(|_| LiveExecutionError::Poisoned)?;
-        state.next_epoch = state
-            .next_epoch
-            .checked_add(1)
-            .ok_or(LiveExecutionError::EpochExhausted)?;
-        let epoch = ActivationEpoch::try_new(state.next_epoch)
-            .map_err(|_| LiveExecutionError::EpochExhausted)?;
-        self.trace
-            .lock()
-            .map_err(|_| LiveExecutionError::Poisoned)?
-            .activate(plan_hash, graph, epoch, limits.maximum_trace_entries);
-        let Some(graph) = graph else {
-            state.active = None;
-            return Ok(epoch);
-        };
-        let binding = binding.ok_or(LiveExecutionError::MissingGraph)?;
-        let bindings = binding
-            .endpoints
-            .iter()
-            .map(|endpoint| (endpoint.node_id.clone(), endpoint.endpoint.clone()))
-            .collect::<BTreeMap<_, _>>();
-        for contract in &graph.endpoint_contracts {
-            if !bindings.contains_key(&contract.node_id) {
-                return Err(LiveExecutionError::MissingBinding(contract.node_id.clone()));
-            }
-        }
-        let scheduler =
-            WorkspaceScheduler::new(graph.clone(), self.host_boot_id.clone(), epoch, limits)
-                .map_err(|error| LiveExecutionError::Scheduler(error.to_string()))?;
-        state.active = Some(ActiveExecution {
-            epoch,
-            graph: graph.clone(),
-            scheduler,
-            bindings,
-            invocation_routes: BTreeMap::new(),
-            next_ordinal: 0,
-        });
-        Ok(epoch)
-    }
-
     pub fn close_barrier(&self, now_ticks: u64) -> Result<(), LiveExecutionError> {
         self.ingest_kind(None, IngressKind::Barrier, now_ticks)
     }
 
     pub fn resume_after_aborted_barrier(&self) -> Result<(), LiveExecutionError> {
+        let _order = self
+            .transition_order
+            .lock()
+            .map_err(|_| LiveExecutionError::Poisoned)?;
         let mut state = self
             .state
             .lock()
@@ -141,6 +114,10 @@ impl LiveExecutionOwner {
     }
 
     pub fn deactivate(&self) -> Result<(), LiveExecutionError> {
+        let _order = self
+            .transition_order
+            .lock()
+            .map_err(|_| LiveExecutionError::Poisoned)?;
         self.state
             .lock()
             .map_err(|_| LiveExecutionError::Poisoned)?
@@ -170,6 +147,16 @@ impl LiveExecutionOwner {
 
     fn ingest(&self, event: RuntimeEvent) -> Result<(), LiveExecutionError> {
         let kind = match event.kind {
+            RuntimeEventKind::CleanupReceipt {
+                cleanup_id,
+                released,
+            } => {
+                self.trace
+                    .lock()
+                    .map_err(|_| LiveExecutionError::Poisoned)?
+                    .cleanup_receipt(event.activation_epoch, &cleanup_id, released);
+                return Ok(());
+            }
             RuntimeEventKind::Signal {
                 source,
                 payload,
@@ -185,10 +172,23 @@ impl LiveExecutionOwner {
             RuntimeEventKind::TopologyFault { endpoint } => IngressKind::TopologyFault { endpoint },
             RuntimeEventKind::GrantFault => IngressKind::GrantFault,
         };
-        self.ingest_kind(Some(event.activation_epoch), kind, 0)
+        self.ingest_kind(Some(event.activation_epoch), kind, self.clock.now_ticks())
     }
 
     fn ingest_kind(
+        &self,
+        expected_epoch: Option<ActivationEpoch>,
+        kind: IngressKind,
+        now_ticks: u64,
+    ) -> Result<(), LiveExecutionError> {
+        let _order = self
+            .transition_order
+            .lock()
+            .map_err(|_| LiveExecutionError::Poisoned)?;
+        self.ingest_ordered(expected_epoch, kind, now_ticks)
+    }
+
+    fn ingest_ordered(
         &self,
         expected_epoch: Option<ActivationEpoch>,
         kind: IngressKind,
@@ -224,11 +224,6 @@ impl LiveExecutionOwner {
                 .ok_or(LiveExecutionError::OrdinalExhausted)?;
             let ordinal = IngressOrdinal::try_new(active.next_ordinal)
                 .map_err(|_| LiveExecutionError::OrdinalExhausted)?;
-            if let IngressKind::Invocation { reply } = &kind
-                && let Some(invocation_id) = terminal_invocation(reply)
-            {
-                active.invocation_routes.remove(invocation_id);
-            }
             let item = IngressItem {
                 context: IngressContext {
                     host_boot_id: self.host_boot_id.clone(),
@@ -244,8 +239,9 @@ impl LiveExecutionOwner {
                     .map_err(|_| LiveExecutionError::Poisoned)?
                     .admission(active.epoch, admission),
                 Err(overflow) => {
-                    return self
-                        .dispatch_commands(vec![translate_cleanup(active, overflow.cleanup)?]);
+                    let cleanup = translate_cleanup(active, overflow.cleanup)?;
+                    drop(owner);
+                    return self.dispatch_commands(vec![cleanup]);
                 }
             }
             let mut commands = Vec::new();
@@ -264,12 +260,16 @@ impl LiveExecutionOwner {
                     commands.push(translate_intent(active, intent)?);
                 }
             }
+            active
+                .invocation_routes
+                .retain(|id, _| active.scheduler.state().pending.contains_key(id));
             commands
         };
         self.dispatch_commands(commands)
     }
 
     fn dispatch_commands(&self, commands: Vec<RuntimeCommand>) -> Result<(), LiveExecutionError> {
+        let mut failures = Vec::new();
         for command in commands {
             let trace_command = command.clone();
             self.trace
@@ -286,9 +286,12 @@ impl LiveExecutionOwner {
                     .map_err(|_| LiveExecutionError::Poisoned)?
                     .dispatch_rejected(&trace_command, &failure.error.code);
                 if let Some(invocation_id) = invocation_id {
-                    self.publish_dispatch_failure(invocation_id, failure);
+                    failures.push((invocation_id, failure));
                 }
             }
+        }
+        for (invocation_id, failure) in failures {
+            self.publish_dispatch_failure(invocation_id, failure);
         }
         Ok(())
     }
@@ -316,10 +319,11 @@ impl LiveExecutionOwner {
                 error: failure.error,
             }
         };
-        let _ignored = self.ingest(RuntimeEvent {
-            activation_epoch: epoch,
-            kind: RuntimeEventKind::Invocation(reply),
-        });
+        let _ignored = self.ingest_ordered(
+            Some(epoch),
+            IngressKind::Invocation { reply },
+            self.clock.now_ticks(),
+        );
     }
 }
 
@@ -342,14 +346,6 @@ impl RuntimeDiagnosticsSource for LiveExecutionOwner {
                 dropped_entries: 0,
                 capacity: 0,
             })
-    }
-}
-
-fn terminal_invocation(reply: &InvocationReply) -> Option<&InvocationId> {
-    match reply {
-        InvocationReply::Terminal { invocation_id, .. }
-        | InvocationReply::Rejected { invocation_id, .. } => Some(invocation_id),
-        InvocationReply::AcceptedJob { .. } => None,
     }
 }
 

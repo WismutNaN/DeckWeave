@@ -7,6 +7,9 @@ use deckweave_profiles::{
     MutationKey, ProfileStore, ProfileStoreError, ProfileStoreLimits, WorkspaceDraft,
 };
 use deckweave_workspace::{DraftRepository, DraftRepositoryError};
+
+#[path = "support/compaction.rs"]
+mod compaction;
 use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,

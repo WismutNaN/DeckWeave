@@ -5,12 +5,15 @@ use super::{
 };
 use crate::{
     ConditionOperator, ExecutableGraph, GraphLimitKind, GraphLimits, GraphNodeKind, GraphPortId,
-    GraphPortRole, SchemaValueKind,
+    GraphPortRole,
 };
 use deckweave_domain::ids::{ExecutionId, GraphNodeId, InvocationId};
 use deckweave_domain::schema::SchemaRef;
 use serde_json::Value;
 use std::collections::VecDeque;
+mod values;
+pub(super) use values::{node_value_matches, value_matches_schema};
+use values::{numeric, serialized_size};
 
 struct Arrival {
     node_id: GraphNodeId,
@@ -33,6 +36,9 @@ pub(super) fn route_source(
     source_node: &GraphNodeId,
     payload: &Value,
 ) -> Result<(), SchedulerTransitionError> {
+    if !remember_result(context, source_node, payload)? {
+        return Ok(());
+    }
     let node = node(context.plan, source_node)?;
     let mut arrivals = VecDeque::new();
     for port in &node.outputs {
@@ -64,6 +70,9 @@ pub(super) fn route_action_outcome(
     role: GraphPortRole,
     value: Value,
 ) -> Result<(), SchedulerTransitionError> {
+    if role == GraphPortRole::Result && !remember_result(context, action_node, &value)? {
+        return Ok(());
+    }
     route_role(context, action_node, role, value)
 }
 
@@ -78,6 +87,7 @@ pub(super) fn finish_run_if_idle(
         .all(|pending| pending.run_id != *run_id)
         && state.active_runs.remove(run_id)
     {
+        state.run_results.remove(run_id);
         intents.push(SchedulerIntent::CleanupRun {
             run_id: run_id.clone(),
             reason: "run completed".into(),
@@ -116,6 +126,25 @@ fn route_arrivals(
         let graph_node = node(context.plan, &arrival.node_id)?;
         match &graph_node.kind {
             GraphNodeKind::Action { .. } => {
+                if let Some(arguments) = context.plan.action_arguments.get(&graph_node.id) {
+                    if arrival.port_id != arguments.trigger_port {
+                        continue;
+                    }
+                    let empty = Default::default();
+                    let results = context
+                        .state
+                        .run_results
+                        .get(context.run_id)
+                        .unwrap_or(&empty);
+                    match arguments.assemble(&arrival.value, &context.state.values, results) {
+                        Some(input) => invoke_action(context, graph_node, input)?,
+                        None => {
+                            context.faults.push(SchedulerFault::MalformedInput);
+                            abort_run(context, "argument field is missing");
+                        }
+                    }
+                    continue;
+                }
                 let trigger = graph_node
                     .inputs
                     .iter()
@@ -262,6 +291,7 @@ fn invoke_action(
 }
 
 fn abort_run(context: &mut RouteContext<'_>, reason: &str) {
+    context.state.run_results.remove(context.run_id);
     let invocation_ids: Vec<_> = context
         .state
         .pending
@@ -283,6 +313,34 @@ fn abort_run(context: &mut RouteContext<'_>, reason: &str) {
         run_id: context.run_id.clone(),
         reason: reason.into(),
     });
+}
+
+fn remember_result(
+    context: &mut RouteContext<'_>,
+    node_id: &GraphNodeId,
+    value: &Value,
+) -> Result<bool, SchedulerTransitionError> {
+    let referenced = context.plan.action_arguments.values().any(|arguments| arguments.fields.values().any(|binding| matches!(binding, crate::ValueBinding::RunResult { node_id: source, .. } if source == node_id)));
+    if !referenced {
+        return Ok(true);
+    }
+    let results = context
+        .state
+        .run_results
+        .entry(context.run_id.clone())
+        .or_default();
+    results.insert(node_id.clone(), value.clone());
+    let size = serde_json::to_vec(results)
+        .map_err(|e| SchedulerTransitionError::InvalidPlan(e.to_string()))?
+        .len();
+    if size > context.limits.maximum_payload_bytes {
+        context
+            .faults
+            .push(SchedulerFault::BudgetExceeded(GraphLimitKind::PayloadBytes));
+        abort_run(context, "retained run values exceed budget");
+        return Ok(false);
+    }
+    Ok(true)
 }
 
 fn enqueue_role(
@@ -339,57 +397,4 @@ fn evaluate(operator: ConditionOperator, operand: Option<&Value>, value: &Value)
             .zip(operand.and_then(numeric))
             .is_some_and(|(left, right)| left < right),
     }
-}
-
-fn numeric(value: &Value) -> Option<f64> {
-    value.as_f64()
-}
-
-pub(super) fn value_matches_schema(
-    plan: &ExecutableGraph,
-    schema: &SchemaRef,
-    value: &Value,
-) -> Result<bool, SchedulerTransitionError> {
-    let contract = plan
-        .schema_contracts
-        .iter()
-        .find(|contract| contract.schema == *schema)
-        .ok_or_else(|| {
-            SchedulerTransitionError::InvalidPlan(format!(
-                "missing schema contract {} {}.{}",
-                schema.id, schema.version.major, schema.version.minor
-            ))
-        })?;
-    Ok(match contract.value_kind {
-        SchemaValueKind::Unit => value.is_null(),
-        SchemaValueKind::Boolean => value.is_boolean(),
-        SchemaValueKind::Number => value.is_number(),
-        SchemaValueKind::String => value.is_string(),
-        SchemaValueKind::Json => true,
-    })
-}
-
-pub(super) fn node_value_matches(
-    plan: &ExecutableGraph,
-    node_id: &GraphNodeId,
-    role: GraphPortRole,
-    value: &Value,
-) -> Result<bool, SchedulerTransitionError> {
-    let graph_node = node(plan, node_id)?;
-    let mut matched = false;
-    for port in graph_node.outputs.iter().filter(|port| port.role == role) {
-        matched = true;
-        if !value_matches_schema(plan, &port.schema, value)? {
-            return Ok(false);
-        }
-    }
-    Ok(matched)
-}
-
-fn serialized_size(value: &Value) -> Result<usize, SchedulerTransitionError> {
-    serde_json::to_vec(value)
-        .map(|bytes| bytes.len())
-        .map_err(|error| {
-            SchedulerTransitionError::InvalidPlan(format!("value serialization failed: {error}"))
-        })
 }

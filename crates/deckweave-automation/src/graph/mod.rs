@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Versioned workspace graph owned by Automation Execution.
 
+mod arguments;
 mod model;
+pub use arguments::*;
 mod validation;
 
 pub use model::{

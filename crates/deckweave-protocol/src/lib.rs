@@ -10,8 +10,9 @@ pub mod v1 {
     include!(concat!(env!("OUT_DIR"), "/deckweave.v1.rs"));
 }
 
-pub const FEATURE_INVOCATION_ENDPOINT_PATH: &str = "org.deckweave.invocation.endpoint_path";
-pub const FEATURE_VALUE_WRITE_ENDPOINT_PATH: &str = "org.deckweave.value_write.endpoint_path";
+mod features;
+pub use features::*;
+
 /// Rust document types generated from the same JSON Schemas as the TypeScript
 /// declarations. Extensible objects use schema-valued `additionalProperties`
 /// so unknown optional fields survive a typed JSON round-trip.
@@ -27,25 +28,8 @@ pub mod documents {
     }
 }
 
-/// Bytes held by a transparent relay. A typed Prost decode/re-encode is not
-/// transparent because unknown fields are not retained.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct OpaqueProtocolFrame(Vec<u8>);
-
-impl OpaqueProtocolFrame {
-    #[must_use]
-    pub fn new(bytes: Vec<u8>) -> Self {
-        Self(bytes)
-    }
-    #[must_use]
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.0
-    }
-    #[must_use]
-    pub fn into_bytes(self) -> Vec<u8> {
-        self.0
-    }
-}
+mod opaque;
+pub use opaque::OpaqueProtocolFrame;
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum FrameError {
@@ -305,6 +289,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)] // Explicit compatibility test for the old local target field.
     fn unknown_enum_number_and_optional_presence_are_not_collapsed()
     -> Result<(), Box<dyn std::error::Error>> {
         let error = v1::StructuredError {
@@ -318,6 +303,7 @@ mod tests {
         assert_eq!(decoded.category, 31_337);
 
         let base = v1::FramePacket {
+            target: None,
             target_port_id: "display".into(),
             activation_epoch: 1,
             descriptor_revision: 1,

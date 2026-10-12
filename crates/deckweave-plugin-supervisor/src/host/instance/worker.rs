@@ -2,6 +2,8 @@
 //! Bounded command worker and inbound runtime monitor.
 
 use super::{RuntimeInstance, elapsed_millis, envelope, wire};
+mod events;
+mod shutdown;
 use crate::{
     host::{
         HostRuntimeConfig, HostRuntimeError,
@@ -16,6 +18,7 @@ use deckweave_domain::ids::{
 use deckweave_host::{RuntimeCommand, RuntimeEvent, RuntimeEventKind, RuntimeEventSink};
 use deckweave_protocol::v1::protocol_envelope;
 use deckweave_registry::CapabilityRegistry;
+use events::{process_stopped, receive};
 use std::{
     collections::BTreeMap,
     sync::{Arc, Mutex, mpsc},
@@ -43,8 +46,10 @@ impl WorkerKey {
 }
 
 pub(crate) enum WorkerCommand {
+    Start,
+    Locale(deckweave_domain::localization::LocaleContext),
     Dispatch(Box<RuntimeCommand>),
-    Shutdown(mpsc::SyncSender<()>),
+    Shutdown(mpsc::SyncSender<Result<(), HostRuntimeError>>),
 }
 
 impl From<RuntimeCommand> for WorkerCommand {
@@ -54,6 +59,7 @@ impl From<RuntimeCommand> for WorkerCommand {
 }
 
 pub(crate) struct ActiveWorker {
+    failed_release: Arc<std::sync::atomic::AtomicBool>,
     sender: mpsc::SyncSender<WorkerCommand>,
     key: WorkerKey,
     grant_revision: GrantRevision,
@@ -74,6 +80,7 @@ impl ActiveWorker {
     ) -> Result<Self, HostRuntimeError> {
         let (key, features) = instance.worker_identity()?;
         let grant_revision = instance.grant_revision;
+        let failed_release = instance.failed_release.clone();
         health.update(instance.health_entry(RuntimeHealthStatus::Active, None));
         let (sender, receiver) = mpsc::sync_channel(config.process.maximum_outbound_frames);
         let join = thread::spawn(move || {
@@ -89,6 +96,7 @@ impl ActiveWorker {
             );
         });
         Ok(Self {
+            failed_release,
             sender,
             key,
             grant_revision,
@@ -102,13 +110,21 @@ impl ActiveWorker {
         match self.sender.try_send(WorkerCommand::Shutdown(done)) {
             Ok(()) => receiver
                 .recv_timeout(timeout)
-                .map_err(|error| HostRuntimeError::Shutdown(error.to_string()))?,
+                .map_err(|error| HostRuntimeError::Shutdown(error.to_string()))??,
             Err(mpsc::TrySendError::Disconnected(_)) => {}
             Err(error) => return Err(HostRuntimeError::Shutdown(error.to_string())),
         }
         if let Some(join) = self.join.take() {
             join.join()
                 .map_err(|_| HostRuntimeError::Shutdown("runtime monitor panicked".into()))?;
+        }
+        if self
+            .failed_release
+            .load(std::sync::atomic::Ordering::SeqCst)
+        {
+            return Err(HostRuntimeError::Shutdown(
+                "runtime release was not confirmed".into(),
+            ));
         }
         Ok(())
     }
@@ -145,17 +161,69 @@ fn monitor(
     health: RuntimeHealthStore,
     commands: mpsc::Receiver<WorkerCommand>,
 ) {
+    let mut started = false;
     loop {
         while let Ok(command) = commands.try_recv() {
             match command {
+                WorkerCommand::Start => {
+                    if instance.controller.session().is_some_and(|s| {
+                        s.negotiated_features
+                            .get(deckweave_protocol::FEATURE_ACTIVATION_COMMIT)
+                            == Some(&1)
+                    }) {
+                        let sent = envelope(
+                            instance.generation,
+                            &mut instance.next_message_id,
+                            protocol_envelope::Body::ActivationCommitted(
+                                deckweave_protocol::v1::ActivationCommitted {
+                                    activation_epoch: activation_epoch.get(),
+                                    host_ticks: elapsed_millis(clock),
+                                },
+                            ),
+                        )
+                        .and_then(|message| instance.process.send(&message).map_err(Into::into));
+                        if let Err(error) = sent {
+                            health.update(instance.health_entry(
+                                RuntimeHealthStatus::Unavailable,
+                                Some(error.to_string()),
+                            ));
+                            return;
+                        }
+                    }
+                    started = true;
+                }
+                WorkerCommand::Locale(context) => {
+                    if instance.controller.session().is_some_and(|s| {
+                        s.negotiated_features
+                            .get(deckweave_protocol::FEATURE_LOCALE_CONTEXT)
+                            .copied()
+                            == Some(1)
+                    }) {
+                        let sent = envelope(
+                            instance.generation,
+                            &mut instance.next_message_id,
+                            protocol_envelope::Body::LocaleContext(wire::locale_context(&context)),
+                        )
+                        .and_then(|message| instance.process.send(&message).map_err(Into::into));
+                        if let Err(error) = sent {
+                            health.update(instance.health_entry(
+                                RuntimeHealthStatus::Degraded,
+                                Some(error.to_string()),
+                            ));
+                        }
+                    }
+                }
                 WorkerCommand::Shutdown(done) => {
-                    health.update(instance.health_entry(RuntimeHealthStatus::Stopped, None));
-                    let now = elapsed_millis(clock);
-                    let result = registry.lock().ok().and_then(|mut registry| {
-                        instance.stop(&mut registry, config.stop_timeout, now).ok()
-                    });
-                    let _ignored = done.try_send(());
-                    let _ = result;
+                    let result = shutdown::drain_and_stop(
+                        instance,
+                        &registry,
+                        activation_epoch,
+                        sink.as_ref(),
+                        &health,
+                        &config,
+                        clock,
+                    );
+                    let _ignored = done.try_send(result);
                     return;
                 }
                 WorkerCommand::Dispatch(command) => dispatch(
@@ -164,8 +232,13 @@ fn monitor(
                     activation_epoch,
                     sink.as_ref(),
                     &health,
+                    clock,
                 ),
             }
+        }
+        if !started {
+            thread::sleep(config.monitor_interval.min(Duration::from_millis(10)));
+            continue;
         }
         if receive(
             &mut instance,
@@ -178,6 +251,30 @@ fn monitor(
         ) {
             return;
         }
+        let expired = instance
+            .cleanups
+            .iter()
+            .filter(|(_, deadline)| Instant::now() >= **deadline)
+            .map(|(id, _)| id.clone())
+            .collect::<Vec<_>>();
+        for cleanup_id in expired {
+            instance
+                .failed_release
+                .store(true, std::sync::atomic::Ordering::SeqCst);
+            instance.cleanup_failed = true;
+            instance.cleanups.remove(&cleanup_id);
+            sink.publish(RuntimeEvent {
+                activation_epoch,
+                kind: RuntimeEventKind::CleanupReceipt {
+                    cleanup_id,
+                    released: false,
+                },
+            });
+            health.update(instance.health_entry(
+                RuntimeHealthStatus::Degraded,
+                Some("owner cleanup receipt timeout".into()),
+            ));
+        }
         if process_stopped(
             &mut instance,
             &registry,
@@ -186,6 +283,35 @@ fn monitor(
             &health,
             clock,
         ) {
+            // Fault publication synchronously queues owner release intents. Drain those
+            // before stopping the process; ordinary work is no longer admitted.
+            let waiters = shutdown::release_queued(&commands, |command| {
+                dispatch(
+                    &mut instance,
+                    command,
+                    activation_epoch,
+                    sink.as_ref(),
+                    &health,
+                    clock,
+                );
+            });
+            let result = shutdown::drain_and_stop(
+                instance,
+                &registry,
+                activation_epoch,
+                sink.as_ref(),
+                &health,
+                &config,
+                clock,
+            );
+            for done in waiters {
+                let _ = done.try_send(
+                    result
+                        .as_ref()
+                        .map(|_| ())
+                        .map_err(|e| HostRuntimeError::Shutdown(e.to_string())),
+                );
+            }
             return;
         }
     }
@@ -197,8 +323,22 @@ fn dispatch(
     activation_epoch: ActivationEpoch,
     sink: &dyn RuntimeEventSink,
     health: &RuntimeHealthStore,
+    clock: Instant,
 ) {
-    if let Err(error) = dispatch_command(instance, command) {
+    if let Err(error) = dispatch_command(instance, command, elapsed_millis(clock)) {
+        if let Ok(Some(protocol_envelope::Body::OwnerCleanup(cleanup))) =
+            wire::command_body(command)
+        {
+            instance.cleanup_failed = true;
+            instance.cleanups.remove(&cleanup.cleanup_id);
+            sink.publish(RuntimeEvent {
+                activation_epoch,
+                kind: RuntimeEventKind::CleanupReceipt {
+                    cleanup_id: cleanup.cleanup_id,
+                    released: false,
+                },
+            });
+        }
         if let Some(kind) = wire::unknown_outcome(command, "transport_send_failed") {
             sink.publish(RuntimeEvent {
                 activation_epoch,
@@ -210,152 +350,42 @@ fn dispatch(
     }
 }
 
-fn receive(
-    instance: &mut RuntimeInstance,
-    registry: &Arc<Mutex<CapabilityRegistry>>,
-    activation_epoch: ActivationEpoch,
-    sink: &dyn RuntimeEventSink,
-    health: &RuntimeHealthStore,
-    config: &HostRuntimeConfig,
-    clock: Instant,
-) -> bool {
-    match instance.process.receive(config.monitor_interval) {
-        Ok(envelope) => {
-            if instance
-                .controller
-                .accept_envelope(&envelope, elapsed_millis(clock))
-                .is_err()
-            {
-                return false;
-            }
-            let session = instance
-                .controller
-                .session()
-                .map(|value| value.identity.clone());
-            let Some((session, body)) = session.zip(envelope.body.as_ref()) else {
-                return false;
-            };
-            match wire::event(
-                &session,
-                instance.descriptor_revision,
-                activation_epoch,
-                body,
-            ) {
-                Ok(Some(event)) => sink.publish(event),
-                Ok(None)
-                    if matches!(
-                        body,
-                        protocol_envelope::Body::DescriptorSnapshot(_)
-                            | protocol_envelope::Body::DescriptorDelta(_)
-                    ) =>
-                {
-                    topology_faults(instance, activation_epoch, sink);
-                    health.update(instance.health_entry(
-                        RuntimeHealthStatus::Degraded,
-                        Some("descriptor changed during active plan".into()),
-                    ));
-                }
-                Ok(None) => {}
-                Err(error) => health.update(
-                    instance.health_entry(RuntimeHealthStatus::Degraded, Some(error.to_string())),
-                ),
-            }
-        }
-        Err(ProcessError::Timeout) => return false,
-        Err(_) => {
-            let now = elapsed_millis(clock);
-            if let Ok(mut registry) = registry.lock() {
-                let _ignored = instance
-                    .controller
-                    .process_exited(&mut registry, now, false);
-            }
-            health.update(instance.health_entry(
-                RuntimeHealthStatus::Unavailable,
-                Some("plugin process exited".into()),
-            ));
-            topology_faults(instance, activation_epoch, sink);
-            return true;
-        }
-    }
-    false
-}
-
-fn process_stopped(
-    instance: &mut RuntimeInstance,
-    registry: &Arc<Mutex<CapabilityRegistry>>,
-    activation_epoch: ActivationEpoch,
-    sink: &dyn RuntimeEventSink,
-    health: &RuntimeHealthStore,
-    clock: Instant,
-) -> bool {
-    let now = elapsed_millis(clock);
-    if instance.grants_changed().unwrap_or(true) {
-        let action = registry
-            .lock()
-            .ok()
-            .and_then(|mut registry| instance.revalidate_permissions(&mut registry, now).ok());
-        if !matches!(action, Some(SupervisorAction::None)) {
-            sink.publish(RuntimeEvent {
-                activation_epoch,
-                kind: RuntimeEventKind::GrantFault,
-            });
-            health.update(instance.health_entry(
-                RuntimeHealthStatus::Unavailable,
-                Some("runtime permission revoked".into()),
-            ));
-            stop(instance, registry, now);
-            return true;
-        }
-    }
-    match instance.controller.tick(now) {
-        Ok(SupervisorAction::ForceTerminate | SupervisorAction::RequestGracefulStop) => {
-            stop(instance, registry, now);
-            true
-        }
-        Ok(_) => false,
-        Err(_) => true,
-    }
-}
-
-fn stop(instance: &mut RuntimeInstance, registry: &Arc<Mutex<CapabilityRegistry>>, now: u64) {
-    if let Ok(mut registry) = registry.lock() {
-        let request = envelope(
-            instance.generation,
-            &mut instance.next_message_id,
-            protocol_envelope::Body::Deactivate(deckweave_protocol::v1::DeactivationRequest {
-                runtime_lease_id: instance.lease_id.to_string(),
-                reason: "runtime monitor stop".into(),
-            }),
-        );
-        if let Ok(request) = request {
-            let _ignored = instance.process.send(&request);
-        }
-        let _ignored = instance.process.terminate();
-        let _ignored = instance.controller.process_exited(&mut registry, now, true);
-    }
-}
-
-fn topology_faults(
-    instance: &RuntimeInstance,
-    activation_epoch: ActivationEpoch,
-    sink: &dyn RuntimeEventSink,
-) {
-    for endpoint in instance.stable_endpoints() {
-        sink.publish(RuntimeEvent {
-            activation_epoch,
-            kind: RuntimeEventKind::TopologyFault { endpoint },
-        });
-    }
-}
-
 fn dispatch_command(
     instance: &mut RuntimeInstance,
     command: &RuntimeCommand,
+    now: u64,
 ) -> Result<(), HostRuntimeError> {
-    let Some(body) = wire::command_body(command)? else {
+    let Some(mut body) = wire::command_body(command)? else {
         return Ok(());
     };
+    if let protocol_envelope::Body::Invoke(request) = &mut body {
+        if request.deadline_host_ticks <= now {
+            return Err(HostRuntimeError::Protocol(
+                "invocation expired before transport admission".into(),
+            ));
+        }
+        request.remaining_budget_ms = Some(request.deadline_host_ticks.saturating_sub(now));
+    }
+    if let protocol_envelope::Body::OwnerCleanup(request) = &mut body {
+        if instance.cleanups.len() >= 4096 {
+            return Err(HostRuntimeError::Protocol("cleanup budget exceeded".into()));
+        }
+        request.cleanup_id = format!(
+            "{}:{}:{}",
+            instance.generation, instance.next_message_id, request.cleanup_id
+        );
+        instance.cleanups.insert(
+            request.cleanup_id.clone(),
+            Instant::now() + Duration::from_secs(2),
+        );
+    }
     let request = envelope(instance.generation, &mut instance.next_message_id, body)?;
-    instance.process.send(&request)?;
+    instance.replies.track(command)?;
+    if let Err(error) = instance.process.send(&request) {
+        if let RuntimeCommand::Invoke { request, .. } = command {
+            instance.replies.finish(request.invocation_id.as_str());
+        }
+        return Err(error.into());
+    }
     Ok(())
 }

@@ -7,6 +7,7 @@ use super::{
 use deckweave_domain::{ids::GraphNodeId, schema::SchemaRef};
 use std::collections::{BTreeMap, BTreeSet};
 use thiserror::Error;
+mod bindings;
 
 const SUPPORTED_GRAPH_MAJOR: u32 = 1;
 const SUPPORTED_GRAPH_MINOR: u32 = 0;
@@ -240,6 +241,7 @@ impl GraphDocument {
                 });
             }
         }
+        bindings::validate(self, &nodes, limits)?;
         Ok(())
     }
 }

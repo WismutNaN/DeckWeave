@@ -20,6 +20,11 @@ pub struct GraphFormatVersion {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct GraphDocument {
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub plugin_instances: BTreeMap<
+        deckweave_domain::ids::PluginInstanceId,
+        deckweave_workspace::PluginInstanceConfiguration,
+    >,
     pub schema_version: GraphFormatVersion,
     pub graph: GraphDefinition,
     #[serde(default)]
@@ -31,6 +36,10 @@ pub struct GraphDocument {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct GraphDefinition {
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub node_instances: BTreeMap<GraphNodeId, deckweave_domain::ids::PluginInstanceId>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub action_arguments: BTreeMap<GraphNodeId, super::ActionArguments>,
     pub nodes: Vec<GraphNode>,
     pub edges: Vec<GraphEdge>,
     #[serde(default)]

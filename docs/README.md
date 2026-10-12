@@ -1,6 +1,6 @@
 # Документация DeckWeave
 
-DeckWeave объединяет устройства и приложения через плагины: ввод, actions/results, визуальные поверхности, подсветку и будущие media streams. M1 automation/replay Фазы 5 реализован на virtual providers, F5-R1–R3 исправлены. [Каталог идей](plugins/README.md) проверен относительно кода `2d99c88`: перед editor остаётся [gate Фазы 6](implementation/pre-phase-6.md), включая instances/settings, structured bindings, live clock/cleanup и presentation/data contracts. Реальные integrations и views не считаются готовыми по virtual tests. Полная спецификация описывает целевую систему; [аудит](research/plugin-feasibility.md) отличает реализацию от проектных решений. [Запуск и проверки](implementation/development.md), [статус фаз](implementation/roadmap.md).
+DeckWeave объединяет устройства и приложения через плагины: ввод, actions/results, визуальные поверхности, подсветку и будущие media streams. M1 automation/replay Фазы 5 реализован на virtual providers, F5-R1–R3 исправлены. После повторного backend-аудита работают configured instances/settings, structural bindings, monotonic deadlines, cleanup protocol и static catalog compiler. Новые tests и оставшиеся блокеры перечислены в [gate Фазы 6](implementation/pre-phase-6.md); полный путь данных и locale — в [границе ядра и плагина](contracts/plugin-boundary.md). Реальные integrations и views не считаются готовыми по virtual tests. Полная спецификация описывает целевую систему; [аудит](research/plugin-feasibility.md) отличает реализацию от проектных решений. [Запуск и проверки](implementation/development.md), [статус фаз](implementation/roadmap.md).
 
 ## Порядок чтения
 
@@ -30,6 +30,7 @@ DeckWeave объединяет устройства и приложения че
 |---|---|
 | [Capabilities](contracts/capabilities.md) | Identity, descriptors, port semantics, dynamic topology и negotiation |
 | [Plugins](contracts/plugins.md) | Package/manifest, runtime classes, handshake, feature/limit negotiation и SDK |
+| [Граница ядра и плагина](contracts/plugin-boundary.md) | Полный путь данных, locale, negotiated formats и различие между реализованным control runtime и будущими adapters |
 | [Plugin composition](contracts/plugin-composition.md) | Configured instances, dependencies/service bindings, delegation и plugin-owned data |
 | [Presentation](contracts/presentation.md) | Общие presenters, collections/navigation, slot/scene selection и desktop view lifetimes |
 | [Lifecycle](contracts/lifecycle.md) | Revisions/apply/recovery, epochs, ingress order, leases и frame delivery |

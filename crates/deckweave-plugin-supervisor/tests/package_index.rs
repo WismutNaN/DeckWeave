@@ -112,6 +112,35 @@ fn indexing_validates_without_executing_entrypoint() -> Result<(), Box<dyn Error
 }
 
 #[test]
+fn static_catalog_checks_manifest_hash_and_rejects_unknown_required_fields()
+-> Result<(), Box<dyn Error>> {
+    let temp = tempfile::tempdir()?;
+    create_package(temp.path())?;
+    mutate_manifest(temp.path(), |m| {
+        m["org.deckweave.automationCatalog"] =
+            json!({"formatVersion":1,"schemas":[],"endpoints":[]})
+    })?;
+    let staged = PackageStager::inspect(temp.path(), &StagingLimits::default())?;
+    let mut index = PackageIndex::default();
+    index.insert(staged.package);
+    assert!(index.descriptor_catalog()?.endpoints().is_empty());
+    mutate_manifest(temp.path(), |m| {
+        m["org.deckweave.automationCatalog"]["unsupportedRequired"] = json!(true)
+    })?;
+    assert!(matches!(
+        index.descriptor_catalog(),
+        Err(PackageError::HashMismatch { .. })
+    ));
+    let mut index = PackageIndex::default();
+    index.insert(PackageStager::inspect(temp.path(), &StagingLimits::default())?.package);
+    assert!(matches!(
+        index.descriptor_catalog(),
+        Err(PackageError::InvalidManifest(_))
+    ));
+    Ok(())
+}
+
+#[test]
 fn hash_tampering_and_invalid_references_are_rejected() -> Result<(), Box<dyn Error>> {
     let temp = tempfile::tempdir()?;
     let package_root = temp.path().join("virtual");

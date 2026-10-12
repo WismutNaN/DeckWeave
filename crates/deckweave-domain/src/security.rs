@@ -49,6 +49,8 @@ pub struct PermissionGrant {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CredentialRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub configured_instance_id: Option<crate::ids::PluginInstanceId>,
     pub principal_id: PrincipalId,
     pub package_id: PackageId,
     pub credential_ref: CredentialRef,

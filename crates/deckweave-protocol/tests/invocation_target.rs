@@ -13,6 +13,7 @@ fn invocation_wire_request_carries_the_full_endpoint_path() -> Result<(), Box<dy
         activation_epoch: 7,
         descriptor_revision: 11,
         deadline_host_ticks: 100,
+        remaining_budget_ms: Some(80),
         idempotency_key: None,
         input: None,
         target: Some(v1::EndpointPath {

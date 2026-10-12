@@ -14,6 +14,7 @@ use thiserror::Error;
 
 #[derive(Debug, Clone)]
 pub struct HostRuntimeConfig {
+    pub locale: deckweave_domain::localization::LocaleContext,
     pub process: crate::process::ProcessConfig,
     pub restart_policy: crate::supervisor::RestartPolicy,
     pub protocol_support: HostProtocolSupport,
@@ -26,6 +27,7 @@ pub struct HostRuntimeConfig {
 impl Default for HostRuntimeConfig {
     fn default() -> Self {
         Self {
+            locale: Default::default(),
             process: crate::process::ProcessConfig::default(),
             restart_policy: crate::supervisor::RestartPolicy::default(),
             protocol_support: HostProtocolSupport {
@@ -34,6 +36,10 @@ impl Default for HostRuntimeConfig {
                     maximum: Some(ProtocolVersion { major: 1, minor: 1 }),
                 },
                 features: std::collections::BTreeMap::from([
+                    (deckweave_protocol::FEATURE_ACTIVATION_COMMIT.into(), 1),
+                    (deckweave_protocol::FEATURE_CONFIGURED_INSTANCES.into(), 1),
+                    (deckweave_protocol::FEATURE_LOCALE_CONTEXT.into(), 1),
+                    (deckweave_protocol::FEATURE_OWNER_CLEANUP.into(), 1),
                     (FEATURE_INVOCATION_ENDPOINT_PATH.into(), 1),
                     (FEATURE_VALUE_WRITE_ENDPOINT_PATH.into(), 1),
                 ]),

@@ -28,6 +28,9 @@ use deckweave_domain::{
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, error::Error};
 
+#[path = "support/structured_arguments.rs"]
+mod structured_arguments;
+
 fn schema(id: &str) -> Result<SchemaRef, Box<dyn Error>> {
     Ok(SchemaRef {
         id: NamespacedKind::try_new(id)?,
@@ -280,6 +283,7 @@ fn plan() -> Result<ExecutableGraph, Box<dyn Error>> {
         },
     ];
     Ok(ExecutableGraph {
+        action_arguments: Default::default(),
         format: GraphFormatVersion { major: 1, minor: 0 },
         nodes,
         edges: vec![
@@ -325,6 +329,7 @@ fn plan() -> Result<ExecutableGraph, Box<dyn Error>> {
         }],
         endpoint_contracts: vec![
             CompiledEndpointContract {
+                configured_instance_id: None,
                 node_id: GraphNodeId::try_new("source")?,
                 endpoint: source_endpoint.clone(),
                 runtime_group_id: deckweave_domain::ids::RuntimeGroupId::try_new("control")?,
@@ -338,6 +343,7 @@ fn plan() -> Result<ExecutableGraph, Box<dyn Error>> {
                 operation: None,
             },
             CompiledEndpointContract {
+                configured_instance_id: None,
                 node_id: GraphNodeId::try_new("action")?,
                 endpoint: action_endpoint.clone(),
                 runtime_group_id: deckweave_domain::ids::RuntimeGroupId::try_new("control")?,
@@ -351,6 +357,7 @@ fn plan() -> Result<ExecutableGraph, Box<dyn Error>> {
                 operation: Some(operation()?),
             },
             CompiledEndpointContract {
+                configured_instance_id: None,
                 node_id: GraphNodeId::try_new("feedback")?,
                 endpoint: feedback_endpoint.clone(),
                 runtime_group_id: deckweave_domain::ids::RuntimeGroupId::try_new("control")?,

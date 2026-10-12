@@ -219,8 +219,11 @@ fn document() -> Result<GraphDocument, Box<dyn Error>> {
         },
     );
     Ok(GraphDocument {
+        plugin_instances: Default::default(),
         schema_version: GraphFormatVersion { major: 1, minor: 0 },
         graph: GraphDefinition {
+            node_instances: Default::default(),
+            action_arguments: Default::default(),
             nodes,
             edges,
             extensions: BTreeMap::from([(

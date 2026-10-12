@@ -4,6 +4,8 @@
 
 ## Вывод
 
+Этот аудит сохраняет наблюдения baseline `2d99c88`. Последующие исправления и новые executable proofs перечислены в [текущем pre-6 gate](../implementation/pre-phase-6.md#проверенный-результат-повторного-аудита); CG-01–15 ниже не являются утверждением, что все исходные дефекты всё ещё присутствуют. Полный путь данных и локализации собран в [границе ядра и плагина](../contracts/plugin-boundary.md).
+
 Все перечисленные идеи имеют подходящий путь в существующих DDD contexts: endpoint/providers, typed jobs/results, Automation, scene/presentation и специализированный media runtime. Оснований заменять всё ядро нет. Однако M1 Фазы 5 проверяет узкий graph/virtual runtime; он ещё не доказывает configured accounts, сложные records, постоянные views, service dependencies и реальное удержание input. До закрепления UI-модели Фазы 6 нужны [дополнительные срезы](../implementation/pre-phase-6.md).
 
 Нельзя гарантировать «любое приложение/любой tray/любое устройство»: ограничения ОС, API и firmware остаются в adapters и отражаются capabilities/availability. Архитектурное доказательство требует независимых fake providers, а физическая/API совместимость — отдельного evidence. Полная реализация каталога до canvas не нужна.

@@ -49,6 +49,14 @@ impl DisplaySurfaceDescriptor {
             || self.preferred_fps == 0
             || self.maximum_fps == 0
             || self.pixel_aspect_ratio <= 0.0
+            || !self.pixel_aspect_ratio.is_finite()
+            || self
+                .coordinate_transform
+                .matrix
+                .iter()
+                .any(|n| !n.is_finite())
+            || !matches!(self.rotation_degrees, 0 | 90 | 180 | 270)
+            || !(self.full_frame || self.partial_update || self.atlas)
         {
             return Err(SurfaceDescriptorError::InvalidDimensions);
         }

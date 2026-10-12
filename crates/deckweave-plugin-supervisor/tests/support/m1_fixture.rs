@@ -334,8 +334,11 @@ fn graph(
         },
     ];
     Ok(GraphDocument {
+        plugin_instances: Default::default(),
         schema_version: GraphFormatVersion { major: 1, minor: 0 },
         graph: GraphDefinition {
+            node_instances: Default::default(),
+            action_arguments: Default::default(),
             nodes,
             edges: vec![
                 edge(
@@ -452,6 +455,7 @@ fn requirement(
     hash: String,
 ) -> Result<RuntimeRequirement, Box<dyn Error>> {
     Ok(RuntimeRequirement {
+        configuration: None,
         package_id: PackageId::try_new(package)?,
         package_version: "0.1.0".into(),
         artifact_sha256: hash,

@@ -27,6 +27,8 @@ use deckweave_domain::{
 };
 use deckweave_workspace::PackageLockEntry;
 use std::{collections::BTreeMap, error::Error};
+#[path = "support/argument_compiler.rs"]
+mod argument_compiler;
 
 fn schema(id: &str) -> Result<SchemaRef, Box<dyn Error>> {
     Ok(SchemaRef {
@@ -95,8 +97,11 @@ fn graph() -> Result<GraphDocument, Box<dyn Error>> {
     let event = schema("org.deckweave.schema.event")?;
     let text = schema("org.deckweave.schema.text")?;
     Ok(GraphDocument {
+        plugin_instances: Default::default(),
         schema_version: GraphFormatVersion { major: 1, minor: 0 },
         graph: GraphDefinition {
+            node_instances: Default::default(),
+            action_arguments: Default::default(),
             nodes: vec![
                 GraphNode {
                     id: GraphNodeId::try_new("source")?,
@@ -247,6 +252,7 @@ fn operation() -> Result<OperationDescriptor, Box<dyn Error>> {
 
 fn requirement() -> Result<RuntimeRequirement, Box<dyn Error>> {
     Ok(RuntimeRequirement {
+        configuration: None,
         package_id: PackageId::try_new("org.deckweave.virtual")?,
         package_version: "1.0.0".into(),
         artifact_sha256: "a".repeat(64),
@@ -558,6 +564,7 @@ fn availability_permissions_and_resources_follow_explicit_compile_policy()
         catalog(PortAvailability::Available, true)?,
         GraphLimits::default(),
         CompileAccess {
+            endpoint_permissions: Default::default(),
             granted_permissions: [permission.clone()].into_iter().collect(),
             available_resources: Default::default(),
         },
@@ -576,6 +583,7 @@ fn availability_permissions_and_resources_follow_explicit_compile_policy()
         catalog(PortAvailability::Available, true)?,
         GraphLimits::default(),
         CompileAccess {
+            endpoint_permissions: Default::default(),
             granted_permissions: [permission].into_iter().collect(),
             available_resources: [resource].into_iter().collect(),
         },

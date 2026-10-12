@@ -12,7 +12,7 @@ use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 use thiserror::Error;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SchemaValueKind {
     Unit,
@@ -20,6 +20,21 @@ pub enum SchemaValueKind {
     Number,
     String,
     Json,
+    Structured(deckweave_domain::schema::PayloadSchema),
+}
+
+impl SchemaValueKind {
+    pub fn accepts(&self, value: &serde_json::Value) -> bool {
+        use deckweave_domain::schema::bounded_json;
+        match self {
+            Self::Unit => value.is_null(),
+            Self::Boolean => value.is_boolean(),
+            Self::Number => value.as_f64().is_some_and(f64::is_finite),
+            Self::String => value.is_string() && bounded_json(value),
+            Self::Json => bounded_json(value),
+            Self::Structured(schema) => schema.accepts(value),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -29,6 +44,17 @@ pub struct CatalogSchema {
     pub value_kind: SchemaValueKind,
     pub unit: Option<String>,
     pub range: Option<NumericRange>,
+}
+
+impl CatalogSchema {
+    pub fn accepts(&self, value: &serde_json::Value) -> bool {
+        self.value_kind.accepts(value)
+            && self.range.as_ref().is_none_or(|range| {
+                value
+                    .as_f64()
+                    .is_some_and(|number| number >= range.minimum && number <= range.maximum)
+            })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -70,6 +96,12 @@ pub enum CatalogError {
 }
 
 impl DescriptorCatalog {
+    pub fn schemas(&self) -> &[CatalogSchema] {
+        &self.schemas
+    }
+    pub fn endpoints(&self) -> &[CatalogEndpoint] {
+        &self.endpoints
+    }
     pub fn try_new(
         mut schemas: Vec<CatalogSchema>,
         mut endpoints: Vec<CatalogEndpoint>,
@@ -85,6 +117,22 @@ impl DescriptorCatalog {
         for pair in schemas.windows(2) {
             if pair[0].schema == pair[1].schema {
                 return Err(CatalogError::DuplicateSchema(pair[0].schema.clone()));
+            }
+        }
+        for schema in &schemas {
+            if let SchemaValueKind::Structured(shape) = &schema.value_kind {
+                shape
+                    .validate_definition()
+                    .map_err(|e| CatalogError::InvalidDescriptor(e.into()))?;
+            }
+            if let Some(range) = &schema.range
+                && (!range.minimum.is_finite()
+                    || !range.maximum.is_finite()
+                    || range.minimum > range.maximum)
+            {
+                return Err(CatalogError::InvalidDescriptor(
+                    "invalid schema numeric range".into(),
+                ));
             }
         }
         for pair in endpoints.windows(2) {
