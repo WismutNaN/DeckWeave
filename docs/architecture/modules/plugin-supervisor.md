@@ -38,6 +38,7 @@
 - Discovery до первого binding требует scoped lease; static index не запускает provider.
 - Prepare не исполняет user actions; exclusive handoff объявляет downtime и использует общий ResourceLease arbiter.
 - Grant revoke блокирует dispatch и инициирует cleanup, без обещания отменить уже выполненный effect.
+- Prepare/recovery получают точные package/version/hash/runtime-group/contribution requirements из Automation; выбор «первого» group/contribution и разбор graph JSON запрещены.
 
 ## Намеренно НЕ обрабатывает
 
@@ -52,4 +53,4 @@
 
 Обязательны [resource/version/discovery contracts](../../contracts/lifecycle.md#resources-discovery-и-версии-packages) и package-lock validation при apply/update/rollback.
 
-`ProductionRuntimeCoordinator` соединяет `RuntimeController` и `ProcessRuntime` через Host planning/cutover ports. Он владеет prepared/active generation, bounded monitor, grant-revision revalidation, registry publication/cleanup и shutdown; desktop composition использует тот же путь, что сквозной virtual fixture. Автоматический restart после внешнего crash и полный kill matrix остаются отдельным fault-hardening, а не переносятся в UI или SDK.
+`ProductionRuntimeCoordinator` соединяет `RuntimeController` и `ProcessRuntime` через Host planning/cutover ports. Он владеет prepared/active generation, bounded monitor, grant-revision revalidation, registry publication/cleanup и shutdown; desktop composition использует тот же путь, что сквозной virtual fixture. Prepare и recovery вызывают один resolver сохранённых runtime requirements и не разбирают `fixture.kind`. Сейчас coordinator явно отклоняет больше одного requirement; multi-group generation относится к срезу 5.4. Автоматический restart после внешнего crash остаётся отдельным fault-hardening, а не переносится в UI или SDK.

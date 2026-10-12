@@ -11,6 +11,7 @@
 | `GraphCompiler` | service | Validation и compile |
 | `PlanCompiler` | port | Компилирует immutable `WorkspaceCandidate` при зафиксированных registry/grant revisions |
 | `ExecutionPlan` | immutable struct | Resolved runtime plan |
+| `RuntimeRequirement`, `DurableExecutionPlan` | immutable structs | Точная package/version/hash/group/contribution потребность и checksum envelope для recovery |
 | `WorkspaceScheduler` | owner | Deterministic state transitions |
 | `CommandIntent` | struct | Effect request |
 | `Invocation`, `RunResult` | scoped types | Typed inputs/results, progress и terminal job outcome |
@@ -55,7 +56,7 @@
 
 > Фаза 5: source/action/state/condition/feedback; sequence/parallel/layer добавляются в Фазе 11. Следовать [execution lifecycle](../../contracts/lifecycle.md#executions-cancellation-и-смена-плана) и [ordering/replay](../../contracts/lifecycle.md#порядок-сигналов-и-время). Plugin conditions — async boundaries с deadline, не callbacks внутри scheduler.
 
-Временный `RestrictedFixtureCompiler` не является урезанной реализацией произвольного graph: он принимает пустой workspace без packages/assets либо точную virtual fixture с kind `virtual_echo`/`virtual_disruptive_echo` и одним pinned `org.deckweave.example.virtual`. Любой другой document/lock возвращает `UnsupportedGraph`. Текущий `PlanCompiler` получает revision fence; настоящий compiler также потребует immutable descriptor/schema catalog. [План Фазы 5](../../implementation/phase-5-automation.md) заменяет fixture adapter и специальные runtime/recovery branches общим IR/binding path, сохраняя Host fencing. Graph vocabulary остаётся внутри Automation; Host получает runtime requirements, а не интерпретирует JSON nodes.
+Временный `RestrictedFixtureCompiler` не является урезанной реализацией произвольного graph: он принимает пустой workspace без packages/assets либо точную virtual fixture с kind `virtual_echo`/`virtual_disruptive_echo` и одним pinned `org.deckweave.example.virtual`. Любой другой document/lock возвращает `UnsupportedGraph`. Результат уже не содержит fixture enum: compiler выдаёт точный `RuntimeRequirement`, а checksum-версия `DurableExecutionPlan` входит в apply intent/commit и используется prepare/recovery. Текущий `PlanCompiler` получает revision fence; настоящий compiler также потребует immutable descriptor/schema catalog и полный executable IR. Graph vocabulary остаётся внутри Automation; Host и Plugin Runtime не интерпретируют JSON nodes.
 
 Input/result/job schemas закладываются в Фазе 2; начальный invocation path — в Фазе 5, композиция и artifact/collection fixtures — в Фазе 11. [Automation contract](../../contracts/automation.md) является источником правил передачи результатов и работы слоёв; [сценарии](../../product/scenarios.md) задают сквозную приёмку.
 

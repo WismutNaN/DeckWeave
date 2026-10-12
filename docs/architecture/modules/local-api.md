@@ -29,7 +29,7 @@
 
 - Transport adapters не содержат business logic.
 - Gateway не меняет aggregates напрямую: он вызывает application use case контекста-владельца.
-- Mutations имеют durable idempotency receipt и command-specific preconditions; apply проверяет draft и active revision.
+- Mutations сначала получают общий durable command claim, затем use-case-specific receipt/operation; apply проверяет draft и active revision.
 - Apply отделён от draft edit.
 - Dangerous operation требует scoped confirmation.
 - Loopback transport не слушает external interfaces.
@@ -51,5 +51,7 @@
 > Сначала реализовать in-process test adapter, затем loopback HTTP/WS и CLI. OpenAPI/JSON Schema генерируется из того же command vocabulary. Не делать Tauri-only methods.
 
 In-process contract уже поддерживает `PlanApply`, `ApplyDraft` и `Operation`: plan авторизуется scope `simulation`, commit — `apply`, status — `read`. Explicit `allow_disruption` связан plan hash и durable intent, поэтому consent к downtime нельзя подставить после plan. `OperationId` выводится Host из server-issued dedup window/key, поэтому lost reply повторно адресует тот же durable intent. Desktop production composition подключается отдельно с runtime coordinator, а не через особый Tauri-only путь.
+
+`ApplicationGateway` вычисляет fingerprint полного `AppCommand` и резервирует его в `CommandClaimRepository` до вызова draft/apply use case. Это единый namespace: одинаковый key нельзя последовательно использовать для `PatchDraft` и `ApplyDraft`, в том числе после restart. Dry-run claim не создаёт.
 
 Нормативный контракт: [Application API](../../contracts/application-api.md), включая scopes с первого service adapter и [идемпотентность](../../contracts/application-api.md#идемпотентность-и-dry-run).

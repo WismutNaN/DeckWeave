@@ -45,6 +45,10 @@ pub(super) fn validate_finish(
             current.commit_status == ApplyCommitStatus::Committed
                 && health == ApplyRuntimeHealth::Degraded
         }
+        ApplyOperationState::Superseded => {
+            current.commit_status == ApplyCommitStatus::Committed
+                && health == ApplyRuntimeHealth::Inactive
+        }
         ApplyOperationState::Failed => {
             current.commit_status == ApplyCommitStatus::NotCommitted
                 && health == ApplyRuntimeHealth::Inactive

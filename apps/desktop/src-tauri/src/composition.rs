@@ -14,7 +14,7 @@ use deckweave_plugin_supervisor::{
 };
 use deckweave_profiles::{JsonProfileStore, ProfileStoreLimits};
 use deckweave_registry::CapabilityRegistry;
-use deckweave_workspace::{ApplyOperationRepository, DraftRepository};
+use deckweave_workspace::{ApplyOperationRepository, CommandClaimRepository, DraftRepository};
 use std::{
     error::Error,
     path::Path,
@@ -47,7 +47,6 @@ pub(crate) fn compose(
     let principal = PrincipalId::try_new("desktop-ui")?;
     let runtime = Arc::new(ProductionRuntimeCoordinator::new(
         packages,
-        Arc::clone(&profiles) as Arc<dyn DraftRepository>,
         Arc::clone(&profiles) as Arc<dyn ApplyOperationRepository>,
         authorization,
         registry,
@@ -85,7 +84,8 @@ pub(crate) fn compose(
     );
     let gateway = ApplicationGateway::new(
         host as Arc<dyn deckweave_application::HostStatusSource>,
-        profiles as Arc<dyn DraftRepository>,
+        Arc::clone(&profiles) as Arc<dyn DraftRepository>,
+        profiles as Arc<dyn CommandClaimRepository>,
         authorizer,
         apply,
     );

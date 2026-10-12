@@ -92,7 +92,7 @@ Preconditions определяются command schema. Draft edit проверя
 
 ## Идемпотентность и dry-run
 
-Ключ дедупликации — `(PrincipalId, dedup_epoch, idempotency_key)`, payload fingerprint включает command и preconditions. Повтор с тем же содержимым возвращает прежний receipt/OperationId **до** проверки устаревшей revision; другой payload с тем же ключом возвращает `idempotency_conflict`. Актуальная авторизация проверяется и при чтении старого результата, secret payload не сохраняется в receipt.
+Ключ дедупликации — `(PrincipalId, dedup_epoch, idempotency_key)`, payload fingerprint включает command kind, target и preconditions. Gateway до dispatch атомарно публикует общий durable claim; draft receipt и apply operation не создают раздельных namespaces. Повтор с тем же содержимым возвращает прежний receipt/OperationId **до** проверки устаревшей revision; другой payload или другой command kind с тем же ключом возвращает `idempotency_conflict`. Актуальная авторизация проверяется и при чтении старого результата, secret payload не сохраняется в receipt.
 
 Host выдаёт persisted `dedup_epoch` с `expires_at`; v1 хранит receipts не менее семи дней и до завершения pending operation. Истёкшее окно возвращает `idempotency_expired`, а не исполняет старый запрос как новый. Restart не обнуляет действующие окна и keys. Новое окно/ключ означают новую операцию и не являются способом автоматически повторить неизвестный side effect.
 

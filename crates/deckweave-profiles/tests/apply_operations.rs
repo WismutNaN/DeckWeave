@@ -265,6 +265,72 @@ fn committed_head_survives_lost_status_write_for_startup_recovery() -> Result<()
 }
 
 #[test]
+fn superseding_commit_seals_the_previous_commit_status() -> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    let (first_store, first) =
+        prepared_with_fault(directory.path(), CommitFault::FailStatusAfterCommit)?;
+    assert!(
+        first_store
+            .publish_commit(&ApplyCommitRecord::from_intent(&first))
+            .is_err()
+    );
+    drop(first_store);
+
+    let reopened = store(directory.path(), Arc::new(NativeAtomicFileStore));
+    let mut second = intent("apply-second", "revision-second")?;
+    second.previous_active = Some(first.candidate.clone());
+    reopened.save_candidate_revision(&revision("revision-second")?)?;
+    reopened.begin_apply(&second)?;
+    reopened.mark_prepared(&second.operation_id)?;
+    reopened.publish_commit(&ApplyCommitRecord::from_intent(&second))?;
+    reopened.finish_apply(
+        &second.operation_id,
+        ApplyOperationState::Succeeded,
+        ApplyRuntimeHealth::Applied,
+        None,
+    )?;
+
+    let previous = reopened.operation(&first.operation_id)?;
+    assert_eq!(previous.state, ApplyOperationState::Committed);
+    assert_eq!(previous.commit_status, ApplyCommitStatus::Committed);
+    let pending = reopened.recoverable_operations(1)?;
+    assert_eq!(pending.len(), 1);
+    assert_eq!(pending[0].intent.operation_id, first.operation_id);
+    assert_eq!(pending[0].commit_status, ApplyCommitStatus::Committed);
+    Ok(())
+}
+
+#[test]
+fn terminal_history_does_not_consume_the_pending_recovery_budget() -> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    let repository = store(directory.path(), Arc::new(NativeAtomicFileStore));
+    for index in 0..300 {
+        let operation = intent(&format!("terminal-{index}"), &format!("revision-{index}"))?;
+        repository.begin_apply(&operation)?;
+        repository.finish_apply(
+            &operation.operation_id,
+            ApplyOperationState::Failed,
+            ApplyRuntimeHealth::Inactive,
+            Some("expected test terminal".into()),
+        )?;
+    }
+    assert!(repository.recoverable_operations(256)?.is_empty());
+
+    for index in 0..2 {
+        repository.begin_apply(&intent(
+            &format!("pending-{index}"),
+            &format!("pending-revision-{index}"),
+        )?)?;
+    }
+    assert!(matches!(
+        repository.recoverable_operations(1),
+        Err(ApplyRepositoryError::CapacityExceeded)
+    ));
+    assert_eq!(repository.recoverable_operations(2)?.len(), 2);
+    Ok(())
+}
+
+#[test]
 fn disk_full_during_commit_keeps_the_previous_selection() -> Result<(), Box<dyn Error>> {
     let directory = tempfile::tempdir()?;
     let files = Arc::new(DiskFullCommitStore::new());

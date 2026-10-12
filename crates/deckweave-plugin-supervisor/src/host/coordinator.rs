@@ -7,15 +7,12 @@ use super::{
 };
 use crate::package::{IndexedPackage, PackageIndex};
 use deckweave_application::AuthorizationStore;
+use deckweave_automation::{CompiledExecutionPlan, RuntimeRequirement};
 use deckweave_domain::ids::{ContributionId, HostBootId, OperationId, PrincipalId, RuntimeGroupId};
-use deckweave_host::{ApplyPlan, RuntimeCommitOutcome};
+use deckweave_host::RuntimeCommitOutcome;
 use deckweave_platform::ChildProcessPolicy;
 use deckweave_registry::{CapabilityRegistry, RegistrySnapshot};
-use deckweave_workspace::{
-    ApplyCommitRecord, ApplyOperationRepository, DraftRepository, PackageLockEntry,
-    WorkspaceCandidate, WorkspaceRevision,
-};
-use sha2::{Digest, Sha256};
+use deckweave_workspace::{ApplyCommitRecord, ApplyOperationRepository};
 use std::{
     sync::{Arc, Mutex},
     time::Instant,
@@ -65,7 +62,6 @@ pub(super) struct RuntimeState {
 
 pub struct ProductionRuntimeCoordinator {
     pub(super) packages: Arc<PackageIndex>,
-    pub(super) drafts: Arc<dyn DraftRepository>,
     pub(super) operations: Arc<dyn ApplyOperationRepository>,
     pub(super) authorization: Arc<dyn AuthorizationStore>,
     pub(super) registry: Arc<Mutex<CapabilityRegistry>>,
@@ -81,7 +77,6 @@ impl ProductionRuntimeCoordinator {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         packages: Arc<PackageIndex>,
-        drafts: Arc<dyn DraftRepository>,
         operations: Arc<dyn ApplyOperationRepository>,
         authorization: Arc<dyn AuthorizationStore>,
         registry: Arc<Mutex<CapabilityRegistry>>,
@@ -92,7 +87,6 @@ impl ProductionRuntimeCoordinator {
     ) -> Self {
         Self {
             packages,
-            drafts,
             operations,
             authorization,
             registry,
@@ -148,13 +142,24 @@ impl ProductionRuntimeCoordinator {
         Ok(state.next_generation)
     }
 
-    pub(super) fn prepare_virtual(
+    pub(super) fn prepare_requirements(
         &self,
         operation_id: &OperationId,
-        plan: &ApplyPlan,
+        plan_hash: &str,
+        requirements: &[RuntimeRequirement],
     ) -> Result<PreparedRuntime, HostRuntimeError> {
-        let candidate = self.drafts.get_candidate(plan.token().draft_id())?;
-        let (package, group, contribution) = self.resolve_candidate(&candidate)?;
+        if requirements.len() > 1 {
+            return Err(HostRuntimeError::Package(
+                "multiple runtime groups are not supported by this coordinator yet".into(),
+            ));
+        }
+        let Some(requirement) = requirements.first() else {
+            return Ok(PreparedRuntime::Empty {
+                operation_id: operation_id.clone(),
+                plan_hash: plan_hash.into(),
+            });
+        };
+        let (package, group, contribution) = self.resolve_requirement(requirement)?;
         let instance = RuntimeInstance::launch(
             package,
             group,
@@ -168,57 +173,53 @@ impl ProductionRuntimeCoordinator {
         )?;
         Ok(PreparedRuntime::Virtual {
             operation_id: operation_id.clone(),
-            plan_hash: plan.token().plan_hash().into(),
+            plan_hash: plan_hash.into(),
             instance: Box::new(instance),
         })
     }
 
-    fn resolve_candidate(
+    fn resolve_requirement(
         &self,
-        candidate: &WorkspaceCandidate,
-    ) -> Result<(Arc<IndexedPackage>, RuntimeGroupId, ContributionId), HostRuntimeError> {
-        if candidate.package_lock().len() != 1 {
-            return Err(HostRuntimeError::Package(
-                "virtual fixture requires one package lock".into(),
-            ));
-        }
-        self.resolve_package(&candidate.package_lock()[0])
-    }
-
-    fn resolve_package(
-        &self,
-        lock: &PackageLockEntry,
+        requirement: &RuntimeRequirement,
     ) -> Result<(Arc<IndexedPackage>, RuntimeGroupId, ContributionId), HostRuntimeError> {
         let package = self
             .packages
-            .resolve_artifact(&lock.package_id, &lock.version, &lock.artifact_sha256)
+            .resolve_artifact(
+                &requirement.package_id,
+                &requirement.package_version,
+                &requirement.artifact_sha256,
+            )
             .cloned()
             .map(Arc::new)
-            .ok_or_else(|| HostRuntimeError::Package(lock.package_id.to_string()))?;
-        let mut groups = package.runtime_groups.keys();
-        let group = groups
-            .next()
-            .cloned()
-            .ok_or_else(|| HostRuntimeError::Package("package has no runtime group".into()))?;
-        if groups.next().is_some() {
-            return Err(HostRuntimeError::Package(
-                "restricted virtual package must have one runtime group".into(),
-            ));
+            .ok_or_else(|| HostRuntimeError::Package(requirement.package_id.to_string()))?;
+        if !package
+            .runtime_groups
+            .contains_key(&requirement.runtime_group_id)
+        {
+            return Err(HostRuntimeError::Package(format!(
+                "runtime group {} is absent from package {}",
+                requirement.runtime_group_id, requirement.package_id
+            )));
         }
-        let mut contributions = package
+        let contribution = package
             .contributions
-            .values()
-            .filter(|contribution| contribution.runtime_group_id == group);
-        let contribution = contributions
-            .next()
-            .map(|value| value.contribution_id.clone())
-            .ok_or_else(|| HostRuntimeError::Package("runtime group has no contribution".into()))?;
-        if contributions.next().is_some() {
+            .get(&requirement.contribution_id)
+            .ok_or_else(|| {
+                HostRuntimeError::Package(format!(
+                    "contribution {} is absent from package {}",
+                    requirement.contribution_id, requirement.package_id
+                ))
+            })?;
+        if contribution.runtime_group_id != requirement.runtime_group_id {
             return Err(HostRuntimeError::Package(
-                "restricted virtual runtime must have one contribution".into(),
+                "compiled runtime group does not own the required contribution".into(),
             ));
         }
-        Ok((package, group, contribution))
+        Ok((
+            package,
+            requirement.runtime_group_id.clone(),
+            requirement.contribution_id.clone(),
+        ))
     }
 
     pub(super) fn stop_prepared(&self, prepared: PreparedRuntime) -> Result<(), HostRuntimeError> {
@@ -265,53 +266,16 @@ impl ProductionRuntimeCoordinator {
         Ok(RuntimeCommitOutcome::Applied)
     }
 
-    pub(super) fn recover_revision(
+    pub(super) fn recover_plan(
         &self,
         commit: &ApplyCommitRecord,
-        revision: &WorkspaceRevision,
+        plan: &CompiledExecutionPlan,
     ) -> Result<RuntimeCommitOutcome, HostRuntimeError> {
-        if revision.workspace_id != commit.candidate.workspace_id
-            || revision.revision_id != commit.candidate.revision_id
-            || digest_json(&revision.package_lock)? != commit.package_lock_sha256
-        {
-            return Err(HostRuntimeError::State(
-                "committed revision does not match recovery record".into(),
-            ));
-        }
-        let prepared = if revision
-            .document
-            .as_object()
-            .is_some_and(serde_json::Map::is_empty)
-            && revision.package_lock.is_empty()
-        {
-            PreparedRuntime::Empty {
-                operation_id: commit.operation_id.clone(),
-                plan_hash: commit.plan_hash.clone(),
-            }
-        } else {
-            let expected = serde_json::json!({"fixture": {"kind": "virtual_echo"}});
-            if revision.document != expected || revision.package_lock.len() != 1 {
-                return Err(HostRuntimeError::Package(
-                    "committed graph is unsupported by fixture runtime".into(),
-                ));
-            }
-            let (package, group, contribution) = self.resolve_package(&revision.package_lock[0])?;
-            PreparedRuntime::Virtual {
-                operation_id: commit.operation_id.clone(),
-                plan_hash: commit.plan_hash.clone(),
-                instance: Box::new(RuntimeInstance::launch(
-                    package,
-                    group,
-                    contribution,
-                    self.allocate_generation()?,
-                    &self.config,
-                    Arc::clone(&self.authorization),
-                    self.principal.clone(),
-                    self.process_policy.as_ref(),
-                    elapsed_millis(self.clock),
-                )?),
-            }
-        };
+        let prepared = self.prepare_requirements(
+            &commit.operation_id,
+            &commit.plan_hash,
+            plan.runtime_requirements(),
+        )?;
         self.activate_prepared(prepared)
     }
 }
@@ -320,10 +284,4 @@ impl Drop for ProductionRuntimeCoordinator {
     fn drop(&mut self) {
         let _ignored = self.shutdown();
     }
-}
-
-fn digest_json(value: &impl serde::Serialize) -> Result<String, HostRuntimeError> {
-    serde_json::to_vec(value)
-        .map(|bytes| format!("{:x}", Sha256::digest(bytes)))
-        .map_err(|error| HostRuntimeError::State(error.to_string()))
 }

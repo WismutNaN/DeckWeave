@@ -1,15 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use deckweave_application::{
-    ApiAuthScope, AppCommand, AppCommandResult, AppQuery, AppQueryResult, ApplicationGateway,
-    ApplicationService, CommandEnvelope, HostSnapshot, HostStatusSource, InMemoryApiAuthorizer,
-    RequestContext,
+    ApiAuthScope, ApiErrorCode, AppCommand, AppCommandResult, AppQuery, AppQueryResult,
+    ApplicationGateway, ApplicationService, CommandEnvelope, HostSnapshot, HostStatusSource,
+    InMemoryApiAuthorizer, RequestContext,
 };
-use deckweave_automation::{RestrictedFixtureCompiler, VIRTUAL_FIXTURE_PACKAGE_ID};
+use deckweave_automation::{
+    COMPILED_PLAN_EXTENSION_ID, CompileFence, CompiledExecutionPlan, PlanCompiler,
+    RestrictedFixtureCompiler, VIRTUAL_FIXTURE_PACKAGE_ID,
+};
 use deckweave_domain::{
     DeploymentMode, LifecycleState,
     ids::{
-        DraftId, DraftVersion, GrantRevision, HostBootId, IdempotencyKey, OperationId, PackageId,
-        PrincipalId, RegistryRevision, TraceId, WorkspaceId,
+        DedupEpoch, DraftId, DraftVersion, GrantRevision, HostBootId, IdempotencyKey, OperationId,
+        PackageId, PrincipalId, RegistryRevision, TraceId, WorkspaceId, WorkspaceRevisionId,
     },
 };
 use deckweave_host::{
@@ -22,9 +25,11 @@ use deckweave_platform::{AtomicFileStore, PublicationError, StorageError};
 use deckweave_platform_host::NativeAtomicFileStore;
 use deckweave_profiles::{JsonProfileStore, ProfileStoreLimits};
 use deckweave_workspace::{
-    ActiveSelection, ApplyCommitRecord, ApplyCommitStatus, ApplyOperationRepository,
-    ApplyOperationState, DraftRepository, PackageLockEntry, WorkspaceDraft, WorkspaceRevision,
+    ActiveSelection, ApplyCommitRecord, ApplyCommitStatus, ApplyOperationIntent,
+    ApplyOperationRepository, ApplyOperationState, ApplyRuntimeHealth, CommandClaimRepository,
+    DraftRepository, PackageLockEntry, WorkspaceCandidate, WorkspaceDraft,
 };
+use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,
     error::Error,
@@ -195,7 +200,7 @@ impl RuntimeCutover for Runtime {
     fn recover_committed(
         &self,
         _commit: &ApplyCommitRecord,
-        _revision: &WorkspaceRevision,
+        _plan: &CompiledExecutionPlan,
     ) -> Result<RuntimeCommitOutcome, RuntimeCutoverError> {
         self.recoveries.fetch_add(1, Ordering::SeqCst);
         Ok(RuntimeCommitOutcome::Applied)
@@ -231,6 +236,49 @@ fn disruptive_draft() -> Result<WorkspaceDraft, Box<dyn Error>> {
         extensions: BTreeMap::new(),
     });
     Ok(value)
+}
+
+fn stored_intent(
+    operation: &str,
+    revision: &str,
+    previous_active: Option<ActiveSelection>,
+) -> Result<ApplyOperationIntent, Box<dyn Error>> {
+    let candidate = WorkspaceCandidate::from_draft(draft()?)?;
+    let compiled = RestrictedFixtureCompiler.compile(
+        &candidate,
+        &CompileFence {
+            registry_revision: RegistryRevision::try_new(1)?,
+            grant_revision: GrantRevision::try_new(1)?,
+        },
+    )?;
+    let mut extensions = BTreeMap::new();
+    extensions.insert(
+        COMPILED_PLAN_EXTENSION_ID.into(),
+        serde_json::to_value(compiled.seal()?)?,
+    );
+    let package_lock_sha256 = format!(
+        "{:x}",
+        Sha256::digest(serde_json::to_vec(candidate.package_lock())?)
+    );
+    Ok(ApplyOperationIntent {
+        operation_id: OperationId::try_new(operation)?,
+        principal_id: PrincipalId::try_new("desktop-user")?,
+        dedup_epoch: DedupEpoch::try_new("epoch-recovery")?,
+        idempotency_key: IdempotencyKey::try_new(operation)?,
+        payload_sha256: "a".repeat(64),
+        draft_id: DraftId::try_new("apply-draft")?,
+        draft_version: DraftVersion::try_new(1)?,
+        plan_hash: "b".repeat(64),
+        candidate: ActiveSelection {
+            workspace_id: WorkspaceId::try_new("apply-workspace")?,
+            revision_id: WorkspaceRevisionId::try_new(revision)?,
+        },
+        previous_active,
+        allow_disruption: false,
+        candidate_sha256: candidate.content_sha256().into(),
+        package_lock_sha256,
+        extensions,
+    })
 }
 
 fn coordinator(
@@ -320,6 +368,7 @@ fn fixture_with_store(
     let gateway = ApplicationGateway::new(
         Arc::new(Status),
         Arc::clone(&repository) as Arc<dyn DraftRepository>,
+        Arc::clone(&repository) as Arc<dyn CommandClaimRepository>,
         authorizer,
         apply,
     );
@@ -401,6 +450,108 @@ fn public_gateway_applies_queries_and_replays_one_durable_operation() -> Result<
         repository.active_commit()?.map(|commit| commit.candidate),
         Some(snapshot.intent.candidate)
     );
+    Ok(())
+}
+
+#[test]
+fn apply_and_patch_share_one_durable_idempotency_namespace() -> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    let (gateway, repository, _, _, context) = fixture(directory.path().to_path_buf(), None)?;
+    let window = gateway.open_mutation_window(&context)?;
+    let shared_key = IdempotencyKey::try_new("shared-command-key")?;
+    gateway.command(
+        &context,
+        CommandEnvelope {
+            request_id: "request-apply-shared".into(),
+            idempotency_key: shared_key.clone(),
+            dedup_epoch: window.dedup_epoch.clone(),
+            dry_run: false,
+            command: AppCommand::ApplyDraft {
+                draft_id: DraftId::try_new("apply-draft")?,
+                expected_draft_version: DraftVersion::try_new(1)?,
+                expected_active: None,
+                allow_disruption: false,
+                plan_hash: plan_hash(&gateway, &context)?,
+            },
+        },
+    )?;
+    let active = repository.active_commit()?;
+    drop(gateway);
+    drop(repository);
+
+    let (reopened, _, _, _, restarted_context) = fixture(
+        directory.path().to_path_buf(),
+        active.map(|commit| commit.candidate),
+    )?;
+    let error = reopened
+        .command(
+            &restarted_context,
+            CommandEnvelope {
+                request_id: "request-patch-shared".into(),
+                idempotency_key: shared_key,
+                dedup_epoch: window.dedup_epoch,
+                dry_run: false,
+                command: AppCommand::PatchDraft {
+                    draft_id: DraftId::try_new("apply-draft")?,
+                    expected_version: DraftVersion::try_new(1)?,
+                    edit: deckweave_workspace::DraftCommand::Set {
+                        pointer: "/title".into(),
+                        value: serde_json::json!("must not apply"),
+                    },
+                },
+            },
+        )
+        .err()
+        .ok_or_else(|| std::io::Error::other("cross-command key reuse unexpectedly succeeded"))?;
+    assert_eq!(error.code, ApiErrorCode::IdempotencyConflict);
+    Ok(())
+}
+
+#[test]
+fn patch_then_apply_with_the_same_key_conflicts_before_apply_dispatch() -> Result<(), Box<dyn Error>>
+{
+    let directory = tempfile::tempdir()?;
+    let (gateway, _, _, runtime, context) = fixture(directory.path().to_path_buf(), None)?;
+    let window = gateway.open_mutation_window(&context)?;
+    let shared_key = IdempotencyKey::try_new("shared-patch-first")?;
+    gateway.command(
+        &context,
+        CommandEnvelope {
+            request_id: "request-patch-first".into(),
+            idempotency_key: shared_key.clone(),
+            dedup_epoch: window.dedup_epoch.clone(),
+            dry_run: false,
+            command: AppCommand::PatchDraft {
+                draft_id: DraftId::try_new("apply-draft")?,
+                expected_version: DraftVersion::try_new(1)?,
+                edit: deckweave_workspace::DraftCommand::Set {
+                    pointer: "/title".into(),
+                    value: serde_json::json!("patched"),
+                },
+            },
+        },
+    )?;
+    let error = gateway
+        .command(
+            &context,
+            CommandEnvelope {
+                request_id: "request-apply-second".into(),
+                idempotency_key: shared_key,
+                dedup_epoch: window.dedup_epoch,
+                dry_run: false,
+                command: AppCommand::ApplyDraft {
+                    draft_id: DraftId::try_new("apply-draft")?,
+                    expected_draft_version: DraftVersion::try_new(2)?,
+                    expected_active: None,
+                    allow_disruption: false,
+                    plan_hash: "not-dispatched".into(),
+                },
+            },
+        )
+        .err()
+        .ok_or_else(|| std::io::Error::other("cross-command key reuse unexpectedly succeeded"))?;
+    assert_eq!(error.code, ApiErrorCode::IdempotencyConflict);
+    assert_eq!(runtime.activations.load(Ordering::SeqCst), 0);
     Ok(())
 }
 
@@ -618,5 +769,59 @@ fn startup_reactivates_the_committed_revision_without_replaying_an_input()
     assert_eq!(recovered.len(), 1);
     assert_eq!(recovered[0].intent.operation_id, operation_id);
     assert_eq!(recovered[0].state, ApplyOperationState::Succeeded);
+    Ok(())
+}
+
+#[test]
+fn startup_marks_an_older_committed_operation_as_superseded() -> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    let repository = Arc::new(JsonProfileStore::new(
+        directory.path().to_path_buf(),
+        Arc::new(NativeAtomicFileStore),
+        ProfileStoreLimits::default(),
+    ));
+    repository.create_draft(&draft()?)?;
+    let candidate = WorkspaceCandidate::from_draft(draft()?)?;
+
+    let first = stored_intent("apply-first", "revision-first", None)?;
+    repository
+        .save_candidate_revision(&candidate.to_revision(first.candidate.revision_id.clone()))?;
+    repository.begin_apply(&first)?;
+    repository.mark_prepared(&first.operation_id)?;
+    repository.publish_commit(&ApplyCommitRecord::from_intent(&first))?;
+
+    let second = stored_intent(
+        "apply-second",
+        "revision-second",
+        Some(first.candidate.clone()),
+    )?;
+    repository
+        .save_candidate_revision(&candidate.to_revision(second.candidate.revision_id.clone()))?;
+    repository.begin_apply(&second)?;
+    repository.mark_prepared(&second.operation_id)?;
+    repository.publish_commit(&ApplyCommitRecord::from_intent(&second))?;
+    repository.finish_apply(
+        &second.operation_id,
+        ApplyOperationState::Succeeded,
+        ApplyRuntimeHealth::Applied,
+        None,
+    )?;
+
+    let evidence = Arc::new(Evidence {
+        value: Mutex::new(PlanningEvidence {
+            host_boot_id: HostBootId::try_new("boot-superseded")?,
+            registry_revision: RegistryRevision::try_new(1)?,
+            grant_revision: GrantRevision::try_new(1)?,
+            active: Some(second.candidate.clone()),
+        }),
+    });
+    let runtime = Arc::new(Runtime::new(Arc::clone(&evidence)));
+    let coordinator = coordinator(Arc::clone(&repository), evidence, runtime)?;
+    let recovered = coordinator.recover(1)?;
+    assert!(recovered.iter().any(|snapshot| {
+        snapshot.intent.operation_id == first.operation_id
+            && snapshot.state == ApplyOperationState::Superseded
+            && snapshot.commit_status == ApplyCommitStatus::Committed
+    }));
     Ok(())
 }

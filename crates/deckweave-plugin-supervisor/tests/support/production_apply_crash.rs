@@ -188,9 +188,9 @@ impl RuntimeCutover for CrashCutover {
     fn recover_committed(
         &self,
         commit: &ApplyCommitRecord,
-        revision: &WorkspaceRevision,
+        plan: &deckweave_automation::CompiledExecutionPlan,
     ) -> Result<RuntimeCommitOutcome, RuntimeCutoverError> {
-        self.inner.recover_committed(commit, revision)
+        self.inner.recover_committed(commit, plan)
     }
 }
 
@@ -210,7 +210,6 @@ fn crash_apply(root: &Path, point: CrashPoint) -> Result<(), Box<dyn Error>> {
     let registry = Arc::new(Mutex::new(CapabilityRegistry::default()));
     let runtime = Arc::new(ProductionRuntimeCoordinator::new(
         packages,
-        Arc::clone(&repository) as Arc<dyn DraftRepository>,
         Arc::clone(&repository) as Arc<dyn ApplyOperationRepository>,
         authorization as Arc<dyn AuthorizationStore>,
         registry,

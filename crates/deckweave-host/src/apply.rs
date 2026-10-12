@@ -7,6 +7,7 @@ use crate::{
 use deckweave_application::{
     ApplyPlanPreview, ApplyUseCase, ApplyUseCaseError, ExecuteApplyRequest, PlanApplyRequest,
 };
+use deckweave_automation::CompiledExecutionPlan;
 use deckweave_domain::ids::{OperationId, WorkspaceRevisionId};
 use deckweave_workspace::{
     ApplyCommitRecord, ApplyOperationIntent, ApplyOperationRepository, ApplyOperationSnapshot,
@@ -20,9 +21,13 @@ use std::{
 use thiserror::Error;
 
 mod cache;
+mod recovery;
 mod support;
 use cache::PlanCache;
-use support::{hash_json, map_draft_error, map_planning_error, map_repository_error, operation_id};
+use support::{
+    compiled_plan_from_commit, durable_plan_value, hash_json, map_draft_error, map_planning_error,
+    map_repository_error, operation_id, validate_recovery_plan,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RuntimeCommitOutcome {
@@ -63,7 +68,7 @@ pub trait RuntimeCutover: Send + Sync {
     fn recover_committed(
         &self,
         commit: &ApplyCommitRecord,
-        revision: &WorkspaceRevision,
+        plan: &CompiledExecutionPlan,
     ) -> Result<RuntimeCommitOutcome, RuntimeCutoverError>;
 }
 
@@ -99,58 +104,6 @@ impl ApplyCoordinator {
         })
     }
 
-    pub fn recover(
-        &self,
-        maximum_operations: usize,
-    ) -> Result<Vec<ApplyOperationSnapshot>, ApplyUseCaseError> {
-        let _execution = self
-            .execution
-            .lock()
-            .map_err(|_| ApplyUseCaseError::Unavailable("apply lock is poisoned".into()))?;
-        let active = self
-            .operations
-            .active_commit()
-            .map_err(map_repository_error)?;
-        let mut recovered = Vec::new();
-        if let Some(commit) = &active {
-            let revision = self
-                .operations
-                .load_candidate_revision(&commit.candidate)
-                .map_err(map_repository_error)?;
-            let outcome = self
-                .runtime
-                .recover_committed(commit, &revision)
-                .unwrap_or_else(|error| RuntimeCommitOutcome::Degraded(error.to_string()));
-            recovered.push(self.finish_committed(&commit.operation_id, outcome)?);
-        }
-        for pending in self
-            .operations
-            .recoverable_operations(maximum_operations)
-            .map_err(map_repository_error)?
-        {
-            if active
-                .as_ref()
-                .is_some_and(|commit| commit.operation_id == pending.intent.operation_id)
-            {
-                continue;
-            }
-            self.runtime
-                .abort_before_commit(&pending.intent.operation_id)
-                .map_err(|error| ApplyUseCaseError::RecoveryRequired(error.to_string()))?;
-            recovered.push(
-                self.operations
-                    .finish_apply(
-                        &pending.intent.operation_id,
-                        ApplyOperationState::Failed,
-                        ApplyRuntimeHealth::Inactive,
-                        Some("host restarted before durable commit".into()),
-                    )
-                    .map_err(map_repository_error)?,
-            );
-        }
-        Ok(recovered)
-    }
-
     fn execute_new(
         &self,
         request: &ExecuteApplyRequest,
@@ -168,6 +121,11 @@ impl ApplyCoordinator {
         self.operations
             .save_candidate_revision(&revision)
             .map_err(map_repository_error)?;
+        let mut extensions = BTreeMap::new();
+        extensions.insert(
+            deckweave_automation::COMPILED_PLAN_EXTENSION_ID.into(),
+            durable_plan_value(plan.compiled())?,
+        );
         let intent = ApplyOperationIntent {
             operation_id: operation_id.clone(),
             principal_id: request.principal_id.clone(),
@@ -185,7 +143,7 @@ impl ApplyCoordinator {
             allow_disruption: request.allow_disruption,
             candidate_sha256: plan.token().candidate_sha256().into(),
             package_lock_sha256: plan.token().package_lock_sha256().into(),
-            extensions: BTreeMap::new(),
+            extensions,
         };
         let begun = self
             .operations

@@ -7,6 +7,7 @@ import {
   EndpointPathSchema,
   ErrorCategory,
   HeartbeatSchema,
+  InvocationRequestSchema,
   ProtocolEnvelopeSchema,
   ProtocolVersionSchema,
   SignalSchema,
@@ -97,6 +98,39 @@ test("signal source preserves the fully scoped endpoint path", () => {
   assert.equal(decoded.source?.elementId, "key-a");
   assert.equal(decoded.source?.capabilityId, "button");
   assert.equal(decoded.source?.portId, "pressed");
+});
+
+test("invocation target preserves the fully scoped endpoint path", () => {
+  const invocation = create(InvocationRequestSchema, {
+    invocationId: "invocation-1",
+    runId: "run-1",
+    operationId: "set-level",
+    activationEpoch: 7n,
+    descriptorRevision: 11n,
+    deadlineHostTicks: 100n,
+    target: create(EndpointPathSchema, {
+      nodeId: "local",
+      providerId: "audio",
+      target: { case: "deviceIdentity", value: "microphone-1" },
+      elementId: "input",
+      capabilityId: "level",
+      portId: "set",
+    }),
+  });
+
+  const decoded = fromBinary(
+    InvocationRequestSchema,
+    toBinary(InvocationRequestSchema, invocation),
+  );
+  assert.equal(decoded.target?.nodeId, "local");
+  assert.equal(decoded.target?.providerId, "audio");
+  assert.deepEqual(decoded.target?.target, {
+    case: "deviceIdentity",
+    value: "microphone-1",
+  });
+  assert.equal(decoded.target?.elementId, "input");
+  assert.equal(decoded.target?.capabilityId, "level");
+  assert.equal(decoded.target?.portId, "set");
 });
 
 test("Protobuf-ES retains unknown fields and enum numbers", () => {

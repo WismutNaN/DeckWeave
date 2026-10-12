@@ -17,8 +17,8 @@ pub use model::{
     AssetReference, DraftCommand, PackageLockEntry, WorkspaceDraft, WorkspaceRevision,
 };
 pub use repository::{
-    DraftRepository, DraftRepositoryError, DraftView, MutationKey, MutationWindow,
-    StoredDraftMutation,
+    CommandClaim, CommandClaimOutcome, CommandClaimRepository, DraftRepository,
+    DraftRepositoryError, DraftView, MutationKey, MutationWindow, StoredDraftMutation,
 };
 pub use snapshot::{SnapshotRef, SnapshotValidationError, validate_snapshot};
 pub use transfer::{

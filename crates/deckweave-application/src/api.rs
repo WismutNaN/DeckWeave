@@ -5,8 +5,9 @@ use deckweave_domain::ids::{
 };
 use deckweave_workspace::{ActiveSelection, ApplyOperationSnapshot};
 pub use deckweave_workspace::{
-    DraftCommand, DraftRepository as DraftStore, DraftRepositoryError as DraftStoreError,
-    DraftView, MutationKey, MutationWindow, StoredDraftMutation, WorkspaceCandidate,
+    CommandClaim, CommandClaimOutcome, CommandClaimRepository, DraftCommand,
+    DraftRepository as DraftStore, DraftRepositoryError as DraftStoreError, DraftView, MutationKey,
+    MutationWindow, StoredDraftMutation, WorkspaceCandidate,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

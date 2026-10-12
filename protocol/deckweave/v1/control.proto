@@ -146,6 +146,9 @@ message InvocationRequest {
   uint64 deadline_host_ticks = 6;
   optional string idempotency_key = 7;
   OpaquePayload input = 8;
+  // Required when `org.deckweave.invocation.endpoint_path` is negotiated.
+  // Package/runtime session remain authenticated transport context.
+  EndpointPath target = 9;
 }
 
 enum ErrorCategory {

@@ -8,7 +8,8 @@ use crate::{
     RequestContext,
 };
 use deckweave_domain::ids::PrincipalId;
-use deckweave_workspace::{DraftRepository, MutationKey};
+use deckweave_workspace::{CommandClaim, CommandClaimRepository, DraftRepository, MutationKey};
+use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeMap, BTreeSet},
     sync::{Arc, Mutex},
@@ -24,6 +25,7 @@ pub trait HostStatusSource: Send + Sync {
 pub struct ApplicationGateway {
     host: Arc<dyn HostStatusSource>,
     drafts: Arc<dyn DraftRepository>,
+    command_claims: Arc<dyn CommandClaimRepository>,
     authorizer: Arc<dyn ApiAuthorizer>,
     apply: Arc<dyn ApplyUseCase>,
 }
@@ -33,12 +35,14 @@ impl ApplicationGateway {
     pub fn new(
         host: Arc<dyn HostStatusSource>,
         drafts: Arc<dyn DraftRepository>,
+        command_claims: Arc<dyn CommandClaimRepository>,
         authorizer: Arc<dyn ApiAuthorizer>,
         apply: Arc<dyn ApplyUseCase>,
     ) -> Self {
         Self {
             host,
             drafts,
+            command_claims,
             authorizer,
             apply,
         }
@@ -139,6 +143,29 @@ impl ApplicationService for ApplicationGateway {
                 false,
                 BTreeMap::new(),
             ));
+        }
+        if !envelope.dry_run {
+            let payload_fingerprint = serde_json::to_vec(&envelope.command)
+                .map(|bytes| format!("{:x}", Sha256::digest(bytes)))
+                .map_err(|error| {
+                    api_error(
+                        context,
+                        ApiErrorCode::Internal,
+                        "api.error.command_fingerprint",
+                        false,
+                        BTreeMap::from([("reason".into(), error.to_string().into())]),
+                    )
+                })?;
+            self.command_claims
+                .claim_command(&CommandClaim {
+                    key: MutationKey {
+                        principal_id: context.principal_id.clone(),
+                        dedup_epoch: envelope.dedup_epoch.clone(),
+                        idempotency_key: envelope.idempotency_key.clone(),
+                    },
+                    payload_fingerprint,
+                })
+                .map_err(|error| map_store_error(context, error))?;
         }
         match envelope.command {
             AppCommand::PatchDraft {

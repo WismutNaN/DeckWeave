@@ -2,6 +2,9 @@
 //! Stable hashing and boundary error translation for the apply coordinator.
 
 use super::*;
+use deckweave_automation::{
+    COMPILED_PLAN_EXTENSION_ID, CompiledExecutionPlan, DurableExecutionPlan,
+};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
@@ -27,6 +30,61 @@ pub(super) fn hash_json(value: &impl Serialize) -> Result<String, ApplyUseCaseEr
     serde_json::to_vec(value)
         .map(|bytes| format!("{:x}", Sha256::digest(bytes)))
         .map_err(|error| ApplyUseCaseError::Unavailable(error.to_string()))
+}
+
+pub(super) fn durable_plan_value(
+    plan: &CompiledExecutionPlan,
+) -> Result<serde_json::Value, ApplyUseCaseError> {
+    let sealed = plan
+        .seal()
+        .map_err(|error| ApplyUseCaseError::InvalidPlan(error.to_string()))?;
+    serde_json::to_value(sealed).map_err(|error| ApplyUseCaseError::Unavailable(error.to_string()))
+}
+
+pub(super) fn compiled_plan_from_commit(
+    commit: &ApplyCommitRecord,
+) -> Result<CompiledExecutionPlan, ApplyUseCaseError> {
+    let value = commit
+        .extensions
+        .get(COMPILED_PLAN_EXTENSION_ID)
+        .cloned()
+        .ok_or_else(|| {
+            ApplyUseCaseError::RecoveryRequired(
+                "committed operation has no durable compiled plan; re-apply the revision".into(),
+            )
+        })?;
+    serde_json::from_value::<DurableExecutionPlan>(value)
+        .map_err(|error| ApplyUseCaseError::RecoveryRequired(error.to_string()))?
+        .verify()
+        .map_err(|error| ApplyUseCaseError::RecoveryRequired(error.to_string()))
+}
+
+pub(super) fn validate_recovery_plan(
+    commit: &ApplyCommitRecord,
+    revision: &WorkspaceRevision,
+    plan: &CompiledExecutionPlan,
+) -> Result<(), ApplyUseCaseError> {
+    if revision.workspace_id != commit.candidate.workspace_id
+        || revision.revision_id != commit.candidate.revision_id
+        || hash_json(&revision.package_lock)? != commit.package_lock_sha256
+    {
+        return Err(ApplyUseCaseError::RecoveryRequired(
+            "committed revision does not match its apply record".into(),
+        ));
+    }
+    for requirement in plan.runtime_requirements() {
+        if !revision.package_lock.iter().any(|locked| {
+            locked.package_id == requirement.package_id
+                && locked.version == requirement.package_version
+                && locked.artifact_sha256 == requirement.artifact_sha256
+        }) {
+            return Err(ApplyUseCaseError::RecoveryRequired(format!(
+                "compiled runtime requirement for {} is absent from the committed package lock",
+                requirement.package_id
+            )));
+        }
+    }
+    Ok(())
 }
 
 pub(super) fn map_planning_error(error: ApplyPlanningError) -> ApplyUseCaseError {

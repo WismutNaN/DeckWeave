@@ -6,11 +6,11 @@ use std::collections::BTreeMap;
 use thiserror::Error;
 
 pub mod framing;
-
 pub mod v1 {
     include!(concat!(env!("OUT_DIR"), "/deckweave.v1.rs"));
 }
 
+pub const FEATURE_INVOCATION_ENDPOINT_PATH: &str = "org.deckweave.invocation.endpoint_path";
 /// Rust document types generated from the same JSON Schemas as the TypeScript
 /// declarations. Extensible objects use schema-valued `additionalProperties`
 /// so unknown optional fields survive a typed JSON round-trip.

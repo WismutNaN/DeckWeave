@@ -2,18 +2,16 @@
 //! Host planning and cutover port implementations.
 
 use super::{
-    config::HostRuntimeError,
-    coordinator::{PreparedRuntime, ProductionRuntimeCoordinator},
-    instance::elapsed_millis,
+    config::HostRuntimeError, coordinator::ProductionRuntimeCoordinator, instance::elapsed_millis,
 };
-use deckweave_automation::ExecutionPlanKind;
+use deckweave_automation::CompiledExecutionPlan;
 use deckweave_domain::ids::OperationId;
 use deckweave_host::{
     ApplyPlan, ApplyPlanningError, PlanningClock, PlanningEvidence, PlanningEvidenceError,
     PlanningEvidenceSource, PreparedActivation, RuntimeActivation, RuntimeActivationError,
     RuntimeCommitOutcome, RuntimeCutover, RuntimeCutoverError,
 };
-use deckweave_workspace::{ApplyCommitRecord, WorkspaceRevision};
+use deckweave_workspace::ApplyCommitRecord;
 
 impl PlanningEvidenceSource for ProductionRuntimeCoordinator {
     fn snapshot(&self) -> Result<PlanningEvidence, PlanningEvidenceError> {
@@ -73,15 +71,13 @@ impl RuntimeActivation for ProductionRuntimeCoordinator {
                 "another prepared runtime exists".into(),
             ));
         }
-        let prepared = match plan.compiled().kind() {
-            ExecutionPlanKind::EmptyFixture => PreparedRuntime::Empty {
-                operation_id: operation_id.clone(),
-                plan_hash: plan.token().plan_hash().into(),
-            },
-            ExecutionPlanKind::VirtualEchoFixture => self
-                .prepare_virtual(operation_id, plan)
-                .map_err(runtime_prepare)?,
-        };
+        let prepared = self
+            .prepare_requirements(
+                operation_id,
+                plan.token().plan_hash(),
+                plan.compiled().runtime_requirements(),
+            )
+            .map_err(runtime_prepare)?;
         self.lock_state().map_err(runtime_prepare)?.prepared = Some(prepared);
         Ok(PreparedActivation::new(
             operation_id.clone(),
@@ -164,9 +160,9 @@ impl RuntimeCutover for ProductionRuntimeCoordinator {
     fn recover_committed(
         &self,
         commit: &ApplyCommitRecord,
-        revision: &WorkspaceRevision,
+        plan: &CompiledExecutionPlan,
     ) -> Result<RuntimeCommitOutcome, RuntimeCutoverError> {
-        self.recover_revision(commit, revision)
+        self.recover_plan(commit, plan)
             .map_err(|error| RuntimeCutoverError::Recovery(error.to_string()))
     }
 }

@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-use deckweave_automation::{
-    ExecutionPlanKind, RestrictedFixtureCompiler, VIRTUAL_FIXTURE_PACKAGE_ID,
-};
+use deckweave_automation::{RestrictedFixtureCompiler, VIRTUAL_FIXTURE_PACKAGE_ID};
 use deckweave_domain::ids::{
     DedupEpoch, DraftId, DraftVersion, GrantRevision, HostBootId, OperationId, PackageId,
     PrincipalId, RegistryRevision, WorkspaceId,
@@ -245,7 +243,7 @@ fn assert_precondition(result: Result<(), ApplyPlanningError>, expected: PlanPre
 fn prepare_uses_a_fenced_plan_and_barrier_rechecks_grants() -> Result<(), Box<dyn Error>> {
     let (service, _, evidence, _, activation, request) = fixture()?;
     let plan = service.plan(&request)?;
-    assert_eq!(plan.compiled().kind(), ExecutionPlanKind::EmptyFixture);
+    assert!(plan.compiled().runtime_requirements().is_empty());
     assert_eq!(plan.token().plan_hash().len(), 64);
     let mut disruption_allowed = request.clone();
     disruption_allowed.allow_disruption = true;
@@ -339,10 +337,7 @@ fn package_lock_change_invalidates_a_virtual_fixture_plan() -> Result<(), Box<dy
     let (service, repository, _, _, activation, request) = fixture()?;
     repository.replace(virtual_candidate('a')?);
     let plan = service.plan(&request)?;
-    assert_eq!(
-        plan.compiled().kind(),
-        ExecutionPlanKind::VirtualEchoFixture
-    );
+    assert_eq!(plan.compiled().runtime_requirements().len(), 1);
 
     repository.replace(virtual_candidate('b')?);
     let error = service

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use deckweave_automation::{
-    CompileFence, ExecutionPlanKind, PlanCompileError, PlanCompiler, RestrictedFixtureCompiler,
-    VIRTUAL_FIXTURE_PACKAGE_ID,
+    CompileFence, PlanCompileError, PlanCompiler, RestrictedFixtureCompiler,
+    VIRTUAL_FIXTURE_CONTRIBUTION_ID, VIRTUAL_FIXTURE_PACKAGE_ID, VIRTUAL_FIXTURE_RUNTIME_GROUP_ID,
 };
 use deckweave_domain::ids::{
     DraftId, DraftVersion, GrantRevision, PackageId, RegistryRevision, WorkspaceId,
@@ -37,8 +37,7 @@ fn fence() -> Result<CompileFence, Box<dyn Error>> {
 fn only_empty_and_exact_virtual_echo_fixtures_compile() -> Result<(), Box<dyn Error>> {
     let compiler = RestrictedFixtureCompiler;
     let empty = compiler.compile(&candidate(serde_json::json!({}))?, &fence()?)?;
-    assert_eq!(empty.kind(), ExecutionPlanKind::EmptyFixture);
-    assert!(empty.required_packages().is_empty());
+    assert!(empty.runtime_requirements().is_empty());
 
     let mut virtual_draft = candidate(serde_json::json!({
         "fixture": {"kind": "virtual_echo"}
@@ -65,9 +64,19 @@ fn only_empty_and_exact_virtual_echo_fixtures_compile() -> Result<(), Box<dyn Er
     };
     virtual_draft = WorkspaceCandidate::from_draft(source.clone())?;
     let compiled = compiler.compile(&virtual_draft, &fence()?)?;
-    assert_eq!(compiled.kind(), ExecutionPlanKind::VirtualEchoFixture);
-    assert_eq!(compiled.required_packages().len(), 1);
+    assert_eq!(compiled.runtime_requirements().len(), 1);
+    let requirement = &compiled.runtime_requirements()[0];
+    assert_eq!(requirement.package_id.as_str(), VIRTUAL_FIXTURE_PACKAGE_ID);
+    assert_eq!(
+        requirement.runtime_group_id.as_str(),
+        VIRTUAL_FIXTURE_RUNTIME_GROUP_ID
+    );
+    assert_eq!(
+        requirement.contribution_id.as_str(),
+        VIRTUAL_FIXTURE_CONTRIBUTION_ID
+    );
     assert!(!compiled.requires_disruption());
+    assert_eq!(compiled.clone(), compiled.seal()?.verify()?);
 
     source.document = serde_json::json!({
         "fixture": {"kind": "virtual_disruptive_echo"}

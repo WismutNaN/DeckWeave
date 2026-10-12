@@ -1,8 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-use deckweave_domain::ids::{GrantRevision, PackageId, RegistryRevision};
+use deckweave_domain::ids::{
+    ContributionId, GrantRevision, PackageId, RegistryRevision, RuntimeGroupId,
+};
 use deckweave_workspace::WorkspaceCandidate;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use thiserror::Error;
+
+pub const COMPILED_PLAN_EXTENSION_ID: &str = "org.deckweave.automation.compiled-plan.v1";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -11,11 +16,14 @@ pub struct CompileFence {
     pub grant_revision: GrantRevision,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ExecutionPlanKind {
-    EmptyFixture,
-    VirtualEchoFixture,
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeRequirement {
+    pub package_id: PackageId,
+    pub package_version: String,
+    pub artifact_sha256: String,
+    pub runtime_group_id: RuntimeGroupId,
+    pub contribution_id: ContributionId,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -23,27 +31,31 @@ pub enum ExecutionPlanKind {
 pub struct CompiledExecutionPlan {
     compiler_id: String,
     compiler_version: String,
-    kind: ExecutionPlanKind,
     semantic_sha256: String,
-    required_packages: Vec<PackageId>,
+    runtime_requirements: Vec<RuntimeRequirement>,
     requires_disruption: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DurableExecutionPlan {
+    document_sha256: String,
+    plan: CompiledExecutionPlan,
 }
 
 impl CompiledExecutionPlan {
     pub(crate) fn new(
         compiler_id: String,
         compiler_version: String,
-        kind: ExecutionPlanKind,
         semantic_sha256: String,
-        required_packages: Vec<PackageId>,
+        runtime_requirements: Vec<RuntimeRequirement>,
         requires_disruption: bool,
     ) -> Self {
         Self {
             compiler_id,
             compiler_version,
-            kind,
             semantic_sha256,
-            required_packages,
+            runtime_requirements,
             requires_disruption,
         }
     }
@@ -59,23 +71,40 @@ impl CompiledExecutionPlan {
     }
 
     #[must_use]
-    pub fn kind(&self) -> ExecutionPlanKind {
-        self.kind
-    }
-
-    #[must_use]
     pub fn semantic_sha256(&self) -> &str {
         &self.semantic_sha256
     }
 
     #[must_use]
-    pub fn required_packages(&self) -> &[PackageId] {
-        &self.required_packages
+    pub fn runtime_requirements(&self) -> &[RuntimeRequirement] {
+        &self.runtime_requirements
     }
 
     #[must_use]
     pub fn requires_disruption(&self) -> bool {
         self.requires_disruption
+    }
+
+    pub fn seal(&self) -> Result<DurableExecutionPlan, PlanCompileError> {
+        let bytes = serde_json::to_vec(self)
+            .map_err(|error| PlanCompileError::InvalidGraph(error.to_string()))?;
+        Ok(DurableExecutionPlan {
+            document_sha256: format!("{:x}", Sha256::digest(bytes)),
+            plan: self.clone(),
+        })
+    }
+}
+
+impl DurableExecutionPlan {
+    pub fn verify(self) -> Result<CompiledExecutionPlan, PlanCompileError> {
+        let bytes = serde_json::to_vec(&self.plan)
+            .map_err(|error| PlanCompileError::InvalidGraph(error.to_string()))?;
+        if format!("{:x}", Sha256::digest(bytes)) != self.document_sha256 {
+            return Err(PlanCompileError::InvalidGraph(
+                "durable compiled plan checksum mismatch".into(),
+            ));
+        }
+        Ok(self.plan)
     }
 }
 

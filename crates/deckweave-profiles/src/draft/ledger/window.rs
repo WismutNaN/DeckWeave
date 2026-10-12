@@ -54,7 +54,7 @@ impl JsonProfileStore {
         Ok(window)
     }
 
-    pub(in crate::draft) fn validate_mutation_key(
+    pub(crate) fn validate_mutation_key(
         &self,
         key: &MutationKey,
     ) -> Result<(), DraftMutationError> {

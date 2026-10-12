@@ -1,6 +1,6 @@
 # Фаза 5: минимальный automation engine
 
-Статус: план реализации после ревью `a3569bf`. Основание и обнаруженные дефекты — [повторная проверка apply](../research/pre-apply-review.md#phase-5-readiness). Фаза 4 создала рабочую основу для apply и восстановления isolated fixture, но три новых recovery/dedup случая ещё не закрыты. Проектирование и pure compiler/scheduler можно начинать; подключение live effects требует среза 5.0.
+Статус: срез 5.0 завершён, адресуемая wire-часть 5.1 и runtime manifest 5.2 начаты. Основание и исходные дефекты — [повторная проверка apply](../research/pre-apply-review.md#phase-5-readiness). Фаза 4 создала рабочую основу для apply и восстановления isolated fixture; общий command claim, superseded recovery и отдельный pending budget теперь закрывают найденные P1-переходы.
 
 ## Граница результата
 
@@ -29,16 +29,16 @@ Graph vocabulary принадлежит Automation; shared endpoint/IDs/schema r
 
 ### 5.0 — Закрыть обнаруженные переходы Фазы 4
 
-- [ ] Единый durable key scope для `PatchDraft` и `ApplyDraft`: command kind, target и preconditions входят в fingerprint; другой command с тем же principal/epoch/key конфликтует. Проверять оба порядка и restart. Общий claim должен быть атомарным с intent/recovery; две последовательные проверки разных каталогов не заменяют reservation.
-- [ ] Recovery различает never-committed pending, текущую committed selection и ранее committed, уже superseded operation. Старую committed operation нельзя переводить в failed-before-commit либо реактивировать. Неизвестное завершение её activation отражается отдельно от факта commit; retry не повторяет effects.
-- [ ] Recovery обходит завершённую историю с bounded памятью и pagination/index, не расходуя на неё лимит pending work. Проверить startup после более 256 terminal operations, большое число pending и corruption; поднятие константы не является исправлением.
+- [x] Единый durable key scope для `PatchDraft` и `ApplyDraft`: Gateway резервирует opaque fingerprint в общем `CommandClaimRepository` до dispatch; command kind, target и preconditions входят в fingerprint. Оба порядка и restart дают conflict.
+- [x] Recovery различает never-committed pending, текущую committed selection и ранее committed operation. Profile Store запечатывает status вытесняемого head до нового commit, а Host завершает неизвестный прежний activation как `Superseded/Inactive`, не как failed-before-commit и не реактивирует её.
+- [x] Recovery потоково обходит terminal history с bounded памятью и расходует `maximum` только на pending work. Regression содержит 300 terminal operations при desktop budget 256. Полный B2 index/checkpoint/GC всё ещё нужен для ограничения времени полного directory scan и storage growth.
 
 Выход: три отрицательных сценария из [ревью](../research/pre-apply-review.md#phase-5-readiness) становятся постоянными regression tests. Сохраняются прежние crash/revoke/handoff acceptance. Полный B2 checkpoint/GC можно оставить до Фазы 6, но исправления startup limit и key scope относятся к 5.0.
 
 ### 5.1 — Graph contract и адресуемый invocation protocol
 
 - [ ] Зафиксировать versioned `GraphDocument`: стабильные GraphNodeId, source/action/state/condition/feedback, edges и typed value references. Отделить UI layout, unknown extensions и semantic data. Неизвестный executable node возвращает unsupported; он не пропускается.
-- [ ] Согласовать `InvocationRequest` с `RuntimeEndpointRef`: process session задаётся authenticated transport, а request содержит полный target path либо однозначный negotiated handle на него. Operation ID определяет операцию, а не экземпляр устройства. Добавление поля требует wire fixtures Rust/TS и required-feature negotiation, чтобы старый runtime не проигнорировал target.
+- [x] Согласовать `InvocationRequest` с `RuntimeEndpointRef`: process session задаётся authenticated transport, request содержит полный `EndpointPath`, а operation ID определяет операцию, не экземпляр устройства. Rust/TS encode/decode fixtures фиксируют путь; Host объявляет `org.deckweave.invocation.endpoint_path` v1. Будущий dispatcher обязан отправлять invocation только session, согласовавшей feature.
 - [ ] Определить command delivery outcomes: rejected-before-send, enqueued/possibly-sent, accepted job, terminal result. Успех `ProcessRuntime::send` означает только помещение в локальную очередь; потеря ответа после возможной передачи не даёт права повторить внешний effect.
 - [ ] Зафиксировать limits для graph nodes/edges, payload bytes, queued events, pending runs/invocations, timers и trace; ошибки возвращаются структурированно, без обрезания данных.
 
@@ -46,7 +46,7 @@ Graph vocabulary принадлежит Automation; shared endpoint/IDs/schema r
 
 ### 5.2 — Чистый compiler и исполняемое представление
 
-- [ ] Заменить `ExecutionPlanKind::{EmptyFixture, VirtualEchoFixture}` общим IR: version/compiler identity, source subscriptions, typed node instructions, dependency indexes, state slots и runtime requirements. Hash связывает IR с candidate и descriptor/schema evidence.
+- [~] `ExecutionPlanKind::{EmptyFixture, VirtualEchoFixture}` удалён: compiler уже выдаёт точные `RuntimeRequirement` с package/version/hash/group/contribution, а checksum-версия compiled plan сохраняется в apply intent/commit. Полный IR с source subscriptions, typed instructions, indexes и state slots ещё не реализован.
 - [ ] Дать compiler immutable schema/descriptor catalog, а не только номера `CompileFence`. Проверять direction, schema version, unit/range, availability policy, missing references и resource requirements. Никаких неявных string/number conversions.
 - [ ] Разделить semantic compile и runtime binding. Validate/plan не запускает plugin; schema/template metadata берётся из static catalog или ранее полученного descriptor evidence. Если её нет, plan сообщает unresolved/needs-discovery. Prepare получает фактические descriptors и связывает stable references с новыми sessions, проверяя совместимость до commit.
 - [ ] Initial graph subset — DAG. Cycles отклоняются; delay/schedule cycles появятся вместе с их budgets и semantics в Фазе 11. Condition читает state snapshot текущего ingress transition.
@@ -64,7 +64,7 @@ Graph vocabulary принадлежит Automation; shared endpoint/IDs/schema r
 
 ### 5.4 — Runtime plan activation и безопасный dispatch
 
-- [ ] Заменить единственный `PreparedRuntime::Virtual` и ограничение одним contribution набором required runtime groups/instances из IR. Ключ session — package/artifact/group; unused contributions не запускаются. Recovery использует тот же compiler/binding path из сохранённой revision, а не отдельный JSON parser.
+- [~] Prepare и recovery используют один сохранённый compiled runtime manifest; Plugin Runtime больше не разбирает `fixture.kind` и не выбирает первый group/contribution. Текущий coordinator пока принимает не более одного requirement; набор нескольких groups/instances остаётся следующим расширением.
 - [ ] Связать реальный ingress/command/outcome adapters с scheduler. Текущий monitor только обновляет heartbeat и отбрасывает body; его нельзя считать работающим event dispatcher. Descriptor changes, process exit, revoke и restart/backoff становятся owner events.
 - [ ] Сделать barrier частью живого dispatcher: закрыть новые effects, bounded drain/cancel, release held outputs, повторно проверить grants/topology, commit, назначить новую epoch, открыть новый plan. Булевый флаг без проверяющего его dispatch path не закрывает acceptance.
 - [ ] Перед отправкой каждой команды проверять актуальные grants, endpoint generation/revision, epoch и owner lease. Cleanup хранит владельца прежнего output, не вычисляет release через новый mapping. Stop/recovery имеют общий budget для всех runtime groups.

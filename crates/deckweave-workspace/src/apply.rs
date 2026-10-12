@@ -23,13 +23,19 @@ pub enum ApplyOperationState {
     Succeeded,
     Failed,
     Degraded,
+    /// The durable commit happened, but a newer commit became active before
+    /// startup could establish the former activation outcome.
+    Superseded,
     RecoveryRequired,
 }
 
 impl ApplyOperationState {
     #[must_use]
     pub fn is_terminal(self) -> bool {
-        matches!(self, Self::Succeeded | Self::Failed | Self::Degraded)
+        matches!(
+            self,
+            Self::Succeeded | Self::Failed | Self::Degraded | Self::Superseded
+        )
     }
 }
 
@@ -95,7 +101,7 @@ impl ApplyCommitRecord {
             plan_hash: intent.plan_hash.clone(),
             candidate_sha256: intent.candidate_sha256.clone(),
             package_lock_sha256: intent.package_lock_sha256.clone(),
-            extensions: BTreeMap::new(),
+            extensions: intent.extensions.clone(),
         }
     }
 }

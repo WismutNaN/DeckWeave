@@ -2,13 +2,16 @@
 //! Deliberately restricted compiler used only to prove the Phase 4 apply seam.
 
 use crate::{
-    CompileFence, CompiledExecutionPlan, ExecutionPlanKind, PlanCompileError, PlanCompiler,
+    CompileFence, CompiledExecutionPlan, PlanCompileError, PlanCompiler, RuntimeRequirement,
 };
+use deckweave_domain::ids::{ContributionId, RuntimeGroupId};
 use deckweave_workspace::WorkspaceCandidate;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 pub const VIRTUAL_FIXTURE_PACKAGE_ID: &str = "org.deckweave.example.virtual";
+pub const VIRTUAL_FIXTURE_RUNTIME_GROUP_ID: &str = "control";
+pub const VIRTUAL_FIXTURE_CONTRIBUTION_ID: &str = "virtual-device";
 const COMPILER_ID: &str = "org.deckweave.compiler.restricted-fixture";
 const COMPILER_VERSION: &str = "1";
 
@@ -20,7 +23,7 @@ pub struct RestrictedFixtureCompiler;
 struct SemanticInput<'a> {
     compiler_id: &'static str,
     compiler_version: &'static str,
-    kind: ExecutionPlanKind,
+    runtime_requirements: &'a [RuntimeRequirement],
     candidate_sha256: &'a str,
     package_lock_sha256: &'a str,
     fence: &'a CompileFence,
@@ -51,14 +54,14 @@ impl PlanCompiler for RestrictedFixtureCompiler {
         candidate: &WorkspaceCandidate,
         fence: &CompileFence,
     ) -> Result<CompiledExecutionPlan, PlanCompileError> {
-        let (kind, required_packages, requires_disruption) = if candidate
+        let (runtime_requirements, requires_disruption) = if candidate
             .document()
             .as_object()
             .is_some_and(serde_json::Map::is_empty)
             && candidate.package_lock().is_empty()
             && candidate.assets().is_empty()
         {
-            (ExecutionPlanKind::EmptyFixture, vec![], false)
+            (vec![], false)
         } else {
             let document: VirtualDocument = serde_json::from_value(candidate.document().clone())
                 .map_err(|_| PlanCompileError::UnsupportedGraph)?;
@@ -74,15 +77,22 @@ impl PlanCompiler for RestrictedFixtureCompiler {
                 return Err(PlanCompileError::UnsupportedGraph);
             }
             (
-                ExecutionPlanKind::VirtualEchoFixture,
-                vec![package.package_id.clone()],
+                vec![RuntimeRequirement {
+                    package_id: package.package_id.clone(),
+                    package_version: package.version.clone(),
+                    artifact_sha256: package.artifact_sha256.clone(),
+                    runtime_group_id: RuntimeGroupId::try_new(VIRTUAL_FIXTURE_RUNTIME_GROUP_ID)
+                        .map_err(|error| PlanCompileError::InvalidGraph(error.to_string()))?,
+                    contribution_id: ContributionId::try_new(VIRTUAL_FIXTURE_CONTRIBUTION_ID)
+                        .map_err(|error| PlanCompileError::InvalidGraph(error.to_string()))?,
+                }],
                 requires_disruption,
             )
         };
         let semantic = SemanticInput {
             compiler_id: COMPILER_ID,
             compiler_version: COMPILER_VERSION,
-            kind,
+            runtime_requirements: &runtime_requirements,
             candidate_sha256: candidate.content_sha256(),
             package_lock_sha256: candidate.package_lock_sha256(),
             fence,
@@ -92,9 +102,8 @@ impl PlanCompiler for RestrictedFixtureCompiler {
         Ok(CompiledExecutionPlan::new(
             COMPILER_ID.into(),
             COMPILER_VERSION.into(),
-            kind,
             format!("{:x}", Sha256::digest(bytes)),
-            required_packages,
+            runtime_requirements,
             requires_disruption,
         ))
     }

@@ -272,7 +272,7 @@ Executable C1 spike остаётся обязательным условием �
 **Цель:** создать безопасный путь read → draft → validate → plan → apply → rollback.
 **Результат:** CLI/test client редактирует virtual workspace, получает conflict и возвращается к snapshot.
 **Трудоёмкость:** L
-**Статус:** [~] Основной apply path реализован; перед live effects Фазы 5 открыты три dedup/recovery исправления [5.0](phase-5-automation.md#50--закрыть-обнаруженные-переходы-фазы-4). До editor также остаётся B2 compaction.
+**Статус:** [~] Основной apply path и dedup/recovery срез 5.0 реализованы. До editor остаётся B2 compaction; Фаза 5 продолжает graph/compiler/scheduler и live dispatch.
 
 ### Контекст для агента
 > Plugin lifecycle и production coordinator проходят public application path с isolated virtual fixture. Active automation пока пуст; фаза строит источник истины и command/query boundary.
@@ -292,7 +292,7 @@ Export переносит выбранные revision contents как portable t
 Dry-run использует тот же command vocabulary, но не пишет draft и не резервирует idempotency key;
 повтор mutation после restart читает durable receipt и согласованный исторический document. B1 добавил
 авторизованную выдачу persisted dedup windows, global receipt index, expiry/quota и recovery pending commit;
-checkpoint/compaction B2 пока отсутствует. Durable apply и production runtime coordination реализованы; E2 подтверждает проверенную kill matrix, но повторный аудит обнаружил cross-command dedup и recovery gaps. Они закрываются в [5.0](phase-5-automation.md#50--закрыть-обнаруженные-переходы-фазы-4); power-loss гарантии не обещаны [gate A–E](#pre-apply-gate).
+checkpoint/compaction B2 пока отсутствует. Durable apply и production runtime coordination реализованы; E2 подтверждает kill matrix, а срез 5.0 закрыл cross-command dedup, superseded commit и terminal-history budget. Power-loss гарантии не обещаны [gate A–E](#pre-apply-gate).
 
 ### Задачи
 
@@ -302,8 +302,8 @@ checkpoint/compaction B2 пока отсутствует. Durable apply и produ
 - [x] Реализовать transport-independent ApplicationService и expected draft revision (→ [Модуль: Local API](../architecture/modules/local-api.md)).
 - [x] Реализовать OperationId, durable operation tracking и status queries через Application Gateway (→ [Модуль: Local API](../architecture/modules/local-api.md)).
 - [x] Реализовать Host apply skeleton с durable commit record, barrier, disruption/degraded policy, package lock и operation receipts (→ [ADR-0012](../decisions/0012-apply-and-execution-lifecycle.md), [Модуль: Host Runtime](../architecture/modules/host-runtime.md)).
-- [~] Principals/scopes, draft dedup/expiry до revision check и dry-run без effects реализованы; общий scope ключа между draft/apply ещё требует F5-R1 (→ [API](../contracts/application-api.md#идемпотентность-и-dry-run), [ревью](../research/pre-apply-review.md#phase-5-readiness)).
-- [~] Identity/ownership и runtime coordination реализованы; recovery history требует F5-R2/F5-R3, B2 checkpoint/compaction остаётся до editor Фазы 6 по [gate A–E](#pre-apply-gate).
+- [x] Principals/scopes, общий durable command claim для draft/apply, expiry до replay и dry-run без reservation реализованы (→ [API](../contracts/application-api.md#идемпотентность-и-dry-run), [ревью](../research/pre-apply-review.md#phase-5-readiness)).
+- [~] Identity/ownership и runtime coordination реализованы; superseded recovery и отдельный pending budget закрыты, B2 checkpoint/compaction остаётся до editor Фазы 6 по [gate A–E](#pre-apply-gate).
 - [x] Добавить in-process test client; HTTP/WS transport отложить до Фазы 16 (→ [Application API](../contracts/application-api.md)).
 
 ### Тесты
@@ -326,7 +326,7 @@ checkpoint/compaction B2 пока отсутствует. Durable apply и produ
 **Цель:** выполнить deterministic source → action → feedback path.
 **Результат:** virtual button вызывает virtual action, меняет state и feedback; replay повторяет результат.
 **Трудоёмкость:** L
-**Статус:** [ ] Не начата
+**Статус:** [~] В процессе: 5.0 завершён; часть 5.1/5.2 реализована
 
 ### Контекст для агента
 > Profile/API и isolated virtual apply дают основу интеграции. Три обнаруженных dedup/recovery дефекта закрываются в 5.0 до live effects; pure compiler/scheduler можно делать независимо. Реализуется узкий graph subset без schedules и complex UI.
@@ -347,10 +347,10 @@ checkpoint/compaction B2 пока отсутствует. Durable apply и produ
 
 ### Задачи
 
-- [ ] Закрыть F5-R1–R3 до подключения effects (→ [срез 5.0](phase-5-automation.md#50--закрыть-обнаруженные-переходы-фазы-4)).
-- [ ] Согласовать versioned graph и полный invocation target с required-feature negotiation и Rust/TS wire fixtures (→ [срез 5.1](phase-5-automation.md#51--graph-contract-и-адресуемый-invocation-protocol), [Capabilities](../contracts/capabilities.md)).
+- [x] Закрыть F5-R1–R3 до подключения effects (→ [срез 5.0](phase-5-automation.md#50--закрыть-обнаруженные-переходы-фазы-4)).
+- [~] Полный invocation target, required-feature ID и Rust/TS wire fixtures реализованы; versioned graph и dispatcher enforcement остаются (→ [срез 5.1](phase-5-automation.md#51--graph-contract-и-адресуемый-invocation-protocol), [Capabilities](../contracts/capabilities.md)).
 - [ ] Реализовать graph compiler для source/action/state/condition/feedback (→ [Модуль: Automation Engine](../architecture/modules/automation-engine.md)).
-- [ ] Заменить fixture compiler и runtime/recovery JSON branches общим IR/binding path, сохранив [apply acceptance](#pre-apply-gate); обеспечить cold-start metadata и несколько required runtime groups. M1 проходит через production Host и isolated virtual processes (→ [срезы 5.2–5.5](phase-5-automation.md)).
+- [~] Runtime/recovery JSON branches удалены: оба пути используют checksum-версию compiled requirements с точными package/group/contribution. Настоящий graph IR, cold-start catalog/binding и несколько required runtime groups остаются (→ [срезы 5.2–5.5](phase-5-automation.md)).
 - [ ] Реализовать immutable ExecutionPlan и serialized workspace scheduler (→ [ADR-0010](../decisions/0010-compiled-automation-plan.md)).
 - [ ] Разделить edge queue и coalescing value lane (→ [Архитектура — Конкурентность и QoS](../architecture/overview.md#конкурентность-и-qos)).
 - [ ] Реализовать trace/correlation/causation и basic loop guard (→ [Модуль: Diagnostics & Test Lab](../architecture/modules/diagnostics-test-lab.md)).

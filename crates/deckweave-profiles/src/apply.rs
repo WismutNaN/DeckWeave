@@ -109,7 +109,8 @@ impl ApplyOperationRepository for JsonProfileStore {
             ApplyOperationState::Prepared
             | ApplyOperationState::Committed
             | ApplyOperationState::Succeeded
-            | ApplyOperationState::Degraded => return Ok(current),
+            | ApplyOperationState::Degraded
+            | ApplyOperationState::Superseded => return Ok(current),
             ApplyOperationState::Failed | ApplyOperationState::RecoveryRequired => {
                 return Err(ApplyRepositoryError::InvalidTransition(format!(
                     "cannot prepare operation in {:?}",
@@ -163,6 +164,28 @@ impl ApplyOperationRepository for JsonProfileStore {
             return Err(ApplyRepositoryError::InvalidTransition(
                 "active selection changed before commit".into(),
             ));
+        }
+        if let Some(previous) = &active {
+            let previous_snapshot = self.operation_inner(&previous.operation_id)?;
+            match previous_snapshot.state {
+                ApplyOperationState::Queued
+                | ApplyOperationState::Prepared
+                | ApplyOperationState::RecoveryRequired => self.write_status(
+                    &previous.operation_id,
+                    ApplyOperationState::Committed,
+                    ApplyRuntimeHealth::Inactive,
+                    Some("durable commit status repaired before superseding head".into()),
+                )?,
+                ApplyOperationState::Committed
+                | ApplyOperationState::Succeeded
+                | ApplyOperationState::Degraded
+                | ApplyOperationState::Superseded => {}
+                ApplyOperationState::Failed => {
+                    return Err(ApplyRepositoryError::InvalidDocument(
+                        "active commit points to a failed operation".into(),
+                    ));
+                }
+            }
         }
         let path = self.active_commit_path();
         self.write_apply_document(&path, commit, Some(&path.with_extension("json.bak")))?;
@@ -226,7 +249,8 @@ impl ApplyOperationRepository for JsonProfileStore {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
             Err(error) => return Err(ApplyRepositoryError::Unavailable(error.to_string())),
         };
-        let mut operation_ids = Vec::new();
+        let active = self.active_commit_inner()?;
+        let mut pending = Vec::new();
         for entry in entries {
             let entry =
                 entry.map_err(|error| ApplyRepositoryError::Unavailable(error.to_string()))?;
@@ -241,21 +265,27 @@ impl ApplyOperationRepository for JsonProfileStore {
             }
             let intent_path = entry.path().join("intent.json");
             let intent: ApplyOperationIntent = self.read_apply_document(&intent_path)?;
-            operation_ids.push(intent.operation_id);
-            if operation_ids.len() > maximum {
+            let mut snapshot = self.operation_inner(&intent.operation_id)?;
+            if snapshot.state.is_terminal() {
+                continue;
+            }
+            // Migration repair for data written before the previous-head
+            // sealing rule: the current commit still proves that its direct
+            // predecessor selection was once durably committed.
+            if active
+                .as_ref()
+                .and_then(|commit| commit.previous_active.as_ref())
+                .is_some_and(|selection| *selection == snapshot.intent.candidate)
+            {
+                snapshot.commit_status = ApplyCommitStatus::Committed;
+            }
+            pending.push(snapshot);
+            if pending.len() > maximum {
                 return Err(ApplyRepositoryError::CapacityExceeded);
             }
         }
-        operation_ids.sort();
-        operation_ids
-            .into_iter()
-            .map(|id| self.operation_inner(&id))
-            .filter(|result| {
-                result
-                    .as_ref()
-                    .map_or(true, |snapshot| !snapshot.state.is_terminal())
-            })
-            .collect()
+        pending.sort_by(|left, right| left.intent.operation_id.cmp(&right.intent.operation_id));
+        Ok(pending)
     }
 }
 
@@ -298,6 +328,7 @@ impl JsonProfileStore {
             ApplyOperationState::Committed
                 | ApplyOperationState::Succeeded
                 | ApplyOperationState::Degraded
+                | ApplyOperationState::Superseded
         ) || self
             .active_commit_inner()?
             .is_some_and(|record| record.operation_id == *operation_id);

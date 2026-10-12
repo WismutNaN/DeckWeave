@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use deckweave_application::{
     ApiAuthScope, ApiErrorCode, AppCommand, AppQuery, ApplicationGateway, ApplicationService,
-    CommandEnvelope, DraftCommand, DraftStore, DraftStoreError, DraftView, InMemoryApiAuthorizer,
-    MutationWindow, PrincipalId, RequestContext, StoredDraftMutation, WorkspaceCandidate,
+    CommandClaim, CommandClaimOutcome, CommandClaimRepository, CommandEnvelope, DraftCommand,
+    DraftStore, DraftStoreError, DraftView, InMemoryApiAuthorizer, MutationWindow, PrincipalId,
+    RequestContext, StoredDraftMutation, WorkspaceCandidate,
 };
 use deckweave_domain::{
     DeploymentMode, LifecycleState,
@@ -108,6 +109,12 @@ impl DraftStore for CharacterizationStore {
     }
 }
 
+impl CommandClaimRepository for CharacterizationStore {
+    fn claim_command(&self, _claim: &CommandClaim) -> Result<CommandClaimOutcome, DraftStoreError> {
+        self.fail()
+    }
+}
+
 fn context(principal: &str, trace: &str) -> Result<RequestContext, Box<dyn Error>> {
     Ok(RequestContext {
         principal_id: deckweave_application::PrincipalId::try_new(principal)?,
@@ -117,13 +124,14 @@ fn context(principal: &str, trace: &str) -> Result<RequestContext, Box<dyn Error
 
 fn service(
     root: PathBuf,
-    store: Arc<dyn DraftStore>,
+    store: Arc<CharacterizationStore>,
     authorizer: Arc<InMemoryApiAuthorizer>,
 ) -> Result<ApplicationGateway, PlatformError> {
     let host = Arc::new(HostRuntime::start(Arc::new(TestPlatform { root }))?);
     Ok(ApplicationGateway::new(
         host,
-        store,
+        Arc::clone(&store) as Arc<dyn DraftStore>,
+        store as Arc<dyn CommandClaimRepository>,
         authorizer,
         Arc::new(deckweave_application::UnavailableApplyUseCase),
     ))
@@ -174,7 +182,7 @@ fn authorization_and_request_validation_run_before_store_dispatch() -> Result<()
     let authorizer = Arc::new(InMemoryApiAuthorizer::new());
     let host = service(
         directory.path().to_path_buf(),
-        Arc::clone(&store) as Arc<dyn DraftStore>,
+        Arc::clone(&store),
         Arc::clone(&authorizer),
     )?;
     let principal = context("ordered-client", "trace-order")?;

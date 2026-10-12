@@ -17,6 +17,7 @@
 | `ApplyCommitRecord`, `MutationReceipt` | documents | Crash recovery и durable deduplication |
 | `ApplyOperationRepository` | port/adapter | Immutable apply intent, status, active commit и bounded recovery scan |
 | `MutationWindow` | document | Выданный Host срок действия dedup epoch для principal |
+| `CommandClaimRepository` | port/adapter | Общий durable scope `(principal, epoch, key)` для всех application mutations |
 | `PackageLock` | document | Exact versions/hashes/settings schemas |
 
 ## Зависимости
@@ -37,9 +38,9 @@
 - Migration pure и сохраняет pre-migration backup/report.
 - Revision ID уникален; checksum проверяет bytes, rollback создаёт новый ID даже для прежнего content.
 - Acknowledged draft mutation durable; undo stack v1 может потеряться после restart с явным сообщением.
-- Mutation key глобален для `(principal, epoch, key)`, а не локален одному draft; target входит в fingerprint.
+- Mutation key глобален для `(principal, epoch, key)`, а не локален draft/apply use case; Gateway резервирует opaque command fingerprint через общий claim до dispatch.
 - До публикации draft head сохраняется immutable pending intent; recovery либо допубликовывает candidate/receipt, либо диагностирует divergence.
-- Apply intent сохраняется отдельно от status; единственный `active/commit.json` является точкой выбора revision. Потерянная запись status после commit не возвращает прежний выбор: startup выводит commit status из active record и завершает recovery.
+- Apply intent сохраняется отдельно от status; единственный `active/commit.json` является точкой выбора revision. Перед сменой head status прежнего commit запечатывается; startup различает активный, superseded committed и never-committed intent. Лимит recovery считается по pending set, а terminal history обходится потоково.
 - Receipt lookup адресуется хешем полного mutation key и не сканирует draft history; receipt/pending имеют явные quotas.
 - Import не переносит grants и не сопоставляет CredentialRef локальному secret автоматически.
 - GC учитывает revisions/snapshots/drafts/operations/preview; missing migration сохраняет opaque settings.
@@ -58,4 +59,4 @@
 
 > JSON документы — source of truth. SQLite допустим только как rebuildable index/cache. Проверять hash assets и сохранять unknown optional fields. Нормативны [storage/apply](../../contracts/lifecycle.md#сохранение-и-apply) и [pure migrations](../../contracts/lifecycle.md#миграции-и-неизвестные-данные); fault tests охватывают каждую точку записи и disk full.
 
-Global ledger разделён на `mutations/windows`, `mutations/pending` и `mutations/receipts`. Последовательность document mutation: immutable transaction → pending intent → draft head → immutable receipt → удаление pending. Любая операция store сначала восстанавливает bounded pending set. Это recovery protocol для process crash. Gate E0 добавил в storage port явные `NotPublished`/`Unknown`, повторное чтение target после replace error и сохранение staged bytes при невозможности сверки. Power-loss guarantees остаются отдельными от process-crash evidence и зависят от filesystem/устройства.
+Global ledger разделён на `mutations/windows`, общие `mutations/claims`, draft-specific `mutations/pending` и `mutations/receipts`. Последовательность document mutation: command claim → immutable transaction → pending intent → draft head → immutable receipt → удаление pending. Любая операция store сначала восстанавливает bounded pending set. Это recovery protocol для process crash. Gate E0 добавил в storage port явные `NotPublished`/`Unknown`, повторное чтение target после replace error и сохранение staged bytes при невозможности сверки. Power-loss guarantees остаются отдельными от process-crash evidence и зависят от filesystem/устройства.

@@ -26,6 +26,7 @@ pub use export::{ExportError, ImportResult};
 pub mod snapshot;
 pub use snapshot::SnapshotMetadata;
 mod apply;
+mod command_claim;
 
 const STORAGE_VERSION: u32 = 1;
 

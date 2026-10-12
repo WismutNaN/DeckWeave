@@ -4,7 +4,11 @@
 mod fixture;
 mod plan;
 
-pub use fixture::{RestrictedFixtureCompiler, VIRTUAL_FIXTURE_PACKAGE_ID};
+pub use fixture::{
+    RestrictedFixtureCompiler, VIRTUAL_FIXTURE_CONTRIBUTION_ID, VIRTUAL_FIXTURE_PACKAGE_ID,
+    VIRTUAL_FIXTURE_RUNTIME_GROUP_ID,
+};
 pub use plan::{
-    CompileFence, CompiledExecutionPlan, ExecutionPlanKind, PlanCompileError, PlanCompiler,
+    COMPILED_PLAN_EXTENSION_ID, CompileFence, CompiledExecutionPlan, DurableExecutionPlan,
+    PlanCompileError, PlanCompiler, RuntimeRequirement,
 };

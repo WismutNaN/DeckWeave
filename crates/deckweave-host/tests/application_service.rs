@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use deckweave_application::{
     ApiAuthScope, ApiErrorCode, AppCommand, AppCommandResult, AppQuery, AppQueryResult,
-    ApplicationGateway, ApplicationService, CommandEnvelope, DraftCommand, DraftStore,
-    InMemoryApiAuthorizer, PrincipalId, RequestContext,
+    ApplicationGateway, ApplicationService, CommandClaimRepository, CommandEnvelope, DraftCommand,
+    DraftStore, InMemoryApiAuthorizer, PrincipalId, RequestContext,
 };
 use deckweave_domain::{
     DeploymentMode,
@@ -92,7 +92,7 @@ fn service(
     root: PathBuf,
     authorizer: Arc<InMemoryApiAuthorizer>,
 ) -> Result<ApplicationGateway, Box<dyn Error>> {
-    let store: Arc<dyn DraftStore> = Arc::new(JsonProfileStore::new(
+    let store = Arc::new(JsonProfileStore::new(
         root.join("profiles"),
         Arc::new(NativeAtomicFileStore),
         ProfileStoreLimits::default(),
@@ -100,7 +100,8 @@ fn service(
     let host = Arc::new(HostRuntime::start(Arc::new(TestPlatform { root }))?);
     Ok(ApplicationGateway::new(
         host,
-        store,
+        Arc::clone(&store) as Arc<dyn DraftStore>,
+        store as Arc<dyn CommandClaimRepository>,
         authorizer,
         Arc::new(deckweave_application::UnavailableApplyUseCase),
     ))

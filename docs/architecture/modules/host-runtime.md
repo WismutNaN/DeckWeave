@@ -39,6 +39,7 @@
 - Effects/timers/frames/completions ограждены HostBootId/ActivationEpoch; старый outcome не запускает новую continuation.
 - Частичный failure не выдаётся за successful apply.
 - Plan hash связывает candidate/package/assets, compiler output, HostBootId, registry/grant revisions, expected active selection и monotonic expiry.
+- Apply intent/commit сохраняет checksum-версию compiled plan; startup передаёт Plugin Runtime только проверенные runtime requirements, не исходный graph/fixture JSON.
 - Prepare и barrier заново читают candidate/evidence; stale или expired plan не вызывает activation/commit.
 - WebView lifecycle не управляет host lifecycle.
 - Shutdown имеет bounded stages и safe-output attempt.
@@ -59,6 +60,6 @@
 
 `deckweave-host` не реализует `ApplicationService`: Gateway создаётся отдельно в composition root и получает read-only lifecycle projection и bounded-context repositories.
 
-Текущая реализация содержит startup locks/status/autostart, fenced planning и durable `ApplyCoordinator`. In-process `ApplicationGateway` проходит plan/apply/operation, grant change на barrier, idempotent replay и startup reactivation. Desktop composition использует production coordinator с package index, isolated process, registry и startup recovery; явный Exit выполняет bounded shutdown. `ApplyPlanningService` пока использует явно ограниченный fixture compiler; Фаза 5 заменяет его настоящим без изменения fencing/acceptance.
+Текущая реализация содержит startup locks/status/autostart, fenced planning и durable `ApplyCoordinator`. In-process `ApplicationGateway` проходит plan/apply/operation, grant change на barrier, idempotent replay и startup reactivation. Desktop composition использует production coordinator с package index, isolated process, registry и startup recovery; явный Exit выполняет bounded shutdown. `ApplyPlanningService` пока использует ограниченный fixture compiler, но compiled runtime manifest уже сохраняется с commit и одинаково используется prepare/recovery. Фаза 5 заменяет только compiler/IR без возврата JSON-разбора в Host.
 
 ArtifactBroker реализует узкий application port с injected temporary-storage adapter; engine не зависит от Host implementation. Limits и lifecycle: [automation artifacts](../../contracts/automation.md#artifact-и-доступ-к-данным). Это небольшой сервис host, не новый обязательный процесс или database.

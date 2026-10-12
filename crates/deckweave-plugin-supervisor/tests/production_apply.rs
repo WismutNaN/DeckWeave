@@ -24,8 +24,8 @@ use deckweave_plugin_supervisor::{
 use deckweave_profiles::{JsonProfileStore, ProfileStoreLimits};
 use deckweave_registry::CapabilityRegistry;
 use deckweave_workspace::{
-    ApplyCommitStatus, ApplyOperationRepository, ApplyOperationState, DraftRepository,
-    PackageLockEntry, WorkspaceDraft,
+    ApplyCommitStatus, ApplyOperationRepository, ApplyOperationState, CommandClaimRepository,
+    DraftRepository, PackageLockEntry, WorkspaceDraft,
 };
 use sha2::{Digest, Sha256};
 use std::{
@@ -211,7 +211,6 @@ fn build_runtime(
     let registry = Arc::new(Mutex::new(CapabilityRegistry::default()));
     let runtime = Arc::new(ProductionRuntimeCoordinator::new(
         packages,
-        Arc::clone(&repository) as Arc<dyn DraftRepository>,
         Arc::clone(&repository) as Arc<dyn ApplyOperationRepository>,
         authorization as Arc<dyn AuthorizationStore>,
         Arc::clone(&registry),
@@ -257,7 +256,8 @@ fn gateway(
     Ok((
         ApplicationGateway::new(
             Arc::new(Status(root.to_path_buf())),
-            repository as Arc<dyn DraftRepository>,
+            Arc::clone(&repository) as Arc<dyn DraftRepository>,
+            repository as Arc<dyn CommandClaimRepository>,
             authorizer,
             apply,
         ),

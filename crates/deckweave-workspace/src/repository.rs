@@ -24,6 +24,23 @@ pub struct MutationWindow {
     pub expires_at_unix_seconds: u64,
 }
 
+/// Durable application-command reservation shared by every mutating command.
+///
+/// The application layer owns the fingerprint contents. Workspace persistence
+/// treats it as opaque and only guarantees that one `(principal, epoch, key)`
+/// can never be rebound to another command payload.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CommandClaim {
+    pub key: MutationKey,
+    pub payload_fingerprint: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CommandClaimOutcome {
+    pub replayed: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DraftView {
@@ -86,4 +103,14 @@ pub trait DraftRepository: Send + Sync {
         expected_version: DraftVersion,
         command: &DraftCommand,
     ) -> Result<StoredDraftMutation, DraftRepositoryError>;
+}
+
+/// Application idempotency port. It is intentionally separate from
+/// [`DraftRepository`]: apply and future mutation use cases must share the same
+/// namespace without becoming draft operations.
+pub trait CommandClaimRepository: Send + Sync {
+    fn claim_command(
+        &self,
+        claim: &CommandClaim,
+    ) -> Result<CommandClaimOutcome, DraftRepositoryError>;
 }

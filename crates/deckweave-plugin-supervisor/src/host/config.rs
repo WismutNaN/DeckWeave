@@ -4,7 +4,7 @@
 use crate::{process::ProcessError, supervisor::SupervisorError};
 use deckweave_application::AuthorizationError;
 use deckweave_protocol::{
-    HostProtocolSupport,
+    FEATURE_INVOCATION_ENDPOINT_PATH, HostProtocolSupport,
     v1::{ProtocolLimits, ProtocolVersion, ProtocolVersionRange},
 };
 use deckweave_registry::RegistryError;
@@ -33,7 +33,10 @@ impl Default for HostRuntimeConfig {
                     minimum: Some(ProtocolVersion { major: 1, minor: 0 }),
                     maximum: Some(ProtocolVersion { major: 1, minor: 1 }),
                 },
-                features: Default::default(),
+                features: std::collections::BTreeMap::from([(
+                    FEATURE_INVOCATION_ENDPOINT_PATH.into(),
+                    1,
+                )]),
                 schemas: Default::default(),
                 limits: ProtocolLimits {
                     maximum_message_bytes: 1024 * 1024,
