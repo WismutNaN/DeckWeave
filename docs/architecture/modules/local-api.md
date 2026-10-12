@@ -15,6 +15,8 @@
 | `ApplyUseCase` | port | Host-owned plan/apply/status без зависимости Gateway от Host implementation |
 | `SubscriptionCursor` | value | Delta/snapshot resume |
 | `ApiAuthScope` | enum | Read/draft/apply/admin |
+| `PluginCatalogSource` | port | Проверенные static schema/port/action/translation read models точного installed package |
+| `LocalePreferencesService` | use case | Persisted locale CAS, рассылка revision и reconcile под отдельным scope Preferences |
 
 ## Зависимости
 
@@ -50,7 +52,7 @@
 
 > Сначала реализовать in-process test adapter, затем loopback HTTP/WS и CLI. OpenAPI/JSON Schema генерируется из того же command vocabulary. Не делать Tauri-only methods.
 
-In-process contract уже поддерживает `PlanApply`, `ApplyDraft` и `Operation`: plan авторизуется scope `simulation`, commit — `apply`, status — `read`. Explicit `allow_disruption` связан plan hash и durable intent, поэтому consent к downtime нельзя подставить после plan. `OperationId` выводится Host из server-issued dedup window/key, поэтому lost reply повторно адресует тот же durable intent. Desktop production composition подключается отдельно с runtime coordinator, а не через особый Tauri-only путь.
+In-process contract поддерживает `PlanApply`, `ApplyDraft`, `Operation` и `PluginCatalog`: plan авторизуется scope `simulation`, commit — `apply`, status/catalog — `read`. Explicit `allow_disruption` связан plan hash и durable intent, поэтому consent к downtime нельзя подставить после plan. `OperationId` выводится Host из server-issued dedup window/key, поэтому lost reply повторно адресует тот же durable intent. Desktop composition уже подключает Gateway, PackageIndex projection и runtime coordinator. Tauri command adapter и недостающие read projections — [срез 6.0](../../implementation/phase-6-desktop.md), HTTP/WS остаются Фазой 16.
 
 `ApplicationGateway` вычисляет fingerprint полного `AppCommand` и резервирует его в `CommandClaimRepository` до вызова draft/apply use case. Это единый namespace: одинаковый key нельзя последовательно использовать для `PatchDraft` и `ApplyDraft`, в том числе после restart. Dry-run claim не создаёт.
 

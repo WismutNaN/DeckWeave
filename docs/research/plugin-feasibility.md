@@ -1,5 +1,7 @@
 # Реализуемость каталога плагинов перед Фазой 6
 
+Исторический аудит `2d99c88`: таблица ниже сохраняет наблюдения на момент проверки. Текущий результат исправлений, executable evidence и будущие platform limits находятся в закрытом [pre-6 gate](../implementation/pre-phase-6.md); этот отчёт не является текущим backlog.
+
 Дата: 2026-10-12. Проверен DeckWeave `2d99c88`, текущее дерево без исходных изменений пользователя. Метод: чтение реализованных ports, compiler/scheduler, wire translation, runtime activation, desktop composition, contracts и [каталога идей](../plugins/README.md); локальный Zotst и официальные API sources. Existing tests повторно не запускались. Ниже **статические наблюдения и design gaps**, не результаты новых executable probes или подтверждение работы внешних integrations.
 
 ## Вывод

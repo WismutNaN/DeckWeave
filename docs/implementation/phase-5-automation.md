@@ -97,6 +97,6 @@ Graph vocabulary принадлежит Automation; shared endpoint/IDs/schema r
 
 Для каждой новой способности сначала пишется отрицательный domain/port test, затем реализация и один межконтекстный scenario. Не повторять весь существующий набор ради отчёта: локально выбирать затронутые suites, полный core gate оставлять CI и проверке интеграционного среза. Новые публичные/wire поля получают compatibility fixtures.
 
-Gate Фазы 5 закрыт, когда compiler принимает versioned graph, scheduler исполняет IR, Plugin Runtime умеет адресуемый вызов нескольких instances, live apply/recovery сохраняет epochs/owners, а replay использует тот же transition path. B2 compaction остаётся явно открытой задачей до Фазы 6; её критерии включают и стоимость quota accounting, поскольку O(1) receipt lookup не делает всю mutation O(1).
+Gate Фазы 5 закрыт: compiler принимает versioned graph, scheduler исполняет IR, Plugin Runtime умеет адресуемый вызов нескольких instances, live apply/recovery сохраняет epochs/owners, а replay использует тот же transition path. B2 checkpoint/compaction и cached quota accounting затем закрыты вместе с [pre-6 gate](pre-phase-6.md): acceptance включает growth/restart/faults, поскольку O(1) receipt lookup сам по себе не делает всю mutation O(1).
 
 Нормативные правила: [Automation](../contracts/automation.md), [Lifecycle](../contracts/lifecycle.md), [Capabilities](../contracts/capabilities.md), [DDD](../architecture/ddd.md). Этот файл задаёт порядок реализации и evidence; он не создаёт вторую версию контрактов.

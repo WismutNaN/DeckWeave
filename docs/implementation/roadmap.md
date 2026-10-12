@@ -4,7 +4,7 @@
 
 ## Обязательные зависимости и срезы
 
-До реализации editor Фазы 6 действует дополнительный [gate расширяемости 6G.0–6G.5](pre-phase-6.md), основанный на [проверке кода `2d99c88`](../research/plugin-feasibility.md) и [каталоге плагинов](../plugins/README.md). Повторный backend-аудит добавил instances/settings, structural arguments, live clock/cleanup и static catalog desktop compiler. Gate остаётся открытым до перечисленных в нём conformance/application/maintenance proofs; наличие новых types не разрешает автоматически production editor.
+[Gate расширяемости 6G.0–6G.5](pre-phase-6.md), основанный на [проверке кода `2d99c88`](../research/plugin-feasibility.md) и [каталоге плагинов](../plugins/README.md), закрыт integration acceptance на `328cebf`. Повторный аудит добавил instances/settings, structural arguments, live clock/cleanup, static catalog compiler/query и доказательства failure paths. Следующий результат — [6.0: application adapter и read projections](phase-6-desktop.md), затем canvas; реальные services/hardware/media сохраняют собственные gates.
 
 Нормативные failure/ordering contracts: [Lifecycle](../contracts/lifecycle.md). При расхождении module summary с контрактом сначала исправляется документация. Production fixture подтверждает отдельные process-crash apply/recovery переходы; повторный аудит обнаружил ещё три dedup/recovery случая для [среза 5.0](phase-5-automation.md). Power-loss durability остаётся отдельным ограничением; B2 закрыт checkpoint/claim GC/terminal archive, автоматическим maintenance и growth/fault acceptance. [Аудит после DDD migration](../research/pre-apply-review.md#phase-5-readiness) отделяет доказанные свойства от незавершённых способностей.
 
@@ -41,7 +41,7 @@
 | 1 | Скелет репозитория | Workspace компилируется, UI shell и CI запускаются | S | [~] |
 | 2 | Domain и protocol contracts | Versioned types/schemas/generated code | M | [x] |
 | 3 | Plugin supervisor и virtual package | Foundations и virtual apply готовы; live dispatch/restart integration — в Фазе 5 | L | [~] |
-| 4 | Profile revisions и application API | Draft/validate/apply/rollback через API | L | [~] |
+| 4 | Profile revisions и application API | Draft/validate/apply/rollback через API | L | [x] |
 | 5 | Минимальный automation engine | Source → action → feedback deterministic path | L | [x] |
 | 6 | Desktop workspace canvas | Устройства и bindings редактируются в UI | L | [ ] |
 | 7 | Windows base provider и Platform Input | Volume/media/app/active-window и обычная клавиатура работают | M | [ ] |
@@ -106,7 +106,7 @@
 <a id="pre-apply-gate"></a>
 ## Gate перед durable apply
 
-Основание: [аудит реализации после DDD migration](../research/pre-apply-review.md). Фаза 4 уже начата. Следующие срезы закрывают недостающие контракты до irreversible cutover; каждый планируется отдельно на 1–5 дней, с дополнительным делением при превышении оценки.
+Основание: [аудит реализации после DDD migration](../research/pre-apply-review.md). Срезы A–E и найденные позднее F5-R1–R3 закрыты; B2 завершён в [pre-6 gate](pre-phase-6.md). Таблица сохраняет границы и критерии приёмки. Каждый срез планируется отдельно на 1–5 дней, с дополнительным делением при превышении оценки.
 
 - [x] Добавить regression tests и исправить concurrent editor undo/redo, согласованность receipt/document при replay, snapshot revision/initial delta; включить integration packages в core CI.
 
@@ -119,10 +119,10 @@
 | E — Commit/recovery | Host + Store ports: intent/commit/status и reconciliation неоднозначных OS errors | Kill до/после каждого шага, disk full, lost reply, failed exclusive handoff; старый выбор до commit, новый после commit, без replay effects |
 
 - [x] A завершён; endpoint contract согласован для descriptors, signal ingress, routes и persisted bindings.
-- [ ] B завершён; API dedup contract реализован целиком, а не только в одном draft.
+- [x] B завершён; общий draft/apply dedup, pending recovery, quota accounting и B2 maintenance проверены.
 - [x] C завершён; интеграция использует production composition и внешний watchdog для hang tests.
-- [x] D завершён; Фаза 4 использует ограниченный fake compiler для empty/virtual fixtures. Он не принимает произвольный graph как пустой plan; Фаза 5 заменяет adapter настоящим compiler на том же acceptance.
-- [~] E2 process-crash matrix выполнена; повторный аудит выявил recovery gaps F5-R2/F5-R3. Закрыть их в [срезе 5.0](phase-5-automation.md#50--закрыть-обнаруженные-переходы-фазы-4); evidence отделено от power-loss/filesystem assumptions.
+- [x] D завершён; начальный fixture compiler заменён настоящим catalog/graph compiler через тот же application path в Фазе 5 и pre-6 composition.
+- [x] E2 process-crash matrix выполнена; найденные recovery gaps F5-R2/F5-R3 закрыты в [срезе 5.0](phase-5-automation.md#50--закрыть-обнаруженные-переходы-фазы-4); evidence отделено от power-loss/filesystem assumptions.
 
 Порядок малых обратимых срезов:
 
@@ -131,7 +131,7 @@
 - [x] A3 — атомарная initial registration без пустой session и без разрушения прежней topology.
 - [x] A4 — persisted binding, normalized signal ingress и command route используют общие stable/runtime endpoint types; deprecated локальный PortId не разрешается эвристически.
 - [x] C1 — bounded/nonblocking process transport и независимый kill path.
-- [~] B1 — общий ledger для draft mutations, issued epochs, recovery и bounded quota/index реализованы; общий key scope с apply ещё требует [F5-R1](../research/pre-apply-review.md#phase-5-readiness).
+- [x] B1 — общий ledger, issued epochs, recovery и bounded quota/index реализованы; общий key scope draft/apply подтверждён исправлением [F5-R1](../research/pre-apply-review.md#phase-5-readiness).
 - [x] D1 — immutable WorkspaceCandidate, unique package/assets и проверка referenced asset bytes/metadata.
 - [x] D2 — compiler/activation ports и fenced plan token с повторной проверкой preconditions.
 - [x] C2 — production runtime coordinator через public application path.
@@ -274,7 +274,7 @@ Executable C1 spike остаётся обязательным условием �
 **Цель:** создать безопасный путь read → draft → validate → plan → apply → rollback.
 **Результат:** CLI/test client редактирует virtual workspace, получает conflict и возвращается к snapshot.
 **Трудоёмкость:** L
-**Статус:** [~] Основной apply path и dedup/recovery срез 5.0 реализованы. B2 compaction и bounded maintenance реализованы; переход к editor зависит от общего pre-6 gate.
+**Статус:** [x] Основной apply path, dedup/recovery срез 5.0, B2 compaction и bounded maintenance реализованы. Общий pre-6 gate закрыт; transport adapters и развитие editor use cases имеют следующие фазы.
 
 ### Контекст для агента
 > Plugin lifecycle и production coordinator проходят public application path с isolated virtual fixture. Active automation пока пуст; фаза строит источник истины и command/query boundary.
@@ -305,7 +305,7 @@ B2 добавил checkpoint/compaction, автоматический maintenanc
 - [x] Реализовать OperationId, durable operation tracking и status queries через Application Gateway (→ [Модуль: Local API](../architecture/modules/local-api.md)).
 - [x] Реализовать Host apply skeleton с durable commit record, barrier, disruption/degraded policy, package lock и operation receipts (→ [ADR-0012](../decisions/0012-apply-and-execution-lifecycle.md), [Модуль: Host Runtime](../architecture/modules/host-runtime.md)).
 - [x] Principals/scopes, общий durable command claim для draft/apply, expiry до replay и dry-run без reservation реализованы (→ [API](../contracts/application-api.md#идемпотентность-и-dry-run), [ревью](../research/pre-apply-review.md#phase-5-readiness)).
-- [~] Identity/ownership и runtime coordination реализованы; superseded recovery и отдельный pending budget закрыты, B2 checkpoint/compaction и growth acceptance закрыты перед editor Фазы 6 по [gate A–E](#pre-apply-gate).
+- [x] Identity/ownership и runtime coordination реализованы; superseded recovery и отдельный pending budget закрыты, B2 checkpoint/compaction и growth acceptance закрыты перед editor Фазы 6 по [gate A–E](#pre-apply-gate).
 - [x] Добавить in-process test client; HTTP/WS transport отложить до Фазы 16 (→ [Application API](../contracts/application-api.md)).
 
 ### Тесты
@@ -328,7 +328,7 @@ B2 добавил checkpoint/compaction, автоматический maintenanc
 **Цель:** выполнить deterministic source → action → feedback path.
 **Результат:** virtual button вызывает virtual action, меняет state и feedback; replay повторяет результат.
 **Трудоёмкость:** L
-**Статус:** [x] Срезы 5.0–5.6 завершены; M1 и deterministic replay проходят hardware-independent acceptance. B2 Profile Store checkpoint/compaction закрыт; перед Фазой 6 остаются проверки общего [gate расширяемости](pre-phase-6.md).
+**Статус:** [x] Срезы 5.0–5.6 завершены; M1 и deterministic replay проходят hardware-independent acceptance. B2 Profile Store checkpoint/compaction и общий [gate расширяемости](pre-phase-6.md) закрыты; следующий срез — 6.0.
 
 ### Контекст для агента
 > Profile/API и isolated virtual apply дают основу интеграции. Три обнаруженных dedup/recovery дефекта закрываются в 5.0 до live effects; pure compiler/scheduler можно делать независимо. Реализуется узкий graph subset без schedules и complex UI.
@@ -393,8 +393,10 @@ B2 добавил checkpoint/compaction, автоматический maintenanc
 ### Задачи
 
 - [x] Закрыть B2 checkpoint/compaction и bounded quota accounting перед editor-heavy нагрузкой; сохранить receipts/pending operations при GC/restart (→ [gate B2](#pre-apply-gate), [Profile Store](../architecture/modules/profile-store.md)).
-- [ ] Закрыть остальные срезы 6G.1–6G.5 и сквозные fake plugin scenarios до фиксации inspector/binding model; документация сама не закрывает gate (→ [pre-6 plan](pre-phase-6.md), [каталог](../plugins/README.md)).
+- [x] Закрыть срезы 6G.1–6G.5 и сквозные fake/real-process plugin scenarios до фиксации inspector/binding model (→ [pre-6 evidence](pre-phase-6.md), [каталог](../plugins/README.md)).
 - [ ] До canvas подключить Tauri adapter к Application Gateway с host-derived principal и общими DTO; проверить parity command/query/error с in-process client, receipt replay и snapshot reconnect (→ [Application API](../contracts/application-api.md)).
+
+Подробный порядок: [6.0 adapter → 6.1 selection → 6.2 inspector → 6.3 apply → 6.4 E2E](phase-6-desktop.md). Static `PluginCatalog` query и locale application service уже реализованы; registry/installed-package read projections и transport adapter входят в 6.0, до canvas.
 
 - [ ] Реализовать virtualized infinite canvas и device cards (→ [Модуль: Desktop Shell](../architecture/modules/desktop-shell.md)).
 - [ ] Реализовать action library/search и drag-and-drop binding (→ [UI — Progressive disclosure](../product/ux.md#progressive-disclosure)).
@@ -436,6 +438,7 @@ B2 добавил checkpoint/compaction, автоматический maintenanc
 - [ ] Объявлять `physical_device` только при подтверждённой identity, иначе `system_aggregate`; intercept/emit не включать вместе с observe неявно (→ [Capabilities](../contracts/capabilities.md#системная-клавиатура-и-granularity)).
 - [ ] Добавить permission descriptors и unavailable reasons (→ [Безопасность — Permission model](../contracts/security.md#permission-model)).
 - [ ] Добавить origin handling для emitted media/input commands (→ [Модуль: Automation Engine](../architecture/modules/automation-engine.md)).
+- [ ] До первого held input emission реализовать host-owned output lease: owner/refcount, expiry, revoke и crash recovery; два owners одной клавиши и неподтверждённый OS release получают отдельные tests. Cleanup ACK control plugin не доказывает освобождение физического output (→ [pre-6 limits](pre-phase-6.md#границы-готовности-и-следующие-обязательства)).
 
 ### Тесты
 
@@ -610,6 +613,7 @@ B2 добавил checkpoint/compaction, автоматический maintenanc
 - [ ] Опубликовать Python SDK для isolated conditions/actions с timeout/cancellation fixtures (→ [Модель плагинов — Языки](../contracts/plugins.md#языки)).
 - [ ] Реализовать conformance CLI/fixtures/report (→ [Модуль: Diagnostics & Test Lab](../architecture/modules/diagnostics-test-lab.md)).
 - [ ] Реализовать staging install/update/rollback и permission diff (→ [Модуль: Plugin Supervisor](../architecture/modules/plugin-supervisor.md)).
+- [ ] До SDK/installer freeze расширить single-artifact package lock: versioned manifest digest + hashes выбранных platform/runtime artifacts, backward migration и recovery. Несколько contributions одного binary доказаны; разные binary одного package пока не обещаны (→ [pre-6 limits](pre-phase-6.md#границы-готовности-и-следующие-обязательства)).
 - [ ] Проверять exact artifact hashes/package lock, one-active-version conflict и bounded declarative settings migration без executable hooks (→ [Runtime contracts](../contracts/lifecycle.md#resources-discovery-и-версии-packages)).
 - [ ] Описать metadata catalogue format с GitHub immutable artifacts (→ [Модель плагинов — Пакетирование и каталог](../contracts/plugins.md#пакетирование-и-каталог)).
 - [ ] Реализовать installer resolution transitive dependencies и service binding/delegation conformance; schema/ports проверяются уже до Фазы 6, runtime service broker обязателен до первого зависимого provider (→ [композиция](../contracts/plugin-composition.md), [ADR-0019](../decisions/0019-plugin-composition.md)).

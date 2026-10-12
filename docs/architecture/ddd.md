@@ -132,7 +132,7 @@ Owner port задаёт семантику результата: draft mutation 
 
 Миграция R1–R4 выполнена strangler-подходом без изменения persisted/wire schema. Compatibility re-export OS ports сохранён в `deckweave-application` только для внешних потребителей; новый код импортирует `deckweave-platform` напрямую. Полный порядок и gate продолжения описаны в [roadmap](../implementation/roadmap.md#ddd-migration).
 
-Структурный gate завершён; поведенческий [gate перед apply](../implementation/roadmap.md#pre-apply-gate) ещё открыт. Dependency allowlist проверяет локальные package imports, а size ratchet — размер модулей: они не доказывают корректность инвариантов и отсутствие I/O внутри domain. Такие изменения проверяются domain/port/scenario tests и review. Оставшийся `DraftEditor` — временный session facade в profiles adapter; полноценные editor use cases переводятся в Workspace application layer при развитии undo/compaction, без переноса файлового I/O в domain.
+Структурный gate завершён; поведенческие [apply proofs](../implementation/roadmap.md#pre-apply-gate) дополнены закрытым [pre-6 gate](../implementation/pre-phase-6.md). Dependency allowlist проверяет локальные package imports, а size ratchet — размер модулей: они не доказывают корректность инвариантов и отсутствие I/O внутри domain. Такие изменения проверяются domain/port/scenario tests и review. Оставшийся `DraftEditor` — временный session facade в profiles adapter; полноценные editor use cases переводятся в Workspace application layer при развитии undo, без переноса файлового I/O в domain.
 
 ## Антипаттерны
 
