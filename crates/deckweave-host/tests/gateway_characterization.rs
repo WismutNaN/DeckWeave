@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#[path = "support/catalog_query.rs"]
+mod catalog_query;
 use deckweave_application::{
     ApiAuthScope, ApiErrorCode, AppCommand, AppQuery, ApplicationGateway, ApplicationService,
     CommandClaim, CommandClaimOutcome, CommandClaimRepository, CommandEnvelope, DraftCommand,

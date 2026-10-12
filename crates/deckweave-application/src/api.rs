@@ -50,6 +50,9 @@ pub enum AppQuery {
         operation_id: OperationId,
     },
     RuntimeTrace,
+    PluginCatalog {
+        package: crate::plugin_catalog::PluginCatalogRequest,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -60,6 +63,7 @@ pub enum AppQueryResult {
     ApplyPlan(crate::ApplyPlanPreview),
     Operation(Box<ApplyOperationSnapshot>),
     RuntimeTrace(Box<crate::RuntimeTraceSnapshot>),
+    PluginCatalog(Box<crate::plugin_catalog::PluginCatalogSnapshot>),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

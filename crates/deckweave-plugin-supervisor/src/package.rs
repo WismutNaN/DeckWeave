@@ -20,6 +20,7 @@ const MAX_MANIFEST_BYTES: u64 = 1024 * 1024;
 mod catalog;
 mod lookup;
 mod planning;
+mod projection;
 mod translations;
 pub use planning::PackageGraphCompiler;
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -4,6 +4,10 @@ API — единственная application boundary для Desktop UI, CLI, Co
 
 ## Принципы
 
+Текущий `ApplicationGateway` реализует queries `Host`, `Draft`, `PlanApply`, `Operation`, `RuntimeTrace` и `PluginCatalog`, commands `PatchDraft`/`ApplyDraft` и выдачу mutation window. Остальные группы ниже — целевой API, а не обещание уже существующих endpoints. Locale обслуживает отдельный `LocalePreferencesService` с тем же authorizer; Tauri/HTTP adapters обязаны получать principal от host.
+
+`PluginCatalog` принимает точные package ID/version/artifact SHA-256, проверяет scope `Read` до обращения к index и возвращает bounded static schemas, units/ranges, ports/actions, contribution/group IDs, translations и manifest SHA-256. Это проекция того же проверяемого каталога, которым пользуется compiler; import/query не запускает plugin. Неверный hash, неоднозначный package и изменённый manifest отклоняются. Ответ не содержит executable paths, process handles или secret values. Schema shape в DTO — read model, не второй validator; `Json` не считается структурой для schema-form/field binding. Запрос не доказывает live availability и не перечисляет ещё не установленные packages.
+
 - одна операция имеет одинаковую семантику во всех transports;
 - queries не имеют side effects;
 - mutations адресуют draft или явно named runtime operation;

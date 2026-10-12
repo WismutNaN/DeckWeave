@@ -59,7 +59,7 @@ pub(crate) fn compose(
     let compiler = PackageGraphCompiler::new(Arc::clone(&packages))
         .with_authorization(authorization.clone(), principal.clone());
     let runtime = Arc::new(ProductionRuntimeCoordinator::new(
-        packages,
+        packages.clone(),
         Arc::clone(&profiles) as Arc<dyn ApplyOperationRepository>,
         authorization,
         registry,
@@ -106,7 +106,8 @@ pub(crate) fn compose(
         authorizer,
         apply,
     )
-    .with_runtime_diagnostics(runtime.clone());
+    .with_runtime_diagnostics(runtime.clone())
+    .with_plugin_catalog(packages);
     Ok(ProductionServices {
         gateway,
         runtime,

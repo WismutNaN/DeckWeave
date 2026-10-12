@@ -15,7 +15,9 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+mod catalog;
 mod errors;
+use crate::plugin_catalog::{PluginCatalogSource, UnavailablePluginCatalog};
 use errors::{api_error, map_apply_error, map_store_error};
 
 pub trait HostStatusSource: Send + Sync {
@@ -29,6 +31,7 @@ pub struct ApplicationGateway {
     authorizer: Arc<dyn ApiAuthorizer>,
     apply: Arc<dyn ApplyUseCase>,
     diagnostics: Arc<dyn RuntimeDiagnosticsSource>,
+    catalog: Arc<dyn PluginCatalogSource>,
 }
 
 impl ApplicationGateway {
@@ -47,6 +50,7 @@ impl ApplicationGateway {
             authorizer,
             apply,
             diagnostics: Arc::new(EmptyRuntimeDiagnostics),
+            catalog: Arc::new(UnavailablePluginCatalog),
         }
     }
 
@@ -98,6 +102,7 @@ impl ApplicationService for ApplicationGateway {
 
     fn query(&self, context: &RequestContext, query: AppQuery) -> Result<AppQueryResult, ApiError> {
         match query {
+            AppQuery::PluginCatalog { package } => self.query_plugin_catalog(context, &package),
             AppQuery::Host => {
                 self.authorize(context, ApiAuthScope::Read)?;
                 Ok(AppQueryResult::Host(self.snapshot()))

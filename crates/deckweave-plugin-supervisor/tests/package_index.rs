@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#[path = "support/catalog_projection.rs"]
+mod catalog_projection;
 use deckweave_plugin_supervisor::package::{
     PackageError, PackageIndex, PackageStager, StagingLimits,
 };
