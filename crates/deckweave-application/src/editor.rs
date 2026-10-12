@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Общий read model редактора и идемпотентное открытие рабочего черновика.
-use crate::{ApiAuthScope, ApiAuthorizer, RequestContext};
+use crate::gateway::errors::{api_error, map_store_error};
+use crate::{
+    ApiAuthScope, ApiAuthorizationError, ApiAuthorizer, ApiError, ApiErrorCode, RequestContext,
+};
 use deckweave_domain::{capability::NodeDescriptor, ids::PackageId};
 use deckweave_workspace::{
     ActiveSelection, DraftRepository, DraftRepositoryError, DraftView, WorkspaceDraft,
@@ -68,17 +71,32 @@ impl EditorWorkspaceService {
     }
     /// Ensure имеет устойчивый ID: повторное открытие возвращает текущую revision.
     /// Это не query и не повтор прежней document mutation.
-    pub fn open(&self, context: &RequestContext) -> Result<DraftView, DraftRepositoryError> {
+    pub fn open(&self, context: &RequestContext) -> Result<DraftView, ApiError> {
         self.authorizer
             .authorize(&context.principal_id, ApiAuthScope::Draft)
-            .map_err(|_| DraftRepositoryError::InvalidCommand("workspace access denied".into()))?;
-        let _order = self
-            .order
-            .lock()
-            .map_err(|e| DraftRepositoryError::Unavailable(e.to_string()))?;
+            .map_err(|error| match error {
+                ApiAuthorizationError::Denied => api_error(
+                    context,
+                    ApiErrorCode::PermissionDenied,
+                    "api.error.permission_denied",
+                    false,
+                    Default::default(),
+                ),
+                ApiAuthorizationError::Unavailable(_) => api_error(
+                    context,
+                    ApiErrorCode::Unavailable,
+                    "api.error.authorization_unavailable",
+                    true,
+                    Default::default(),
+                ),
+            })?;
+        let _order = self.order.lock().map_err(|e| {
+            map_store_error(context, DraftRepositoryError::Unavailable(e.to_string()))
+        })?;
         match self.repository.get_draft(&self.initial.draft_id) {
             Err(DraftRepositoryError::NotFound) => self.repository.ensure_draft(&self.initial),
             result => result,
         }
+        .map_err(|error| map_store_error(context, error))
     }
 }

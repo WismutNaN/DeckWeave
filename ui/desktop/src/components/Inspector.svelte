@@ -9,6 +9,9 @@
   let { session }: { session: EditorSession } = $props();
   let tab = $state<"actions" | "appearance">("actions");
   const t = (ru: string, en: string) => session.t(ru, en);
+  $effect(() => {
+    if (session.selectedStep) tab = "actions";
+  });
   let device = $derived(session.device),
     element = $derived(
       device?.descriptor.elements.find(

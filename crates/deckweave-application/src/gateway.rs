@@ -16,7 +16,7 @@ use std::{
 };
 
 mod catalog;
-mod errors;
+pub(crate) mod errors;
 use crate::plugin_catalog::{PluginCatalogSource, UnavailablePluginCatalog};
 use errors::{api_error, map_apply_error, map_store_error};
 

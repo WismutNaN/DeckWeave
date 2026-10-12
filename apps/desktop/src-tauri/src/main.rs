@@ -10,6 +10,7 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
 };
 
+mod commands;
 mod composition;
 mod editor_seed;
 mod ipc;
@@ -18,37 +19,10 @@ mod lifecycle;
 use lifecycle::*;
 
 fn run(options: LaunchOptions) -> Result<(), Box<dyn std::error::Error>> {
-    #[cfg(not(feature = "smoke-test"))]
-    let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool = tauri::generate_handler![
-        host_snapshot,
-        autostart_enabled,
-        set_autostart,
-        quit_app,
-        ipc::app_query,
-        ipc::app_command,
-        ipc::mutation_window,
-        ipc::open_workspace,
-        ipc::locale_get,
-        ipc::locale_change
-    ];
-    #[cfg(feature = "smoke-test")]
-    let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool = tauri::generate_handler![
-        host_snapshot,
-        autostart_enabled,
-        set_autostart,
-        quit_app,
-        ipc::app_query,
-        ipc::app_command,
-        ipc::mutation_window,
-        ipc::open_workspace,
-        ipc::locale_get,
-        ipc::locale_change,
-        smoke::ready
-    ];
     let builder = tauri::Builder::default()
         // Первым: второй executable завершается до bootstrap и writer locks.
         .plugin(tauri_plugin_single_instance::init(second_instance))
-        .invoke_handler(handler)
+        .invoke_handler(commands::handler())
         .setup(move |app| {
             let platform = NativePlatform::new(
                 &options,

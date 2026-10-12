@@ -12,11 +12,13 @@
   } from "./bridge";
   import { desktopClient } from "./editor/api";
   import { EditorSession } from "./editor/session.svelte";
+  import { browserJournal } from "./editor/recovery";
   import Library from "./components/Library.svelte";
   import WorkspaceCanvas from "./components/WorkspaceCanvas.svelte";
   import Inspector from "./components/Inspector.svelte";
   import DevicePicker from "./components/DevicePicker.svelte";
   import Icon from "./components/Icon.svelte";
+  import RuntimeStatus from "./components/RuntimeStatus.svelte";
   let session = $state(new EditorSession(desktopClient));
   let host = $state<HostSnapshot | null>(null);
   let ready = $state(!native),
@@ -26,6 +28,7 @@
   const t = (ru: string, en: string) => session.t(ru, en);
   async function connect() {
     session = new EditorSession(desktopClient);
+    session.journal = browserJournal(localStorage);
     await session.load();
     try {
       host = await getSnapshot();
@@ -102,7 +105,7 @@
 <svelte:window
   onkeydown={keyboard}
   onbeforeunload={(e) => {
-    if (session.dirty || session.pending) {
+    if ((session.dirty || session.pending) && !session.journal) {
       e.preventDefault();
       e.returnValue = "";
     }
@@ -117,9 +120,11 @@
       >{t("Основное", "Main")}</span
     >
     <span class="draft-state" class:modified={session.dirty}
-      ><i></i>{session.dirty
-        ? t("Есть изменения", "Unsaved changes")
-        : t("Черновик сохранён", "Draft saved")}</span
+      ><i></i>{!session.draft
+        ? t("Нет черновика", "No draft")
+        : session.dirty
+          ? t("Есть изменения", "Unsaved changes")
+          : t("Черновик сохранён", "Draft saved")}</span
     >
     <div class="header-tools">
       <button
@@ -174,9 +179,23 @@
           >{t("Вернуться к устройствам", "Return to devices")}</button
         >{/if}
     </div>{/if}
-  {#if session.error}<div class="error-bar" role="alert">
-      <Icon name="alert" size={17} /><span>{session.error}</span
-      >{#if session.pending}<button
+  {#if session.error || (session.pending && !session.busy) || session.conflict}<div
+      class="error-bar"
+      role="alert"
+    >
+      <Icon name="alert" size={17} /><span
+        >{session.error ||
+          session.notice ||
+          t(
+            "Черновик изменён вне редактора.",
+            "The draft changed outside this editor.",
+          )}</span
+      >{#if session.conflict && !session.pending}<button
+          class="secondary"
+          disabled={session.busy}
+          onclick={() => session.mergeLatest()}
+          >{t("Обновить и объединить", "Refresh and merge")}</button
+        >{/if}{#if session.pending}<button
           class="secondary"
           disabled={session.busy}
           onclick={() => session.retry()}
@@ -225,10 +244,13 @@
           ? t("Host работает", "Host running")
           : t("Нет подключения", "Disconnected")}</span
     ><span
-      >{session.devices.length}
-      {t("устройств", "devices")} · {session.catalogs.length}
-      {t("плагинов", "plugins")}</span
-    ><span class="status-notice" role="status">{session.notice}</span><button
+      >{t("Устройства", "Devices")}: {session.devices.length} · {t(
+        "Плагины",
+        "Plugins",
+      )}: {session.catalogs.length}</span
+    ><RuntimeStatus {session} /><span class="status-notice" role="status"
+      >{session.notice}</span
+    ><button
       class="text-button"
       title={t("Обновить состояние устройств", "Refresh device status")}
       disabled={!session.document || session.busy}

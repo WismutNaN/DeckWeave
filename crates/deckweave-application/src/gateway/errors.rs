@@ -66,7 +66,7 @@ pub(super) fn map_apply_error(context: &RequestContext, error: ApplyUseCaseError
     }
 }
 
-pub(super) fn map_store_error(context: &RequestContext, error: DraftRepositoryError) -> ApiError {
+pub(crate) fn map_store_error(context: &RequestContext, error: DraftRepositoryError) -> ApiError {
     match error {
         DraftRepositoryError::NotFound => api_error(
             context,
@@ -130,7 +130,7 @@ pub(super) fn map_store_error(context: &RequestContext, error: DraftRepositoryEr
     }
 }
 
-pub(super) fn api_error(
+pub(crate) fn api_error(
     context: &RequestContext,
     code: ApiErrorCode,
     message_key: &str,

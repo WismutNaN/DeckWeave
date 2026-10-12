@@ -100,6 +100,40 @@ fn desktop_assignment_compiles_and_only_press_dispatches_the_first_step()
         assert_eq!(calls.len(), usize::from(pressed));
         if pressed {
             assert_eq!(calls[0], &json!({"text":"Hello from the editor"}));
+            let invocation = result
+                .intents
+                .iter()
+                .find_map(|intent| {
+                    if let SchedulerIntent::Invoke { invocation_id, .. } = intent {
+                        Some(invocation_id.clone())
+                    } else {
+                        None
+                    }
+                })
+                .ok_or("invocation")?;
+            let completed = transition(
+                graph,
+                result.state,
+                IngressItem {
+                    context: IngressContext {
+                        host_boot_id: boot.clone(),
+                        activation_epoch: epoch,
+                        ordinal: IngressOrdinal::try_new(2)?,
+                    },
+                    kind: IngressKind::Invocation {
+                        reply: deckweave_domain::automation::InvocationReply::Terminal {
+                            invocation_id: invocation,
+                            outcome: deckweave_domain::automation::CommandOutcome::Succeeded {
+                                result: json!("transcript result"),
+                            },
+                        },
+                    },
+                },
+                2,
+                &GraphLimits::default(),
+            )?;
+            assert!(completed.faults.is_empty(), "{:?}", completed.faults);
+            assert!(completed.intents.iter().any(|i|matches!(i,SchedulerIntent::Invoke{node_id,input,..}if node_id.as_str()=="action-second" && input==&json!({"text":"transcript result"}))));
         }
     }
     Ok(())

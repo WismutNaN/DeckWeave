@@ -85,7 +85,7 @@
             ],
             "outputs": [
               {
-                "id": "yes",
+                "id": "match",
                 "schema": {
                   "id": "org.deckweave.preview.boolean",
                   "version": {
@@ -99,7 +99,7 @@
                 "range": null
               },
               {
-                "id": "no",
+                "id": "other",
                 "schema": {
                   "id": "org.deckweave.preview.boolean",
                   "version": {
@@ -251,7 +251,7 @@
             "kind": "flow",
             "source": {
               "nodeId": "pressed-first",
-              "portId": "yes"
+              "portId": "match"
             },
             "target": {
               "nodeId": "action-first",

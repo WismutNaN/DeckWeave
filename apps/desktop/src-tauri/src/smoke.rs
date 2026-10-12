@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Включается только feature smoke-test; отсутствует в обычной сборке.
-use deckweave_application::ApplicationService;
 use deckweave_host::HostRuntime;
 use std::{
     path::PathBuf,
@@ -40,19 +39,7 @@ pub fn plugin() -> TauriPlugin<Wry> {
             {
                 return;
             }
-            let script = r#"
-                (() => {
-                    let attempts = 0;
-                    const check = () => {
-                        const detail = document.body?.innerText ?? 'No document body';
-                        const rendered = detail.includes('Host работает');
-                        if (rendered || ++attempts === 200) {
-                            window.__TAURI_INTERNALS__.invoke('ready', { rendered, detail });
-                        } else { setTimeout(check, 100); }
-                    };
-                    check();
-                })();
-            "#;
+            let script = include_str!("smoke-editor.js");
             if let Err(error) = window.eval(script) {
                 eprintln!("smoke eval: {error}");
             }
@@ -122,7 +109,10 @@ fn verify(app: &tauri::AppHandle) -> Result<(), String> {
         }
         std::thread::sleep(Duration::from_millis(50));
     }
-    let root = app.state::<HostRuntime>().snapshot().data_root;
+    let root = app
+        .state::<std::sync::Arc<HostRuntime>>()
+        .snapshot()
+        .data_root;
     on_main(app, |app| {
         if app.tray_by_id("main-tray").is_none() {
             return Err("Нет tray icon".into());
@@ -151,7 +141,12 @@ fn verify(app: &tauri::AppHandle) -> Result<(), String> {
         {
             return Err("Второй запуск не открыл окно".into());
         }
-        if app.state::<HostRuntime>().snapshot().notice.is_some() {
+        if app
+            .state::<std::sync::Arc<HostRuntime>>()
+            .snapshot()
+            .notice
+            .is_some()
+        {
             return Err("Ложный конфликт того же root".into());
         }
         Ok(())
@@ -161,7 +156,12 @@ fn verify(app: &tauri::AppHandle) -> Result<(), String> {
     if other.exists() {
         return Err("Второй запуск создал конфликтующий root".into());
     }
-    if app.state::<HostRuntime>().snapshot().notice.is_none() {
+    if app
+        .state::<std::sync::Arc<HostRuntime>>()
+        .snapshot()
+        .notice
+        .is_none()
+    {
         return Err("Другой root не показал конфликт".into());
     }
     Ok(())

@@ -114,7 +114,7 @@ export type GraphPort = {
   role: string;
   schema: SchemaRef;
   unit: string | null;
-  range: null;
+  range: { minimum: number; maximum: number } | null;
 };
 export type GraphNode = {
   id: string;
@@ -183,6 +183,8 @@ export type Background = {
   brightness: number;
 };
 export type ControlStyle = {
+  trigger?: Endpoint;
+  when?: "true" | "false" | "any";
   label?: string;
   background?: Background;
   foreground?: string;
@@ -224,7 +226,12 @@ export type Plan = {
   disruptionAllowed: boolean;
 };
 export type Operation = {
-  operationId: string;
+  intent: {
+    operationId: string;
+    candidate: ActiveSelection;
+    draftVersion: number;
+  };
+  commitStatus: string;
   state: string;
   runtimeHealth: string;
   [key: string]: unknown;

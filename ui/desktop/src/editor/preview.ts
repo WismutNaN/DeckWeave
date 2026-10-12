@@ -203,6 +203,10 @@ export function previewClient(): EditorClient {
     open: async () => copy(draft),
     window: async () => ({ dedupEpoch: "preview-window" }),
     locale: async () => copy(locale),
+    reconcileLocale: async () => ({
+      context: copy(locale),
+      deliveryPending: false,
+    }),
     changeLocale: async (expected, next) => {
       if (expected !== locale.revision) throw { code: "revision_conflict" };
       locale = next;

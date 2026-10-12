@@ -14,8 +14,26 @@ import type {
   Shape,
 } from "./types";
 export const BINDING_KEY = "org.deckweave.editorBinding";
-export const equal = (a: unknown, b: unknown) =>
-  JSON.stringify(a) === JSON.stringify(b);
+export const equal = (a: unknown, b: unknown): boolean => {
+  if (a === b) return true;
+  if (
+    !a ||
+    !b ||
+    typeof a !== "object" ||
+    typeof b !== "object" ||
+    Array.isArray(a) !== Array.isArray(b)
+  )
+    return false;
+  const left = Object.entries(a),
+    right = Object.entries(b);
+  return (
+    left.length === right.length &&
+    left.every(
+      ([k, v]) =>
+        Object.hasOwn(b, k) && equal(v, (b as Record<string, unknown>)[k]),
+    )
+  );
+};
 export const schemaFor = (
   catalog: Catalog,
   ref: SchemaRef,
@@ -59,20 +77,78 @@ export function steps(
   deviceId: string,
   elementId: string,
 ): GraphNode[] {
-  return document.graph.nodes.filter(
+  return bindingNodes(document, deviceId, elementId).filter(
     (n) =>
       n.kind.type === "action" &&
       n.extensions[BINDING_KEY] === owner(deviceId, elementId),
   );
+}
+export function bindingNodes(
+  document: GraphDocument,
+  deviceId: string,
+  elementId: string,
+): GraphNode[] {
+  const nodes = document.graph.nodes.filter(
+    (n) => n.extensions[BINDING_KEY] === owner(deviceId, elementId),
+  );
+  if (!nodes.length) return [];
+  const roots = nodes.filter((n) => n.kind.type === "source");
+  if (roots.length !== 1) return nodes; // A complex graph is shown but cannot be extended blindly.
+  const result: GraphNode[] = [];
+  let current: GraphNode | undefined = roots[0];
+  while (current && !result.some((n) => n.id === current?.id)) {
+    result.push(current);
+    const edges = document.graph.edges.filter(
+      (e) =>
+        e.source.nodeId === current?.id &&
+        nodes.some((n) => n.id === e.target.nodeId),
+    );
+    if (edges.length > 1) return nodes;
+    current = nodes.find((n) => n.id === edges[0]?.target.nodeId);
+  }
+  return result.length === nodes.length ? result : nodes;
+}
+export function foreignBinding(
+  document: GraphDocument,
+  device: EditorDevice,
+  elementId: string,
+): boolean {
+  return document.graph.nodes.some((n) => {
+    const e = n.kind.endpoint;
+    return (
+      e?.packageId === device.package.packageId &&
+      e.nodeId === device.nodeId &&
+      e.target.kind === "device" &&
+      e.target.providerId === device.descriptor.providerId &&
+      e.target.deviceIdentity === device.descriptor.identity &&
+      e.port.elementId === elementId &&
+      n.kind.type === "source" &&
+      n.extensions[BINDING_KEY] !== owner(device.id, elementId)
+    );
+  });
 }
 export function sourceFor(
   catalogs: Catalog[],
   device: EditorDevice,
   elementId: string,
 ): CatalogEndpoint | undefined {
+  const candidates = sourceCandidates(catalogs, device, elementId),
+    selected = device.controls[elementId]?.trigger;
+  return selected
+    ? candidates.find((e) => equal(e.endpoint, selected))
+    : candidates.length === 1
+      ? candidates[0]
+      : undefined;
+}
+export function sourceCandidates(
+  catalogs: Catalog[],
+  device: EditorDevice,
+  elementId: string,
+): CatalogEndpoint[] {
   return catalogs
+    .filter((c) => equal(c.package, device.package))
     .flatMap((c) => c.endpoints)
-    .find(
+    .filter(
       (e) =>
         e.endpoint.packageId === device.package.packageId &&
         e.endpoint.nodeId === device.nodeId &&
@@ -99,6 +175,22 @@ export function appendAction(
   action: Action,
   uid: string,
 ): string {
+  const schemaPort = (
+    id: string,
+    ref: SchemaRef,
+    role: string,
+    kind: "flow" | "value" = "flow",
+  ): GraphPort => {
+    const schema = catalogs
+      .flatMap((c) => c.schemas)
+      .find((s) => equal(s.schema, ref));
+    if (!schema) throw new Error("Missing static schema");
+    return {
+      ...port(id, ref, role, kind),
+      unit: schema.unit,
+      range: schema.range,
+    };
+  };
   const source = sourceFor(catalogs, device, elementId);
   if (!source || !action.operation)
     throw new Error("This control has no static input contract");
@@ -106,9 +198,26 @@ export function appendAction(
   if (!shape || (shape.type !== "record" && shape.type !== "null"))
     throw new Error("This action needs a supported record or unit schema");
   const identity = owner(device.id, elementId);
-  const existing = document.graph.nodes.filter(
-    (n) => n.extensions[BINDING_KEY] === identity,
-  );
+  if (foreignBinding(document, device, elementId))
+    throw new Error(
+      "Элемент уже используется в сложном графе / This control is used by an advanced graph",
+    );
+  const existing = bindingNodes(document, device.id, elementId);
+  if (
+    existing.length &&
+    existing.some((n, i) => {
+      const outgoing = document.graph.edges.filter(
+        (e) => e.source.nodeId === n.id,
+      );
+      return (
+        outgoing.length !== (i === existing.length - 1 ? 0 : 1) ||
+        (outgoing[0] && outgoing[0].target.nodeId !== existing[i + 1]?.id)
+      );
+    })
+  )
+    throw new Error(
+      "Сценарий требует редактора графа / This binding requires the graph editor",
+    );
   const extensions = { [BINDING_KEY]: identity };
   let previous = existing.at(-1);
   if (!previous) {
@@ -120,7 +229,7 @@ export function appendAction(
         availability: "deferred",
       },
       inputs: [],
-      outputs: [port("event", source.port.schema, "trigger")],
+      outputs: [schemaPort("event", source.port.schema, "value", "value")],
       extensions,
     };
     document.graph.nodes.push(previous);
@@ -129,17 +238,26 @@ export function appendAction(
     );
     if (
       catalog &&
-      schemaFor(catalog, source.port.schema)?.shape === "boolean"
+      schemaFor(catalog, source.port.schema)?.shape === "boolean" &&
+      device.controls[elementId]?.when !== "any"
     ) {
       previous.outputs[0].kind = "value";
       previous.outputs[0].role = "value";
       const condition: GraphNode = {
         id: `pressed-${uid}`,
         kind: { type: "condition", operator: "is_true", operand: null },
-        inputs: [port("input", source.port.schema, "input", "value")],
+        inputs: [schemaPort("input", source.port.schema, "input", "value")],
         outputs: [
-          port("yes", source.port.schema, "true"),
-          port("no", source.port.schema, "false"),
+          schemaPort(
+            "match",
+            source.port.schema,
+            device.controls[elementId]?.when === "false" ? "false" : "true",
+          ),
+          schemaPort(
+            "other",
+            source.port.schema,
+            device.controls[elementId]?.when === "false" ? "true" : "false",
+          ),
         ],
         extensions,
       };
@@ -154,7 +272,19 @@ export function appendAction(
       previous = condition;
     }
   }
+  if (previous.kind.type === "source" && shape.type === "null") {
+    previous.outputs[0].kind = "flow";
+    previous.outputs[0].role = "trigger";
+  }
   const priorPort = previous.outputs[0];
+  if (
+    shape.type === "null" &&
+    priorPort.kind === "value" &&
+    !equal(priorPort.schema, action.operation.inputSchema)
+  )
+    throw new Error(
+      "Для этого перехода нужен преобразователь / This transition requires a converter",
+    );
   const node: GraphNode = {
     id: `action-${uid}`,
     kind: {
@@ -164,14 +294,16 @@ export function appendAction(
       availability: "deferred",
     },
     inputs: [
-      port(
+      schemaPort(
         "trigger",
         priorPort.schema,
         priorPort.kind === "flow" ? "trigger" : "input",
         priorPort.kind,
       ),
     ],
-    outputs: [port("result", action.operation.resultSchema, "result", "value")],
+    outputs: [
+      schemaPort("result", action.operation.resultSchema, "result", "value"),
+    ],
     extensions,
   };
   document.graph.nodes.push(node);
@@ -204,9 +336,7 @@ export function removeLastAction(
   elementId: string,
 ): void {
   const identity = owner(deviceId, elementId),
-    chain = document.graph.nodes.filter(
-      (n) => n.extensions[BINDING_KEY] === identity,
-    );
+    chain = bindingNodes(document, deviceId, elementId);
   const action = chain.filter((n) => n.kind.type === "action").at(-1);
   if (!action) return;
   const remove = new Set(

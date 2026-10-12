@@ -7,6 +7,7 @@ export interface EditorClient {
   open(): Promise<Draft>;
   window(): Promise<{ dedupEpoch: string }>;
   locale(): Promise<Locale>;
+  reconcileLocale(): Promise<{ context: Locale; deliveryPending: boolean }>;
   changeLocale(
     expected: number,
     next: Locale,
@@ -18,6 +19,7 @@ export const desktopClient: EditorClient = {
   open: () => invoke("open_workspace"),
   window: () => invoke("mutation_window"),
   locale: () => invoke("locale_get"),
+  reconcileLocale: () => invoke("locale_reconcile"),
   changeLocale: (expected, next) => invoke("locale_change", { expected, next }),
 };
 export const copy = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;

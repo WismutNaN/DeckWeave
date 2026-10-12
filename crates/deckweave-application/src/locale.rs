@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! CAS host preference use case. A failed notification does not undo durable settings.
-use crate::{ApiAuthScope, ApiAuthorizer, RequestContext};
+use crate::{ApiAuthScope, ApiAuthorizer, ApiError, ApiErrorCode, RequestContext};
 use deckweave_domain::localization::LocaleContext;
 use deckweave_platform::{LocalePreferenceStore, PreferenceError};
 use serde::Serialize;
@@ -16,6 +16,33 @@ pub enum LocaleError {
     Denied,
     #[error(transparent)]
     Store(#[from] PreferenceError),
+}
+impl LocaleError {
+    pub fn into_api_error(self, context: &RequestContext) -> ApiError {
+        let (code, key, retryable) = match self {
+            Self::Denied => (
+                ApiErrorCode::PermissionDenied,
+                "api.error.permission_denied",
+                false,
+            ),
+            Self::Store(PreferenceError::Conflict) => (
+                ApiErrorCode::RevisionConflict,
+                "api.error.locale_conflict",
+                false,
+            ),
+            Self::Store(PreferenceError::Invalid) => (
+                ApiErrorCode::InvalidCommand,
+                "api.error.invalid_locale",
+                false,
+            ),
+            Self::Store(PreferenceError::Unavailable(_)) => (
+                ApiErrorCode::Unavailable,
+                "api.error.locale_unavailable",
+                true,
+            ),
+        };
+        crate::gateway::errors::api_error(context, code, key, retryable, Default::default())
+    }
 }
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]

@@ -18,8 +18,43 @@ export const defaultBackground = (): Background => ({
 export function layout(document: GraphDocument): EditorLayout {
   const value = document.extensions[EDITOR_KEY] as unknown as
     EditorLayout | undefined;
-  if (value && (value.version !== 1 || !Array.isArray(value.devices)))
+  if (
+    document.schemaVersion?.major !== 1 ||
+    !document.graph?.nodes ||
+    !document.layout?.nodes
+  )
+    throw new Error("Unsupported workspace document");
+  if (
+    value &&
+    (value.version !== 1 ||
+      !Array.isArray(value.devices) ||
+      value.devices.length > 256)
+  )
     throw new Error("Unsupported editor document");
+  if (value) {
+    const ids = new Set<string>();
+    for (const d of value.devices) {
+      if (
+        !d ||
+        typeof d.id !== "string" ||
+        ids.has(d.id) ||
+        !d.package?.packageId ||
+        !d.nodeId ||
+        !d.descriptor?.providerId ||
+        !d.descriptor.identity ||
+        !Array.isArray(d.descriptor.elements) ||
+        d.descriptor.elements.length > 4096 ||
+        ![d.x, d.y].every(Number.isFinite) ||
+        !d.appearance ||
+        !d.controls ||
+        d.descriptor.elements.some(
+          (e) => !e.elementId || !Array.isArray(e.capabilities),
+        )
+      )
+        throw new Error("Invalid editor device layout");
+      ids.add(d.id);
+    }
+  }
   return value ?? { version: 1, devices: [] };
 }
 export function putLayout(document: GraphDocument, value: EditorLayout): void {
@@ -34,6 +69,7 @@ export function geometry(device: Device): {
   const descriptor = device["org.deckweave.controlLayout"];
   const valid =
     descriptor?.version === 1 &&
+    Boolean(descriptor.elements) &&
     descriptor.width > 0 &&
     descriptor.height > 0 &&
     descriptor.width <= 10000 &&
@@ -81,11 +117,11 @@ export function backgroundCss(background: Background): string {
 export function controlBackground(
   device: EditorDevice,
   elementId: string,
+  geo = geometry(device.descriptor),
 ): string {
   const own = device.controls[elementId]?.background;
   if (own) return backgroundCss(own);
-  const geo = geometry(device.descriptor),
-    b = geo.controls[elementId];
+  const b = geo.controls[elementId];
   if (device.appearance.mode === "solid" || !b || !geo.measured)
     return safeColor(device.appearance.start);
   // Один фон на плоскости устройства, а не отдельный gradient на каждой кнопке.
@@ -94,4 +130,31 @@ export function controlBackground(
   const x = geo.width === b.width ? 0 : (b.x / (geo.width - b.width)) * 100;
   const y = geo.height === b.height ? 0 : (b.y / (geo.height - b.height)) * 100;
   return `${backgroundCss(device.appearance)} ${x}% ${y}% / ${width}% ${height}%`;
+}
+
+export function neighbor(
+  device: Device,
+  index: number,
+  direction: string,
+): number {
+  const g = geometry(device),
+    current = g.controls[device.elements[index].elementId];
+  const dx =
+      direction === "ArrowRight" ? 1 : direction === "ArrowLeft" ? -1 : 0,
+    dy = direction === "ArrowDown" ? 1 : direction === "ArrowUp" ? -1 : 0;
+  let next = index,
+    score = Infinity;
+  device.elements.forEach((element, i) => {
+    const b = g.controls[element.elementId],
+      x = b.x + b.width / 2 - current.x - current.width / 2,
+      y = b.y + b.height / 2 - current.y - current.height / 2,
+      along = x * dx + y * dy,
+      cross = Math.abs(x * dy - y * dx),
+      distance = along + cross * 3;
+    if (along > 0.001 && distance < score) {
+      score = distance;
+      next = i;
+    }
+  });
+  return next;
 }

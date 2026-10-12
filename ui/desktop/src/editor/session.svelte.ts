@@ -2,6 +2,7 @@
 import { copy, message, type EditorClient } from "./api";
 import { defaultBackground, layout, putLayout } from "./appearance";
 import { appendAction, equal, sourceFor } from "./bindings";
+import { mergeDocuments, type RecoveryJournal } from "./recovery";
 import type {
   Action,
   Catalog,
@@ -38,6 +39,51 @@ export class EditorSession {
   plan = $state<Plan | null>(null);
   operation = $state<Operation | null>(null);
   epoch = "";
+  attempted = false;
+  operationId = $state<string | null>(null);
+  conflict = $state(false);
+  localePending = $state(false);
+  journal?: RecoveryJournal;
+  persist() {
+    if (this.draft && this.document)
+      this.journal?.write({
+        version: 1,
+        base: copy(this.draft),
+        document: copy(this.document),
+        pending: copy(this.pending),
+        attempted: this.attempted,
+        operationId: this.operationId,
+      });
+  }
+  async sendPending<T>(): Promise<T> {
+    if (!this.pending) throw new Error("No pending command");
+    const replay = this.attempted;
+    this.attempted = true;
+    this.persist(); // Publish the retry identity before any possible effect.
+    try {
+      return await this.client.command<T>(copy(this.pending));
+    } catch (cause) {
+      const code = (cause as { code?: string })?.code;
+      if (
+        !replay &&
+        code &&
+        [
+          "invalid_command",
+          "permission_denied",
+          "plan_conflict",
+          "revision_conflict",
+          "capacity_exceeded",
+          "not_found",
+        ].includes(code)
+      ) {
+        this.pending = null;
+        this.attempted = false;
+        this.conflict = code === "revision_conflict";
+        this.persist();
+      }
+      throw cause;
+    }
+  }
   constructor(
     public client: EditorClient,
     public preview = false,
@@ -89,20 +135,6 @@ export class EditorSession {
     try {
       await task();
     } catch (cause) {
-      // Only explicit API rejections prove a mutation did not take effect.
-      const code = (cause as { code?: string })?.code;
-      if (
-        code &&
-        [
-          "invalid_command",
-          "permission_denied",
-          "plan_conflict",
-          "revision_conflict",
-          "capacity_exceeded",
-          "not_found",
-        ].includes(code)
-      )
-        this.pending = null;
       this.error = message(cause, this.lang);
     } finally {
       this.busy = false;
@@ -111,11 +143,34 @@ export class EditorSession {
   async load() {
     await this.run(async () => {
       this.draft = await this.client.open();
+      layout(this.draft.document);
       this.document = copy(this.draft.document);
+      const recovery = this.journal?.read();
+      if (recovery && recovery.base.draftId === this.draft.draftId) {
+        layout(recovery.document);
+        if (
+          recovery.pending ||
+          !equal(recovery.document, recovery.base.document)
+        ) {
+          this.conflict = recovery.base.version !== this.draft.version;
+          this.draft = recovery.base;
+          this.document = recovery.document;
+          this.pending = recovery.pending;
+          this.attempted = recovery.attempted ?? Boolean(recovery.pending);
+        }
+        this.operationId = recovery.operationId;
+      }
       this.locale = await this.client.locale();
       this.epoch = (await this.client.window()).dedupEpoch;
       await this.refresh();
       this.selectedDevice = this.devices[0]?.id ?? "";
+      if (this.pending) {
+        this.notice = this.t(
+          "Восстановлен незавершённый запрос. Повторите его для проверки результата.",
+          "An unfinished request was restored. Retry it to resolve its outcome.",
+        );
+      }
+      this.persist();
     });
   }
   async refresh() {
@@ -132,6 +187,16 @@ export class EditorSession {
     );
     this.snapshot = snapshot;
     this.catalogs = catalogs;
+    if (this.operationId)
+      this.operation = await this.client.query<Operation>({
+        type: "operation",
+        operation_id: this.operationId,
+      });
+    if (this.localePending) {
+      const result = await this.client.reconcileLocale();
+      this.locale = result.context;
+      this.localePending = result.deliveryPending;
+    }
   }
   edit(change: (document: GraphDocument) => void) {
     if (!this.document || this.busy || this.pending) return;
@@ -143,6 +208,7 @@ export class EditorSession {
       this.undoStack = [...this.undoStack.slice(-63), before];
       this.redoStack = [];
       this.document = next;
+      this.persist();
       this.plan = null;
       this.notice = "";
       this.error = "";
@@ -164,6 +230,7 @@ export class EditorSession {
       this.undoStack = [...this.undoStack, current];
     }
     this.document = copy(next);
+    this.persist();
     this.plan = null;
     this.notice = "";
   }
@@ -242,6 +309,13 @@ export class EditorSession {
         ),
       );
     if (!this.draft || !this.document || (!this.dirty && !this.pending)) return;
+    if (this.conflict && !this.pending)
+      throw new Error(
+        this.t(
+          "Сначала объедините изменения с новой версией.",
+          "Merge the current draft revision before saving.",
+        ),
+      );
     const locks = [...this.draft.packageLock];
     const required = new Set(
       this.document.graph.nodes.flatMap((n) =>
@@ -272,18 +346,23 @@ export class EditorSession {
         package_lock: locks,
       },
     });
-    const result = await this.client.command<{ draft: Draft }>(
-      copy(this.pending),
-    );
+    const result = await this.sendPending<{ draft: Draft }>();
     this.draft = result.draft;
     this.document = copy(result.draft.document);
     this.pending = null;
+    this.attempted = false;
+    this.conflict = false;
+    this.persist();
     this.notice = this.t("Черновик сохранён", "Draft saved");
   }
   async apply() {
     await this.run(async () => {
       if (this.pending?.command.type === "apply_draft") {
         await this.finishApply();
+        return;
+      }
+      if (this.pending) {
+        await this.save();
         return;
       }
       await this.save();
@@ -303,6 +382,7 @@ export class EditorSession {
         allow_disruption: false,
         plan_hash: this.plan.planHash,
       });
+      this.attempted = false;
       await this.finishApply();
     });
   }
@@ -315,26 +395,52 @@ export class EditorSession {
   }
   async finishApply() {
     if (!this.pending) return;
-    const receipt = await this.client.command<{ operationId: string }>(
-      copy(this.pending),
-    );
+    const receipt = await this.sendPending<{ operationId: string }>();
+    this.operationId = receipt.operationId;
+    this.persist();
     this.operation = await this.client.query<Operation>({
       type: "operation",
       operation_id: receipt.operationId,
     });
     await this.refresh();
     this.pending = null;
+    this.attempted = false;
+    this.persist();
     this.notice = this.preview
       ? this.t(
           "Пример сохранён. Оборудование не используется.",
           "Example saved. No hardware is used.",
         )
-      : this.operation.state === "succeeded"
+      : this.operation.state === "succeeded" &&
+          this.operation.runtimeHealth === "applied"
         ? this.t("Действия применены", "Actions applied")
         : this.t(
             `Состояние применения: ${this.operation.state}`,
             `Apply status: ${this.operation.state}`,
           );
+  }
+  async mergeLatest() {
+    await this.run(async () => {
+      if (!this.draft || !this.document || this.pending) return;
+      const remote = await this.client.query<Draft>({
+        type: "draft",
+        draft_id: this.draft.draftId,
+      });
+      const merged = mergeDocuments(
+        this.draft.document,
+        this.document,
+        remote.document,
+      );
+      this.draft = remote;
+      this.document = merged;
+      this.conflict = false;
+      this.plan = null;
+      this.persist();
+      this.notice = this.t(
+        "Изменения объединены. Проверьте и сохраните черновик.",
+        "Changes merged. Review and save your draft.",
+      );
+    });
   }
   async language(lang: "ru" | "en") {
     await this.run(async () => {
@@ -345,7 +451,13 @@ export class EditorSession {
       };
       const result = await this.client.changeLocale(this.locale.revision, next);
       this.locale = result.context;
-      if (result.deliveryPending)
+      this.localePending = result.deliveryPending;
+      if (this.localePending) {
+        const delivery = await this.client.reconcileLocale();
+        this.locale = delivery.context;
+        this.localePending = delivery.deliveryPending;
+      }
+      if (this.localePending)
         this.notice = this.t(
           "Язык сохранён; плагины ожидают обновления.",
           "Language saved; plugins await delivery.",

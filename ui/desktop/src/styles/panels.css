@@ -1,4 +1,54 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+.runtime-summary {
+  position: relative;
+  white-space: nowrap;
+}
+.runtime-popover {
+  position: absolute;
+  bottom: 28px;
+  left: 0;
+  width: 330px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 18px;
+  box-shadow: 0 8px 35px #23384326;
+  z-index: 8;
+  white-space: normal;
+}
+.runtime-popover dl {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 10px;
+  font-size: 11px;
+  margin: 16px 0;
+}
+.runtime-popover dt {
+  color: var(--muted);
+}
+.runtime-popover dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.runtime-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11px;
+  margin: 9px 0;
+  overflow-wrap: anywhere;
+}
+.runtime-row strong {
+  font-weight: 500;
+}
+@media (max-height: 620px) {
+  .library-tip {
+    display: none !important;
+  }
+  .library-divider {
+    margin: 16px 7px !important;
+  }
+}
 .library-panel {
   display: flex;
   flex-direction: column;

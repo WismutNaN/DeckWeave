@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script lang="ts">
   import Icon from "./Icon.svelte";
-  import { controlBackground, geometry } from "../editor/appearance";
+  import { controlBackground, geometry, neighbor } from "../editor/appearance";
   import { equal, steps } from "../editor/bindings";
   import type { EditorSession } from "../editor/session.svelte";
   import type { EditorDevice } from "../editor/types";
@@ -27,7 +27,8 @@
     const p = position(device),
       g = geometry(device.descriptor);
     return (
-      (p.x + 500) * zoom + pan.x > 0 &&
+      (p.x + Math.min(740, Math.max(340, g.width * 88 + 36))) * zoom + pan.x >
+        0 &&
       p.x * zoom + pan.x < width &&
       (p.y + g.height * 88 + 100) * zoom + pan.y > 0 &&
       p.y * zoom + pan.y < height
@@ -63,7 +64,10 @@
   function stop() {
     if (drag?.id) {
       const value = drag;
-      session.select(value.id, session.selectedControl);
+      session.select(
+        value.id,
+        session.selectedDevice === value.id ? session.selectedControl : "",
+      );
       session.updateDevice((d) => {
         d.x = value.x;
         d.y = value.y;
@@ -115,20 +119,9 @@
     }
   }
   function navigate(e: KeyboardEvent, device: EditorDevice, index: number) {
-    const g = geometry(device.descriptor),
-      columns = Math.max(1, Math.round(g.width));
-    const delta: Record<string, number> = {
-      ArrowRight: 1,
-      ArrowLeft: -1,
-      ArrowDown: columns,
-      ArrowUp: -columns,
-    };
-    if (e.key in delta) {
+    if (["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp"].includes(e.key)) {
       e.preventDefault();
-      const next = Math.max(
-        0,
-        Math.min(device.descriptor.elements.length - 1, index + delta[e.key]),
-      );
+      const next = neighbor(device.descriptor, index, e.key);
       const buttons = (e.currentTarget as HTMLElement)
         .closest(".device-keys")
         ?.querySelectorAll<HTMLButtonElement>(".device-key");
@@ -157,7 +150,7 @@
   onkeydown={(e) => {
     if (
       e.code === "Space" &&
-      !["INPUT", "TEXTAREA", "SELECT"].includes(
+      !["INPUT", "TEXTAREA", "SELECT", "BUTTON", "A"].includes(
         (e.target as HTMLElement).tagName,
       )
     ) {
@@ -241,8 +234,11 @@
               >{session.snapshot?.nodes.some(
                 (n) =>
                   n.packageId === device.package.packageId &&
+                  n.descriptor.nodeId === device.nodeId &&
                   n.descriptor.devices.some(
-                    (d) => d.identity === device.descriptor.identity,
+                    (d) =>
+                      d.identity === device.descriptor.identity &&
+                      d.providerId === device.descriptor.providerId,
                   ),
               )
                 ? t("Подключено", "Connected")

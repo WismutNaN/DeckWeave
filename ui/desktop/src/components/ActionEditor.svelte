@@ -11,9 +11,14 @@
     removeLastAction,
     schemaFor,
     steps,
+    sourceCandidates,
+    sourceFor,
+    foreignBinding,
+    bindingNodes,
   } from "../editor/bindings";
   import type { EditorSession } from "../editor/session.svelte";
-  import type { Binding, Json } from "../editor/types";
+  import { valuePaths, valueShape } from "../editor/variables";
+  import type { Binding, Json, Shape } from "../editor/types";
   let { session }: { session: EditorSession } = $props();
   const t = (ru: string, en: string) => session.t(ru, en);
   let chain = $derived(
@@ -34,6 +39,26 @@
       : {},
   );
   let blocked = $derived(session.busy || Boolean(session.pending));
+  let advanced = $derived(
+    Boolean(
+      session.document &&
+      session.device &&
+      foreignBinding(session.document, session.device, session.selectedControl),
+    ),
+  );
+  let input = $derived(
+    session.device
+      ? sourceFor(session.catalogs, session.device, session.selectedControl)
+      : undefined,
+  );
+  let booleanInput = $derived(
+    Boolean(
+      input &&
+      session.catalogs.some(
+        (c) => schemaFor(c, input!.port.schema)?.shape === "boolean",
+      ),
+    ),
+  );
   function setField(key: string, binding: Binding | undefined) {
     if (!node) return;
     const id = node.id;
@@ -44,12 +69,24 @@
       else delete doc.graph.actionArguments[id].fields[key];
     });
   }
-  function variables() {
+  let triggers = $derived(
+    session.device
+      ? sourceCandidates(
+          session.catalogs,
+          session.device,
+          session.selectedControl,
+        )
+      : [],
+  );
+  function variables(target: Shape) {
     if (!session.document || !session.device || !node) return [];
-    const index = session.document.graph.nodes.findIndex(
-      (n) => n.id === node?.id,
+    const ordered = bindingNodes(
+      session.document,
+      session.device.id,
+      session.selectedControl,
     );
-    return session.document.graph.nodes
+    const index = ordered.findIndex((n) => n.id === node?.id);
+    return ordered
       .slice(0, index)
       .filter(
         (n) =>
@@ -68,28 +105,80 @@
             ? t("Событие кнопки", "Control event")
             : (session.actions.find((a) => equal(a.endpoint, n.kind.endpoint))
                 ?.title ?? n.id);
-        const pointers =
-          s &&
-          typeof s.shape === "object" &&
-          s.shape.structured.type === "record"
-            ? Object.keys(s.shape.structured.fields).map((k) => ({
-                pointer: `/${k.replaceAll("~", "~0").replaceAll("/", "~1")}`,
-                title: `${title} · ${k}`,
-              }))
-            : [{ pointer: "", title }];
+        const sourceShape = s ? valueShape(s) : null;
+        const pointers = sourceShape
+          ? valuePaths(sourceShape, target).map((p) => ({
+              pointer: p.pointer,
+              title: p.pointer ? title + " · " + p.label : title,
+            }))
+          : [];
         return pointers.map((p) => ({ ...p, nodeId: n.id }));
       });
   }
 </script>
 
+{#if triggers.length > 1}<label class="form-field"
+    ><span>{t("Событие устройства", "Device event")}</span><select
+      disabled={blocked || chain.length > 0}
+      value={JSON.stringify(
+        session.device?.controls[session.selectedControl]?.trigger ?? null,
+      )}
+      onchange={(e) => {
+        const trigger = JSON.parse(e.currentTarget.value);
+        session.updateDevice((d) => {
+          d.controls[session.selectedControl] ??= {};
+          d.controls[session.selectedControl].trigger = trigger;
+        });
+      }}
+      ><option value="null" disabled
+        >{t("Выберите событие", "Select an event")}</option
+      >{#each triggers as trigger}<option
+          value={JSON.stringify(trigger.endpoint)}
+          >{trigger.endpoint.port.capabilityId} · {trigger.endpoint.port.portId} ({trigger
+            .port.kind})</option
+        >{/each}</select
+    ></label
+  >{/if}
+{#if booleanInput}<label class="form-field"
+    ><span>{t("Когда выполнять", "When to run")}</span><select
+      disabled={blocked || chain.length > 0}
+      value={session.device?.controls[session.selectedControl]?.when ?? "true"}
+      onchange={(e) => {
+        const when = e.currentTarget.value as "true" | "false" | "any";
+        session.updateDevice((d) => {
+          d.controls[session.selectedControl] ??= {};
+          d.controls[session.selectedControl].when = when;
+        });
+      }}
+      ><option value="true"
+        >{t("При значении true · нажатие", "Value true · pressed")}</option
+      ><option value="false"
+        >{t(
+          "При значении false · отпускание",
+          "Value false · released",
+        )}</option
+      ><option value="any">{t("При каждом событии", "On every event")}</option
+      ></select
+    >{#if chain.length}<small class="field-help"
+        >{t(
+          "Для смены события сначала удалите шаги этой кнопки.",
+          "Remove this key's steps before changing the trigger.",
+        )}</small
+      >{/if}</label
+  >{/if}
 {#if !chain.length}<div class="binding-empty">
     <div class="binding-target"><Icon name="bolt" size={24} /></div>
     <h3>{t("Что делает эта кнопка?", "What should this key do?")}</h3>
     <p>
-      {t(
-        "Выберите действие слева или перетащите его на кнопку.",
-        "Choose an action on the left or drag it onto this key.",
-      )}
+      {advanced
+        ? t(
+            "Этот элемент связан со сложным графом. Его узлы сохранены; для изменения потребуется редактор графа.",
+            "This control belongs to an advanced graph. Its nodes are preserved and require the graph editor.",
+          )
+        : t(
+            "Выберите действие слева или перетащите его на кнопку.",
+            "Choose an action on the left or drag it onto this key.",
+          )}
     </p>
     {#if !session.hasSource}<p class="field-help invalid">
         {t(
@@ -156,7 +245,7 @@
                   )}
                 ><option value="constant"
                   >{t("Моё значение", "My value")}</option
-                >{#each variables() as variable}<option
+                >{#each variables(field.schema) as variable}<option
                     value={JSON.stringify({
                       type: "run_result",
                       nodeId: variable.nodeId,

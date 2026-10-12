@@ -102,3 +102,36 @@ fn preference_is_durable_before_delivery_and_reconcile_never_reverts_newer_selec
     );
     Ok(())
 }
+
+#[test]
+fn locale_errors_preserve_code_retryability_and_trace_for_desktop() -> Result<(), Box<dyn Error>> {
+    let context = RequestContext {
+        principal_id: PrincipalId::try_new("desktop")?,
+        trace_id: TraceId::try_new("adapter-parity")?,
+    };
+    for (error, code, retryable) in [
+        (LocaleError::Denied, ApiErrorCode::PermissionDenied, false),
+        (
+            LocaleError::Store(PreferenceError::Invalid),
+            ApiErrorCode::InvalidCommand,
+            false,
+        ),
+        (
+            LocaleError::Store(PreferenceError::Conflict),
+            ApiErrorCode::RevisionConflict,
+            false,
+        ),
+        (
+            LocaleError::Store(PreferenceError::Unavailable("private storage path".into())),
+            ApiErrorCode::Unavailable,
+            true,
+        ),
+    ] {
+        let error = error.into_api_error(&context);
+        assert_eq!(error.code, code);
+        assert_eq!(error.retryable, retryable);
+        assert_eq!(error.trace_id, context.trace_id);
+        assert!(error.details.is_empty());
+    }
+    Ok(())
+}

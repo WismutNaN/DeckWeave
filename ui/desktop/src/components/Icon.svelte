@@ -2,6 +2,9 @@
 <script lang="ts">
   let { name, size = 18 }: { name: string; size?: number } = $props();
   const paths: Record<string, string> = {
+    play: "M8 4l12 8-12 8z",
+    settings: "M4 7h5 M13 7h7 M4 17h11 M19 17h1 M9 3v8 M15 13v8",
+    alert: "M12 3L2 21h20z M12 9v5 M12 18h.01",
     grid: "M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z",
     plus: "M12 5v14 M5 12h14",
     search: "M21 21l-5-5 M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0",

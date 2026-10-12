@@ -82,12 +82,7 @@ pub async fn open_workspace(
 ) -> Result<DraftView, ApiError> {
     let request = context(&window)?;
     let service = service.inner().clone();
-    blocking(move || {
-        service
-            .open(&request)
-            .map_err(|_| error(ApiErrorCode::Unavailable, "api.error.workspace_unavailable"))
-    })
-    .await
+    blocking(move || service.open(&request)).await
 }
 #[tauri::command]
 pub async fn locale_get(
@@ -99,7 +94,7 @@ pub async fn locale_get(
     blocking(move || {
         service
             .get(&request)
-            .map_err(|_| error(ApiErrorCode::Unavailable, "api.error.locale_unavailable"))
+            .map_err(|error| error.into_api_error(&request))
     })
     .await
 }
@@ -115,7 +110,22 @@ pub async fn locale_change(
     blocking(move || {
         service
             .change(&request, expected, next)
-            .map_err(|_| error(ApiErrorCode::RevisionConflict, "api.error.locale_conflict"))
+            .map_err(|error| error.into_api_error(&request))
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn locale_reconcile(
+    window: WebviewWindow,
+    service: State<'_, Arc<LocalePreferencesService>>,
+) -> Result<LocaleUpdate, ApiError> {
+    let request = context(&window)?;
+    let service = service.inner().clone();
+    blocking(move || {
+        service
+            .reconcile(&request)
+            .map_err(|error| error.into_api_error(&request))
     })
     .await
 }

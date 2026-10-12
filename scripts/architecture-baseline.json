@@ -104,12 +104,6 @@
     }
   },
   "sizeExceptions": {
-    "apps/desktop/src-tauri/src/main.rs": {
-      "maxLines": 230,
-      "owner": "Desktop composition root",
-      "reason": "The initial Tauri composition root still combines command wiring, tray lifecycle and window setup.",
-      "reviewMilestone": "Phase 6"
-    },
     "crates/deckweave-plugin-supervisor/src/package.rs": {
       "maxLines": 544,
       "owner": "Plugin Runtime",
