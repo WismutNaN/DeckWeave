@@ -1,6 +1,6 @@
 # Документация DeckWeave
 
-DeckWeave объединяет устройства и приложения через плагины: ввод, действия с результатами, визуальные поверхности, подсветку и будущие media streams. Реализованы protocol/plugin foundations, Profile/Workspace Фазы 4, production virtual apply и DDD migration R1–R4. [Повторный аудит](research/pre-apply-review.md#phase-5-readiness) выявил три dedup/recovery дефекта; они закрываются в 5.0 перед подключением effects. Pure compiler/scheduler можно начинать по [плану Фазы 5](implementation/phase-5-automation.md). Реальные input hooks, interaction UI и device providers ещё не готовы. Ручная приёмка и GitHub CI ещё не выполнены. Полная спецификация описывает целевую систему. [Запуск и проверки](implementation/development.md), [статус фаз](implementation/roadmap.md#фаза-4--profile-revisions-и-application-api).
+DeckWeave объединяет устройства и приложения через плагины: ввод, actions/results, визуальные поверхности, подсветку и будущие media streams. M1 automation/replay Фазы 5 реализован на virtual providers, F5-R1–R3 исправлены. [Каталог идей](plugins/README.md) проверен относительно кода `2d99c88`: перед editor остаётся [gate Фазы 6](implementation/pre-phase-6.md), включая instances/settings, structured bindings, live clock/cleanup и presentation/data contracts. Реальные integrations и views не считаются готовыми по virtual tests. Полная спецификация описывает целевую систему; [аудит](research/plugin-feasibility.md) отличает реализацию от проектных решений. [Запуск и проверки](implementation/development.md), [статус фаз](implementation/roadmap.md).
 
 ## Порядок чтения
 
@@ -9,6 +9,7 @@ DeckWeave объединяет устройства и приложения че
 3. Нужный контракт из таблицы ниже и соответствующая [граница модуля](architecture/modules/README.md).
 4. [План реализации](implementation/roadmap.md): ближайший рабочий срез и acceptance gate.
 5. [Решения](decisions/README.md) и [исследование исходников](research/implementation-review.md): почему выбраны эти границы.
+6. [База плагинов](plugins/README.md): идеи, переиспользование, зависимости и ограничения внешних API; новая идея сначала получает карточку, затем меняет contracts при необходимости.
 
 ## Карта разделов
 
@@ -17,7 +18,8 @@ DeckWeave объединяет устройства и приложения че
 | `product/` | Назначение, требования, сценарии, режимы и UX | [Замысел](product/vision.md), [режимы](product/modes.md), [UX](product/ux.md), [стандарт UI](product/ui-quality-standard.md) |
 | `architecture/` | Устройство системы, DDD-контексты и границы модулей | [Обзор](architecture/overview.md), [DDD](architecture/ddd.md), [модули](architecture/modules/README.md) |
 | `contracts/` | Нормативное поведение на границах | Таблица ниже |
-| `implementation/` | Порядок реализации, срезы и проверки | [Roadmap](implementation/roadmap.md), [Фаза 5](implementation/phase-5-automation.md), [разработка](implementation/development.md) |
+| `plugins/` | Проектный каталог идей, reusable parts и acceptance packages | [Реестр PLG](plugins/README.md) |
+| `implementation/` | Порядок реализации, срезы и проверки | [Roadmap](implementation/roadmap.md), [pre-6 gate](implementation/pre-phase-6.md), [разработка](implementation/development.md) |
 | `decisions/` | Нумерованные ADR с причиной выбора | [Реестр ADR](decisions/README.md) |
 | `research/` | Первичные источники, наблюдения, сравнение и reuse-кандидаты | [Референсы](research/REFERENCES.md), [анализ реализаций](research/implementation-review.md), [аудит перед apply](research/pre-apply-review.md) |
 | `archive/` | Исторические материалы, не текущие требования | [Исходный стек](archive/initial-stack.md), [первый аудит](archive/2026-10-12-initial-audit.md) |
@@ -28,6 +30,8 @@ DeckWeave объединяет устройства и приложения че
 |---|---|
 | [Capabilities](contracts/capabilities.md) | Identity, descriptors, port semantics, dynamic topology и negotiation |
 | [Plugins](contracts/plugins.md) | Package/manifest, runtime classes, handshake, feature/limit negotiation и SDK |
+| [Plugin composition](contracts/plugin-composition.md) | Configured instances, dependencies/service bindings, delegation и plugin-owned data |
+| [Presentation](contracts/presentation.md) | Общие presenters, collections/navigation, slot/scene selection и desktop view lifetimes |
 | [Lifecycle](contracts/lifecycle.md) | Revisions/apply/recovery, epochs, ingress order, leases и frame delivery |
 | [Automation](contracts/automation.md) | Typed results/jobs, run scope, artifacts, collections, joins и layers |
 | [Lighting](contracts/lighting.md) | Physical geometry, key/LED mapping, effects, output ownership и onboard границы |

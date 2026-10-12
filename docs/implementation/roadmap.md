@@ -4,6 +4,8 @@
 
 ## Обязательные зависимости и срезы
 
+До реализации editor Фазы 6 действует дополнительный [gate расширяемости 6G.0–6G.5](pre-phase-6.md), основанный на [проверке кода `2d99c88`](../research/plugin-feasibility.md) и [каталоге плагинов](../plugins/README.md). Статус M1 Фазы 5 не закрывает configured instances/settings, сложные arguments, live clock/cleanup и production desktop composition.
+
 Нормативные failure/ordering contracts: [Lifecycle](../contracts/lifecycle.md). При расхождении module summary с контрактом сначала исправляется документация. Production fixture подтверждает отдельные process-crash apply/recovery переходы; повторный аудит обнаружил ещё три dedup/recovery случая для [среза 5.0](phase-5-automation.md). Power-loss durability и B2 compaction остаются отдельными ограничениями. [Аудит после DDD migration](../research/pre-apply-review.md#phase-5-readiness) отделяет доказанные свойства от незавершённых способностей.
 
 Расширяемость проверяется до SDK freeze на [сценариях](../product/scenarios.md): независимые keyboard/analog/RGB/surface/job/media descriptors, typed results, geometry и dynamic ports. [Исследование реализаций](../research/implementation-review.md) определяет reuse-кандидатов и ограничения evidence; существующий upstream метод не закрывает hardware acceptance.
@@ -13,7 +15,7 @@
 | 3 | Static index → handshake/virtual provider → leases/discovery/restart; отдельно ранний C0/C1 compatibility spike на pinned open fixture |
 | 4 | После draft/store: A identity/owners → B ledger/retention → C runtime coordinator → D candidate/apply ports → E commit/recovery; [gate](#pre-apply-gate) до hardware |
 | 5 | Recovery/dedup 5.0 → graph/wire contract → compiler/IR → scheduler → runtime dispatch → M1 → replay/latency; [подробные срезы](phase-5-automation.md) |
-| 6 | Canvas/select → schema-form binding → draft/apply/health; готовый preset укладывается в click budget |
+| 6 | Сначала pre-6 gate: instances/data/view contracts, live correctness, B2 и composition → canvas/select → inspector/binding → draft/apply/health |
 | 8 | Protocol/identity fixtures → inputs → frames/light/haptic; неподтверждённый hardware не считается реализованным |
 | 9 | Backend benchmark/ADR → display renderer/frame protocol → basic LightFrame/ownership → hit testing/preview → editor; diff loss fixture обязателен |
 | 11 | Отдельные срезы по 1–5 дней: layers/cleanup → typed sequence/parallel/results → jobs/artifact broker → collections/notification fixture → lighting envelopes → schedules/Graph UI; один срез не обещает все nodes |
@@ -391,6 +393,7 @@ checkpoint/compaction B2 пока отсутствует. Durable apply и produ
 ### Задачи
 
 - [ ] Закрыть B2 checkpoint/compaction и bounded quota accounting перед editor-heavy нагрузкой; сохранить receipts/pending operations при GC/restart (→ [gate B2](#pre-apply-gate), [Profile Store](../architecture/modules/profile-store.md)).
+- [ ] Закрыть остальные срезы 6G.1–6G.5 и сквозные fake plugin scenarios до фиксации inspector/binding model; документация сама не закрывает gate (→ [pre-6 plan](pre-phase-6.md), [каталог](../plugins/README.md)).
 - [ ] До canvas подключить Tauri adapter к Application Gateway с host-derived principal и общими DTO; проверить parity command/query/error с in-process client, receipt replay и snapshot reconnect (→ [Application API](../contracts/application-api.md)).
 
 - [ ] Реализовать virtualized infinite canvas и device cards (→ [Модуль: Desktop Shell](../architecture/modules/desktop-shell.md)).
@@ -428,6 +431,7 @@ checkpoint/compaction B2 пока отсутствует. Durable apply и produ
 
 - [ ] Реализовать Windows ActionProvider: volume/mute/media/app launch/focus (→ [Модуль: Platform Adapters](../architecture/modules/platform-adapters.md)).
 - [ ] Реализовать StateProvider active application/window и audio endpoint state (→ [Capabilities — State](../contracts/capabilities.md#state)).
+- [ ] Разделить platform contributions и scopes для window catalog/icons/activate, input emission и scripts; новые metrics/HTTP providers оценивать отдельными срезами после базового Windows path, не включать все integrations в один package (→ [platform catalog](../plugins/platform.md), [композиция](../contracts/plugin-composition.md)).
 - [ ] Реализовать bundled Platform Input keyboard source с безопасным observe/pass-through default (→ [Модуль: Platform Input](../architecture/modules/platform-input.md), [ADR-0017](../decisions/0017-bundled-platform-input.md)).
 - [ ] Объявлять `physical_device` только при подтверждённой identity, иначе `system_aggregate`; intercept/emit не включать вместе с observe неявно (→ [Capabilities](../contracts/capabilities.md#системная-клавиатура-и-granularity)).
 - [ ] Добавить permission descriptors и unavailable reasons (→ [Безопасность — Permission model](../contracts/security.md#permission-model)).
@@ -498,6 +502,7 @@ checkpoint/compaction B2 пока отсутствует. Durable apply и produ
 - [ ] Выбрать renderer по benchmark ADR; реализовать frame/base IDs, full resync и preview lease/TTL с отзывом при apply (→ [Frames и preview](../contracts/lifecycle.md#frames-и-preview)).
 - [ ] Добавить bounded timeline для стандартных scene nodes (→ [Surface Compositor](../architecture/modules/surface-compositor.md)).
 - [ ] Создать стандартные text/icon/image/state widgets без browser runtime (→ [Capabilities — Визуальные поверхности](../contracts/capabilities.md#визуальные-поверхности)).
+- [ ] Реализовать общий presenter/templates для number/gauge/chart/collection и slot-local carousel; independent slots, item-bound hit revision, visible-only rendering и shared assets проверены до custom web (→ [Presentation](../contracts/presentation.md), [PLG-022/043](../plugins/productivity.md)).
 - [ ] Реализовать LightTopology/LightFrame и единый output arbiter для static scene/preview/preset; проверить irregular virtual keyboard до reactive effects (→ [Lighting](../contracts/lighting.md), [Surface Compositor](../architecture/modules/surface-compositor.md)).
 
 ### Тесты
@@ -568,6 +573,7 @@ checkpoint/compaction B2 пока отсутствует. Durable apply и produ
 - [ ] Связать typed result fields через run-local DataEdges; реализовать branch scopes, join/skip/null, bounded reentrancy и query/cancel jobs (DW-AU-011/012) (→ [Automation contract](../contracts/automation.md)).
 - [ ] Реализовать scoped ArtifactBroker, transient storage/GC/TTL/quota и redacted run journal; expose через application API, без private данных в profile assets (→ [Host Runtime](../architecture/modules/host-runtime.md), [Artifacts](../contracts/automation.md#artifact-и-доступ-к-данным)).
 - [ ] Добавить independent fake transcription/browser/mail jobs и notification collection query; paginated scene view проверяет DW-AU-013, production integrations остаются P2 (→ [Сценарии](../product/scenarios.md)).
+- [ ] Добавить mixed unread aggregation, date/countdown и personal metrics fixtures: count units/partial data, no read-on-render, timezone/interval provenance. Проверить cross-device scene selection и virtual game с тем же clock/owner model (→ [каталог лент](../plugins/feeds-and-personal.md), [game/scene recipes](../plugins/productivity.md)).
 - [ ] Реализовать spatial wave и per-key dim/cooldown/fade, retrigger/merge policies и layer feedback на irregular virtual topology (DW-SF-009/010) (→ [Lighting](../contracts/lighting.md), [UX](../product/ux.md#геометрия-и-свет)).
 
 ### Тесты
@@ -606,6 +612,7 @@ checkpoint/compaction B2 пока отсутствует. Durable apply и produ
 - [ ] Реализовать staging install/update/rollback и permission diff (→ [Модуль: Plugin Supervisor](../architecture/modules/plugin-supervisor.md)).
 - [ ] Проверять exact artifact hashes/package lock, one-active-version conflict и bounded declarative settings migration без executable hooks (→ [Runtime contracts](../contracts/lifecycle.md#resources-discovery-и-версии-packages)).
 - [ ] Описать metadata catalogue format с GitHub immutable artifacts (→ [Модель плагинов — Пакетирование и каталог](../contracts/plugins.md#пакетирование-и-каталог)).
+- [ ] Реализовать installer resolution transitive dependencies и service binding/delegation conformance; schema/ports проверяются уже до Фазы 6, runtime service broker обязателен до первого зависимого provider (→ [композиция](../contracts/plugin-composition.md), [ADR-0019](../decisions/0019-plugin-composition.md)).
 
 ### Тесты
 
@@ -640,6 +647,7 @@ checkpoint/compaction B2 пока отсутствует. Durable apply и produ
 - [ ] Подключить WidgetLayer к compositor без unbounded frames (→ [Модуль: Surface Compositor](../architecture/modules/surface-compositor.md)).
 - [ ] Реализовать schema form → custom editor fallback chain (→ [Plugins — Settings и UI contributions](../contracts/plugins.md#settings-и-ui-contributions)).
 - [ ] Реализовать host-owned schema-native list/search/form/confirm interactions и session lifecycle (→ [Interaction Runtime](../architecture/modules/interaction-runtime.md), [ADR-0018](../decisions/0018-interaction-ui-runtime.md)).
+- [ ] Реализовать persistent DesktopViewSession и scoped plugin data adapter перед notes/overlays: placement/focus/privacy, retention/export, crash/cleanup. Schema-native model проверена в pre-6; custom web view не получает Tauri/window API (→ [presentation](../contracts/presentation.md#desktop-views), [notes](../plugins/productivity.md#plg-019)).
 - [ ] Подключить InteractionProvider pages/result через scoped bridge; custom view переиспользует web isolation без Tauri/window API (→ [Automation](../contracts/automation.md#interaction-sessions)).
 - [ ] Собрать fake keyboard → search → selected ItemRef → open action scenario до реального Zotero package (→ [Сценарий Zotero](../product/scenarios.md#клавиатура-ноутбука--поиск-zotero--pdf)).
 
@@ -824,6 +832,8 @@ checkpoint/compaction B2 пока отсутствует. Durable apply и produ
 ---
 
 ## Дальнейшие программы после v1
+
+Идеи и acceptance отдельных packages ведутся в [каталоге плагинов](../plugins/README.md), включая Singularity, window layouts, metrics, weather, Pomodoro, Zotero, MQTT/Sprut и notes. Их приоритет/срок выбираются отдельно; этот список не переносит все integrations в v1. Пипетка и игра сначала используются как virtual conformance cases, затем проверяются на hardware. Каталог хранит проработку, roadmap — только последовательность и gates.
 
 Это не обещания первого релиза. Каждая программа начинается отдельным ADR, threat model, prototype benchmark и собственным phased plan.
 

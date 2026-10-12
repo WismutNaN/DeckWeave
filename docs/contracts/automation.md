@@ -2,7 +2,7 @@
 
 Статус: проектируемый контракт. Минимальное исполнение проверяется в Фазе 5, композиция — в Фазе 11 [плана](../implementation/roadmap.md). Общие epochs, ordering и recovery определены в [lifecycle](lifecycle.md); этот документ определяет данные и семантику цепочек. Мотивировка: [исследование реализаций](../research/implementation-review.md).
 
-## Четыре разных вида данных
+## Разные виды данных
 
 | Данные | Назначение | Время жизни |
 |---|---|---|
@@ -76,6 +76,24 @@ Semantic compiler использует immutable catalog schemas, static/cached 
 
 Случайность, current time и внешние ответы при replay берутся из fixture. Ветвь без recorded result получает `inconclusive`. Simulation никогда не читает реальные уведомления, clipboard или микрофон и не запускает код/браузер.
 
+<a id="structured-bindings"></a>
+## Структурированные bindings и вызов action
+
+Целевое расширение после M1: input binding адресует constant, field конкретного invocation result либо versioned state snapshot. Field path проверяется относительно versioned schema; required/optional/missing/null различаются. Host проверяет структуру records/arrays, nesting/bytes, enum/range и совпадение wire schema/encoding, а не только JSON parse или общий ValueKind. Конкретный поддерживаемый subset schema фиксируется conformance fixtures; unknown required constraint нельзя игнорировать.
+
+Action имеет явный trigger и набор именованных inputs. Изменение data input само не запускает внешний effect, если это не заявленный trigger. На trigger фиксируется согласованный run-local snapshot arguments; недостающие обязательные значения дают diagnostic/error, не null placeholder. Два data edges не означают два invocation. Projection/record construction остаются bounded pure operations; plugin transform — async command. Reentrancy/joins и остальная композиция по-прежнему следуют правилам выше.
+
+M1 routing ещё не реализует эту общую argument model; [pre-6 gate](../implementation/pre-phase-6.md) требует minimal typed binding до inspector UI. Domain connectors не должны собирать shell/HTTP strings из непроверенного текста вместо общего schema contract.
+
+<a id="time-and-schedules"></a>
+## Время, таймеры и schedules
+
+Host clock и bounded timer queue — plumbing, доступная без установки plugin. Все invocation deadlines исполняются live owner даже при отсутствии новых input events. Wire time domain/единицы и пересчёт remaining budget согласованы; timestamp чужого процесса или прежнего HostBootId нельзя сравнивать как локальный monotonic tick. Cancellation/deadline/timer arrival упорядочены в том же ingress owner.
+
+Interval/countdown использует monotonic elapsed, calendar schedule — wall time + timezone с явной DST/clock-change policy. Sleep behavior (`pause` либо `elapsed`) выбирается отдельно от restart behavior. Timer occurrence имеет ID: coalescible remaining/state не заменяет reliable elapsed event. После suspend не выдаётся burst пропущенных ticks; выбранная catch-up policy ограничена и не повторяет внешние effects автоматически.
+
+Restart не переносит произвольную workflow continuation. Durable timer checkpoint — прикладные данные с version/reconciliation policy; показывать missed/interrupted допустимо, автоматически повторять действие без явной политики нельзя. Time/date formatting принадлежит provider/presenter, Pomodoro work/break policy — plugin/recipe. Game randomness и timer ordering записываются в bounded replay fixture. Real-time media clock остаётся в [media plane](media.md).
+
 ## Interaction sessions
 
 Interaction node приостанавливает только свою continuation и создаёт request через application port Interaction Runtime. Request содержит `InteractionSessionId`, owner `InvocationId`, view kind/schema, initial query/state, result schema, deadline, cancel policy и требуемые provider/grants. Окно и пользовательский lifecycle принадлежат host; provider поставляет данные страниц, validation или custom sandboxed representation.
@@ -102,6 +120,8 @@ Transient artifacts хранятся отдельно от profile assets, не 
 
 ## Уведомления и коллекции
 
+Отображение коллекции, выбранный item/action, подменю и согласование render с нажатием определяются [presentation contract](presentation.md#collections-and-navigation). Typed query не подразумевает наличие transactional snapshot во внешнем API; adapter сообщает actual consistency. Persistent notes/palettes — [plugin data](plugin-composition.md#plugin-data), а не бесконечная очередь событий.
+
 Telegram-подобный provider объявляет три независимые возможности:
 
 1. `EventOut` новых/изменённых/удалённых записей с item ID и revision.
@@ -109,6 +129,10 @@ Telegram-подобный provider объявляет три независим�
 3. `CommandIn` read-only query для bounded page результатов с cursor, snapshot/watermark и `has_more`; acknowledgement — отдельная write operation.
 
 Cursor непрозрачен и scoped к account/filter/provider generation; истечение требует нового snapshot. При разрыве sequence UI показывает gap и выполняет bounded resync. Item IDs дедуплицируются; edit/delete обновляют существующий item. History принадлежит сервису/provider cache, а не бесконечной очереди automation. «Все уведомления» означает доступную историю в объявленных account/retention границах; provider обязан показать ограничения API. Render карточки не помечает сообщение прочитанным автоматически.
+
+Общий unread aggregator принимает normalized feed contracts, не реализует все API внутри core. Count содержит unit (`messages`/`threads`/`chats`/`mentions`), account/filter scope, observed time и exact/partial/unknown status. Разные units не суммируются; offline source не становится нулём. Total для совместимых sources несёт completeness/freshness каждого участника. Item identity включает source/account; одинаковый текст из разных сервисов не доказывает дубликат.
+
+Remote read/ack, local dismissed и presentation viewed — независимые состояния. Render/autorotation не выполняют read-through. Query/aggregate не выдаёт внешнему consumer больше private preview fields, чем разрешено grants; для badge-only режима preview можно вообще не запрашивать. Time series/personal metrics аналогично несут unit, interval, source и aggregation provenance; исправленные/перекрывающиеся measurements не суммируются дважды. Прогноз является derived value с указанными assumptions, не исходным измерением.
 
 ## Слои и удерживаемые outputs
 

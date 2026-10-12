@@ -61,6 +61,8 @@
 
 ## Заметки для агента
 
+M1 не доказывает готовность сложных plugin workflows. Перед editor нужны [structured bindings](../../contracts/automation.md#structured-bindings), live clock/cleanup и configured instances по [pre-6 gate](../../implementation/pre-phase-6.md). Полные layers/sequence/join остаются Фазой 11. Domain-specific HTTP/task/window logic не добавляется в graph enum.
+
 > Фаза 5: source/action/state/condition/feedback; sequence/parallel/layer добавляются в Фазе 11. Следовать [execution lifecycle](../../contracts/lifecycle.md#executions-cancellation-и-смена-плана) и [ordering/replay](../../contracts/lifecycle.md#порядок-сигналов-и-время). Plugin conditions — async boundaries с deadline, не callbacks внутри scheduler.
 
 `GraphDocument` v1 уже задаёт source/action/state/condition/feedback, typed flow/data ports, stable node/edge/port IDs и отдельный layout. Валидация проверяет version, shape, references, direction, exact schema и limits; cycles и descriptor catalog относятся к compiler среза 5.2. Неизвестный `GraphNodeKind` не сохраняется как extension и не пропускается. Runtime limits для payload/queues/runs/invocations/timers/trace определены общей policy и расходуются единым `WorkspaceScheduler`; plan сохраняет минимальные schema contracts для проверки результатов без обращения к live registry.

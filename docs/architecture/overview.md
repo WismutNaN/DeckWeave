@@ -8,6 +8,8 @@ DeckWeave должен начать с N4 Pro и обычных системны
 
 Нормативный порядок apply/recovery, execution epochs, signals, leases и frames задан в [Lifecycle](../contracts/lifecycle.md). При реализации этот документ читается вместе с модульной спецификацией.
 
+Configured instances, service dependencies и plugin data определены в [композиции](../contracts/plugin-composition.md); reusable presenters, отдельные slots и desktop windows — в [presentation contract](../contracts/presentation.md). [Каталог PLG](../plugins/README.md) проверяет эти границы на конкретных сценариях. Они расширяют ports существующих DDD contexts, не добавляют API Singularity/Telegram/Health или vendor protocols в core. Текущие gaps и [pre-6 gate](../implementation/pre-phase-6.md) отделены от целевой схемы.
+
 ## Системный контекст
 
 ```text

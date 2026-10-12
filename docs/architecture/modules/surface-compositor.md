@@ -42,6 +42,8 @@
 - Один channel имеет одного owner; light commands, frames и onboard presets проходят тот же arbiter.
 - Animation не пишет EEPROM; dropped frame не растягивает envelope timing.
 
+Общие collection presenters, navigation и scene selection следуют [presentation contract](../../contracts/presentation.md). Slot click связан с displayed item/revision; repaint списка не меняет target уже начатого жеста. Domain logic tasks/windows/notes остаётся в providers. Пипетка и game входят в [каталог conformance-сценариев](../../plugins/productivity.md).
+
 ## Намеренно НЕ обрабатывает
 
 - USB frame transfer;

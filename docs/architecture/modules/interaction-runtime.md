@@ -38,6 +38,8 @@ R4 реализует bounded pages, selected/cancelled/timed-out terminal outco
 
 Это начальный scaffold: лимит количества items ещё не ограничивает bytes/pages/sessions, строка result schema не выполняет validation, а хранение terminal sessions пока не имеет eviction. До presenter Фазы 13 нужны application service с проверкой schema и owner grants, query generation для отбрасывания устаревшего поиска, provider/activation fencing, monotonic deadline и bounded terminal retention. Wall-clock deadline в wire DTO переводится в host monotonic budget при приёме; пользовательская смена часов не продлевает session.
 
+Постоянные notes/dashboard overlays получают отдельный `DesktopViewSession` в presentation boundary, не бессрочную InteractionSession. Shared host window adapter может обслуживать оба lifecycle, но types/owners/retention разные. Provider startup и search query идут независимо: окно принимает текст до readiness, старые query generations отбрасываются. Целевые правила и этапы: [Presentation](../../contracts/presentation.md), [pre-6 gate](../../implementation/pre-phase-6.md).
+
 ## Намеренно не обрабатывает
 
 - surface rendering на N4 Pro;

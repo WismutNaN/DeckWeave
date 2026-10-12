@@ -123,6 +123,14 @@ Interaction window всегда создаёт host, даже если package �
 
 Schema-native views не запускают plugin web content. Custom runtime создаётся лениво, получает отдельный origin/storage partition и завершается либо уходит в bounded idle pool после закрытия последней session. Navigation, popup/new-window, service workers и download запрещены; network/filesystem доступны только через отдельные grants/brokers. Result валидируется host и может завершить только owner invocation.
 
+## Shared services и постоянные views
+
+Межплагинные service calls не наследуют все права provider: host проверяет caller, выбранный binding, разрешённую delegation и актуальные grants обеих сторон. Dependencies/install не выдают grants; secrets не возвращаются consumer как обычные typed results. [Композиция](plugin-composition.md) определяет call budgets, cancel и scope.
+
+Persistent desktop views наследуют origin/bridge isolation, но имеют собственный view owner/lease и screen-lock privacy. Always-on-top не даёт screen-capture permission. Plugin-owned documents имеют namespace/quota и отдельный private export; логические brokers не объявляются OS sandbox для native plugins. [Presentation](presentation.md#desktop-views), [plugin data](plugin-composition.md#plugin-data).
+
+Unread previews, contacts и health records имеют field/data-type-scoped read grants. Counts-only view не должна требовать body всех сообщений; date widget не требует всю адресную книгу. Mobile bridge отдельно проходит pairing/authentication, revocation и replay/generation checks; приватные данные исключаются из default traces/export и скрываются по screen-lock policy. Пользователь выбирает разрешённые accounts, источники и destinations; установка aggregation plugin не выдаёт ему доступ ко всем установленным connectors.
+
 ## Remote agents
 
 - Pairing подтверждается на обоих устройствах.

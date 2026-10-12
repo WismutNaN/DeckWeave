@@ -6,7 +6,7 @@
 
 ## Статус
 
-Реализованы desktop shell, protocol/plugin foundations, revision/draft store, Application Gateway и durable apply через isolated virtual runtime; завершена структурная DDD migration R1–R4. [Повторный аудит](docs/research/pre-apply-review.md#phase-5-readiness) выявил три dedup/recovery дефекта перед live effects. Pure compiler/scheduler можно начинать по [плану Фазы 5](docs/implementation/phase-5-automation.md). Реальные устройства и automation engine ещё не подключены. Существующие локальные проверки имеют evidence, новые отрицательные сценарии пока не проходят; ручная приёмка меню трея и первый запуск GitHub CI ещё впереди.
+Реализованы desktop shell, protocol/plugin foundations, revision/draft store, Application Gateway, durable apply и M1 automation/replay на isolated virtual providers. Срезы [Фазы 5](docs/implementation/phase-5-automation.md) завершены; старые F5-R1–R3 исправлены. Проверка [каталога плагинов](docs/plugins/README.md) выявила дополнительные границы instances/settings, structured bindings, live clock/cleanup и presentation. Перед editor открыт [gate Фазы 6](docs/implementation/pre-phase-6.md). Реальные device/service integrations и production views ещё требуют своей приёмки; virtual evidence не заменяет platform/API/hardware tests.
 
 ## Запуск для разработки
 
@@ -20,6 +20,7 @@ npm run dev
 ## Документация
 
 - [Карта документации и правила её расширения](docs/README.md).
+- [База идей плагинов](docs/plugins/README.md): сценарии, reusable parts, зависимости и критерии готовности.
 - [Сквозные сценарии](docs/product/scenarios.md): Handy → текст → браузер, mail/Telegram, подсветка и слои.
 - [Требования](docs/product/requirements.md) и [архитектура](docs/architecture/overview.md).
 - [Референсы с pinned commits](docs/research/REFERENCES.md) и [анализ реализаций, альтернатив и переиспользования](docs/research/implementation-review.md).

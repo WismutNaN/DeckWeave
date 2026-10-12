@@ -41,3 +41,5 @@
 ## Заметки для агента
 
 > Не запускать widget host, если active scenes используют только built-in scene nodes. Точный embeddable browser backend выбирается отдельным spike с Windows/Linux tests.
+
+Общий host presenter и reusable templates обслуживают стандартные gauges/counts/lists/clock без отдельного web process на каждый data provider. Slot carousel и persistent desktop view задаёт [presentation contract](../../contracts/presentation.md); этот runtime только исполняет sandboxed custom content и не владеет окнами или domain subscriptions самостоятельно.

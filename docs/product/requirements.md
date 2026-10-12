@@ -137,6 +137,23 @@
 | DW-NF-014 | Зависимости | Runtime не импортирует testkit, SDK не импортирует GPL domain/host; OS bootstrap не зависит от lazy plugin |
 | DW-NF-015 | Архитектура | Bounded contexts владеют инвариантами; adapter не импортирует чужую infrastructure; Shared Kernel остаётся минимальным; boundary/size ratchet проверяется автоматически |
 
+## Переиспользование плагинов и сложные сценарии
+
+Приоритет относится к общей способности платформы; сроки реальных integrations задают [каталог](../plugins/README.md) и roadmap. До Фазы 6 доказываются contracts/fixtures по [gate](../implementation/pre-phase-6.md), а не все перечисленные products.
+
+| ID | Приоритет | Требование | Критерий приёмки |
+|---|---:|---|---|
+| DW-PL-009 | P1 | Configured instance, contribution и runtime group имеют разную identity; settings/credentials scoped к instance | Два аккаунта и две contributions одной group работают без смешивания; apply/restart сохраняет bindings |
+| DW-PL-010 | P1 | Required/optional dependencies и service bindings разрешаются явно, учитывают версии, scopes и lifecycle | Missing/cyclic/version-conflict диагностируются до apply; revoke/cancel прекращает delegated call, независимый consumer остаётся жив |
+| DW-PL-011 | P1 | Private plugin data отделены от workspace revisions, cache, artifacts и credentials | Notes/palette переживают закрытие view, concurrent edit конфликтует, private export явный, uninstall не удаляет данные молча |
+| DW-PL-012 | P1 | Persistent desktop view имеет host-owned lifecycle отдельно от конечного interaction | Edit result завершён, view продолжает работать без editor; revoke/Exit закрывает view и освобождает leases |
+| DW-AU-016 | P1 | Typed bindings поддерживают fields/constants/named arguments и отдельный trigger; nested payload валидируется | Transcript.text становится task.title; два data edges не создают две tasks; invalid record/schema отклоняется |
+| DW-AU-017 | P1 | Live deadlines работают при отсутствии входных событий; interval/calendar/sleep/restart policies различаются | Fake clock timeout, DST/clock jump, suspend/resume и occurrence dedup не порождают повторных effects |
+| DW-AU-018 | P1 | Устройство может выбрать уже applied scene/binding group другого устройства через scoped runtime state | Keyboard chord запускает virtual game scene без draft mutation; hold/release/disconnect очищают только своего owner |
+| DW-SF-011 | P1 | Collections/metrics имеют reusable presenters с freshness, units и item-bound navigation | Tasks/windows/notes используют один presenter; reorder между render и click не меняет target, history/rate bounded |
+| DW-SF-012 | P1 | Одна кнопка/region имеет собственный набор переключаемых widgets с общим host presenter | Clock/countdown/unread циклически переключаются без изменения соседних slots; hidden rendering освобождает ресурсы |
+| DW-AU-019 | P1 | Feed aggregation сохраняет source/account identity, count units и независимость render/read/ack | Offline service не даёт ложный total=0; mixed messages/threads не суммируются; auto-rotation не помечает remote item прочитанным |
+
 ## Первый сквозной критерий
 
 Первая ежедневная версия считается полезной, когда пользователь на Windows 10/11:

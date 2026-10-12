@@ -25,6 +25,8 @@
 
 ## Официальная документация
 
+Дополнительные источники для каталога plugins — Windows window/input APIs, Singularity, Sprut/MQTT, Zotero/BBT, unread feeds и Samsung/Health Connect — сведены в [проверке реализуемости](plugin-feasibility.md#external-evidence). Там же зафиксированы HEAD, dirty-tree status и hashes локального [Zotst](plugin-feasibility.md#zotst); текущие изменения этого референса не приписываются upstream commit. Заимствования кода не выполнены.
+
 | Источник | Проверенная граница |
 |---|---|
 | [Elgato WebSocket](https://docs.elgato.com/streamdeck/sdk/references/websocket/plugin/), [settings](https://docs.elgato.com/streamdeck/sdk/guides/settings/) | Launch/registration/context и settings compatibility |

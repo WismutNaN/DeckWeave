@@ -22,3 +22,4 @@ ADR фиксирует причину и последствия выбора, а
 | [0016](0016-ddd-bounded-contexts.md) | Bounded contexts, Shared Kernel и постепенная DDD-миграция |
 | [0017](0017-bundled-platform-input.md) | Обычная клавиатура как bundled first-party provider |
 | [0018](0018-interaction-ui-runtime.md) | Host-owned interaction sessions и plugin views |
+| [0019](0019-plugin-composition.md) | Configured instances, explicit service bindings и владение plugin data |

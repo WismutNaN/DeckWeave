@@ -53,6 +53,8 @@ Media graph согласует rate/channel layout, выбирает filter и v
 
 ## Матрица доказательств
 
+Расширенный перечень идей и их domain acceptance вынесен в [каталог плагинов](../plugins/README.md), без дублирования всех карточек в этом файле. Новые обязательные проверки платформы до editor: Singularity task board с item-bound submenu, shared windows/MQTT services, notes с независимым view lifetime, пипетка, virtual game и межустройственное scene selection. Они проверяют общие contracts с fakes; реальные API/OS/hardware проходят собственные gates. [Реализуемость и пробелы](../research/plugin-feasibility.md), [pre-6 plan](../implementation/pre-phase-6.md).
+
 | Сценарий | Требования | Доказательство общего контракта | Gate реальной интеграции |
 |---|---|---|---|
 | Typed chain и Handy | DW-AU-011, DW-AU-012, DW-AU-014 | Два isolated fake jobs, artifacts, bounded result, cancel в Фазах 5/11 | Version-pinned Handy + capture + browser adapter после v1 |

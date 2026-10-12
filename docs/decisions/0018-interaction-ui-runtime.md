@@ -22,3 +22,7 @@ Plugin не получает произвольный Tauri/window API. Interact
 - конкурентные sessions изолируются по identity и result schema.
 
 Модуль: [Interaction Runtime](../architecture/modules/interaction-runtime.md).
+
+## Дополнение: постоянные views
+
+Каталог notes/dashboard требует отдельного DesktopViewSession с workspace/view owner, а не вечного ожидания результата InteractionSession. Host ownership, focus и isolation сохраняются; общий presentation adapter может обслуживать оба lifecycle. Slot carousel и reuse стандартных templates описаны в [presentation contract](../contracts/presentation.md); разделение providers/services принято в [ADR-0019](0019-plugin-composition.md). Реальные overlays ещё не реализованы.

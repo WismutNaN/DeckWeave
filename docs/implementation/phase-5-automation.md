@@ -4,6 +4,8 @@
 
 ## Граница результата
 
+Завершение M1 относится к проверенным virtual fixtures, а не ко всем будущим plugin workflows. Повторная оценка на `2d99c88` обнаружила ограничения configured settings, сложных schemas/bindings, live clock/cleanup и desktop composition. Они перечислены в [аудите каталога](../research/plugin-feasibility.md) и закрываются [gate перед Фазой 6](pre-phase-6.md). В частности, scheduler cleanup intent и fake timer test не доказывают внешний key release или production deadline pump.
+
 M1 показывает путь `virtual source → condition → isolated action → typed result → state → virtual feedback` через public application service. Тот же план и scheduler исполняются в simulation с recorded outcomes. Apply во время pending action, restart provider, revoke, overflow и malformed result не приводят к stale effects или потерянному cleanup.
 
 Фаза не включает Graph UI, полноценные sequence/parallel/join/layers/schedules, реальный Handy/Telegram/browser, renderer, firmware programming и media RT. Их contracts сохраняются как ограничения расширения. Внутренний pending invocation уже нужен: accepted job не считается результатом даже у одного action. Plugin-defined transform — async operation, а простая built-in condition остаётся чистой функцией.

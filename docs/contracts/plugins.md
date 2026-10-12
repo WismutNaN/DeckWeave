@@ -61,10 +61,12 @@ Manifest читается и валидируется без запуска exec
 | `permissions` | Requested scopes с объяснениями |
 | `schemas` | Versioned settings/ports/results schemas |
 | `assets` | Icons, localization, templates, property editors/widgets |
-| `dependencies` | External runtime/system dependencies |
+| `dependencies` | Package/service requirements и external runtime/system dependencies; typed resolution определяется [контрактом композиции](plugin-composition.md), текущий manifest ещё не исполняет эту модель |
 | `migrations` | Ограниченные декларативные settings transforms, исполняемые host без plugin code |
 
 Manifest не содержит secrets, install scripts и произвольные команды определения совместимости. Dynamic discovery разрешена только внутри заранее объявленной contribution.
+
+Package, configured instance и runtime group — разные сущности. Несколько аккаунтов/настроек одной contribution могут работать в одном процессе; activation обязана передать instance identity и versioned settings. Межплагинные зависимости выбираются явными service bindings, входят в plan/lock и проходят grants/lease checks. SDK helper не становится обязательным отдельным plugin. Нормативны [композиция и plugin data](plugin-composition.md); статус реализации и pre-6 fixtures отмечены отдельно.
 
 ## Runtime classes
 
@@ -182,6 +184,8 @@ Activation condition не может самостоятельно расширя
 Static index никогда не вызывает executable для discover/validate/migrate. Runtime discovery является отдельной разрешённой операцией; найденный candidate не даёт exclusive/output permission. `prepare` обязан отличаться от запуска пользовательских effects; не умеющий это provider объявляет disruptive handoff. RuntimeLease удерживает процесс, ResourceLease выдаётся Registry на canonical physical resource — probe не обходит этот механизм.
 
 ## Settings и UI contributions
+
+Domain data, scene templates, navigation и desktop windows имеют разные owners. [Presentation contract](presentation.md) определяет общий collection presenter, согласованный render/hit binding, scene selection и persistent DesktopViewSession. Короткая InteractionSession не используется для постоянного окна заметок. Plugins не создают privileged окна напрямую.
 
 Порядок предпочтения:
 
