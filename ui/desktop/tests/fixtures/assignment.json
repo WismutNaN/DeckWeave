@@ -1,0 +1,1588 @@
+{
+  "draft": {
+    "draftId": "preview-draft",
+    "workspaceId": "preview",
+    "baseRevisionId": null,
+    "version": 1,
+    "packageLock": [
+      {
+        "packageId": "org.deckweave.preview.studio",
+        "version": "1.0.0",
+        "artifactSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "source": null
+      }
+    ],
+    "document": {
+      "schemaVersion": {
+        "major": 1,
+        "minor": 0
+      },
+      "graph": {
+        "nodes": [
+          {
+            "id": "source-first",
+            "kind": {
+              "type": "source",
+              "endpoint": {
+                "packageId": "org.deckweave.preview.studio",
+                "nodeId": "preview-node",
+                "target": {
+                  "kind": "device",
+                  "providerId": "preview",
+                  "deviceIdentity": "virtual-deck"
+                },
+                "port": {
+                  "elementId": "key-1",
+                  "capabilityId": "button",
+                  "portId": "pressed"
+                }
+              },
+              "availability": "deferred"
+            },
+            "inputs": [],
+            "outputs": [
+              {
+                "id": "event",
+                "schema": {
+                  "id": "org.deckweave.preview.boolean",
+                  "version": {
+                    "major": 1,
+                    "minor": 0
+                  }
+                },
+                "role": "value",
+                "kind": "value",
+                "unit": null,
+                "range": null
+              }
+            ],
+            "extensions": {
+              "org.deckweave.editorBinding": "[\"preview-deck\",\"key-1\"]"
+            }
+          },
+          {
+            "id": "pressed-first",
+            "kind": {
+              "type": "condition",
+              "operator": "is_true",
+              "operand": null
+            },
+            "inputs": [
+              {
+                "id": "input",
+                "schema": {
+                  "id": "org.deckweave.preview.boolean",
+                  "version": {
+                    "major": 1,
+                    "minor": 0
+                  }
+                },
+                "role": "input",
+                "kind": "value",
+                "unit": null,
+                "range": null
+              }
+            ],
+            "outputs": [
+              {
+                "id": "yes",
+                "schema": {
+                  "id": "org.deckweave.preview.boolean",
+                  "version": {
+                    "major": 1,
+                    "minor": 0
+                  }
+                },
+                "role": "true",
+                "kind": "flow",
+                "unit": null,
+                "range": null
+              },
+              {
+                "id": "no",
+                "schema": {
+                  "id": "org.deckweave.preview.boolean",
+                  "version": {
+                    "major": 1,
+                    "minor": 0
+                  }
+                },
+                "role": "false",
+                "kind": "flow",
+                "unit": null,
+                "range": null
+              }
+            ],
+            "extensions": {
+              "org.deckweave.editorBinding": "[\"preview-deck\",\"key-1\"]"
+            }
+          },
+          {
+            "id": "action-first",
+            "kind": {
+              "type": "action",
+              "endpoint": {
+                "packageId": "org.deckweave.preview.studio",
+                "nodeId": "preview-node",
+                "target": {
+                  "kind": "service",
+                  "providerId": "preview",
+                  "serviceId": "text"
+                },
+                "port": {
+                  "elementId": "show-text",
+                  "capabilityId": "action",
+                  "portId": "invoke"
+                }
+              },
+              "operation_id": "show-text",
+              "availability": "deferred"
+            },
+            "inputs": [
+              {
+                "id": "trigger",
+                "schema": {
+                  "id": "org.deckweave.preview.boolean",
+                  "version": {
+                    "major": 1,
+                    "minor": 0
+                  }
+                },
+                "role": "trigger",
+                "kind": "flow",
+                "unit": null,
+                "range": null
+              }
+            ],
+            "outputs": [
+              {
+                "id": "result",
+                "schema": {
+                  "id": "org.deckweave.preview.text",
+                  "version": {
+                    "major": 1,
+                    "minor": 0
+                  }
+                },
+                "role": "result",
+                "kind": "value",
+                "unit": null,
+                "range": null
+              }
+            ],
+            "extensions": {
+              "org.deckweave.editorBinding": "[\"preview-deck\",\"key-1\"]"
+            }
+          },
+          {
+            "id": "action-second",
+            "kind": {
+              "type": "action",
+              "endpoint": {
+                "packageId": "org.deckweave.preview.studio",
+                "nodeId": "preview-node",
+                "target": {
+                  "kind": "service",
+                  "providerId": "preview",
+                  "serviceId": "text"
+                },
+                "port": {
+                  "elementId": "create-note",
+                  "capabilityId": "action",
+                  "portId": "invoke"
+                }
+              },
+              "operation_id": "create-note",
+              "availability": "deferred"
+            },
+            "inputs": [
+              {
+                "id": "trigger",
+                "schema": {
+                  "id": "org.deckweave.preview.text",
+                  "version": {
+                    "major": 1,
+                    "minor": 0
+                  }
+                },
+                "role": "input",
+                "kind": "value",
+                "unit": null,
+                "range": null
+              }
+            ],
+            "outputs": [
+              {
+                "id": "result",
+                "schema": {
+                  "id": "org.deckweave.preview.text",
+                  "version": {
+                    "major": 1,
+                    "minor": 0
+                  }
+                },
+                "role": "result",
+                "kind": "value",
+                "unit": null,
+                "range": null
+              }
+            ],
+            "extensions": {
+              "org.deckweave.editorBinding": "[\"preview-deck\",\"key-1\"]"
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "edge-press-first",
+            "kind": "data",
+            "source": {
+              "nodeId": "source-first",
+              "portId": "event"
+            },
+            "target": {
+              "nodeId": "pressed-first",
+              "portId": "input"
+            },
+            "extensions": {}
+          },
+          {
+            "id": "edge-action-first",
+            "kind": "flow",
+            "source": {
+              "nodeId": "pressed-first",
+              "portId": "yes"
+            },
+            "target": {
+              "nodeId": "action-first",
+              "portId": "trigger"
+            },
+            "extensions": {}
+          },
+          {
+            "id": "edge-action-second",
+            "kind": "data",
+            "source": {
+              "nodeId": "action-first",
+              "portId": "result"
+            },
+            "target": {
+              "nodeId": "action-second",
+              "portId": "trigger"
+            },
+            "extensions": {}
+          }
+        ],
+        "extensions": {},
+        "actionArguments": {
+          "action-first": {
+            "triggerPort": "trigger",
+            "fields": {
+              "text": {
+                "type": "constant",
+                "value": "Hello from the editor"
+              }
+            }
+          },
+          "action-second": {
+            "triggerPort": "trigger",
+            "fields": {
+              "text": {
+                "type": "run_result",
+                "nodeId": "action-first",
+                "pointer": ""
+              }
+            }
+          }
+        }
+      },
+      "layout": {
+        "nodes": {},
+        "extensions": {}
+      },
+      "extensions": {
+        "org.deckweave.editor": {
+          "version": 1,
+          "devices": [
+            {
+              "id": "preview-deck",
+              "package": {
+                "packageId": "org.deckweave.preview.studio",
+                "version": "1.0.0",
+                "artifactSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+              },
+              "nodeId": "preview-node",
+              "descriptor": {
+                "identity": "virtual-deck",
+                "providerId": "preview",
+                "kind": "virtual",
+                "label": "Studio Deck",
+                "elements": [
+                  {
+                    "elementId": "key-1",
+                    "label": "1",
+                    "capabilities": [
+                      {
+                        "capabilityId": "button",
+                        "kind": "org.deckweave.input.button",
+                        "ports": [
+                          {
+                            "portId": "pressed",
+                            "kind": "EventOut",
+                            "schema": {
+                              "id": "org.deckweave.preview.boolean",
+                              "version": {
+                                "major": 1,
+                                "minor": 0
+                              }
+                            },
+                            "availability": {
+                              "status": "available"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "elementId": "key-2",
+                    "label": "2",
+                    "capabilities": [
+                      {
+                        "capabilityId": "button",
+                        "kind": "org.deckweave.input.button",
+                        "ports": [
+                          {
+                            "portId": "pressed",
+                            "kind": "EventOut",
+                            "schema": {
+                              "id": "org.deckweave.preview.boolean",
+                              "version": {
+                                "major": 1,
+                                "minor": 0
+                              }
+                            },
+                            "availability": {
+                              "status": "available"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "elementId": "key-3",
+                    "label": "3",
+                    "capabilities": [
+                      {
+                        "capabilityId": "button",
+                        "kind": "org.deckweave.input.button",
+                        "ports": [
+                          {
+                            "portId": "pressed",
+                            "kind": "EventOut",
+                            "schema": {
+                              "id": "org.deckweave.preview.boolean",
+                              "version": {
+                                "major": 1,
+                                "minor": 0
+                              }
+                            },
+                            "availability": {
+                              "status": "available"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "elementId": "key-4",
+                    "label": "4",
+                    "capabilities": [
+                      {
+                        "capabilityId": "button",
+                        "kind": "org.deckweave.input.button",
+                        "ports": [
+                          {
+                            "portId": "pressed",
+                            "kind": "EventOut",
+                            "schema": {
+                              "id": "org.deckweave.preview.boolean",
+                              "version": {
+                                "major": 1,
+                                "minor": 0
+                              }
+                            },
+                            "availability": {
+                              "status": "available"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "elementId": "key-5",
+                    "label": "5",
+                    "capabilities": [
+                      {
+                        "capabilityId": "button",
+                        "kind": "org.deckweave.input.button",
+                        "ports": [
+                          {
+                            "portId": "pressed",
+                            "kind": "EventOut",
+                            "schema": {
+                              "id": "org.deckweave.preview.boolean",
+                              "version": {
+                                "major": 1,
+                                "minor": 0
+                              }
+                            },
+                            "availability": {
+                              "status": "available"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "elementId": "key-6",
+                    "label": "6",
+                    "capabilities": [
+                      {
+                        "capabilityId": "button",
+                        "kind": "org.deckweave.input.button",
+                        "ports": [
+                          {
+                            "portId": "pressed",
+                            "kind": "EventOut",
+                            "schema": {
+                              "id": "org.deckweave.preview.boolean",
+                              "version": {
+                                "major": 1,
+                                "minor": 0
+                              }
+                            },
+                            "availability": {
+                              "status": "available"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "elementId": "key-7",
+                    "label": "7",
+                    "capabilities": [
+                      {
+                        "capabilityId": "button",
+                        "kind": "org.deckweave.input.button",
+                        "ports": [
+                          {
+                            "portId": "pressed",
+                            "kind": "EventOut",
+                            "schema": {
+                              "id": "org.deckweave.preview.boolean",
+                              "version": {
+                                "major": 1,
+                                "minor": 0
+                              }
+                            },
+                            "availability": {
+                              "status": "available"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "elementId": "key-8",
+                    "label": "8",
+                    "capabilities": [
+                      {
+                        "capabilityId": "button",
+                        "kind": "org.deckweave.input.button",
+                        "ports": [
+                          {
+                            "portId": "pressed",
+                            "kind": "EventOut",
+                            "schema": {
+                              "id": "org.deckweave.preview.boolean",
+                              "version": {
+                                "major": 1,
+                                "minor": 0
+                              }
+                            },
+                            "availability": {
+                              "status": "available"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "elementId": "key-9",
+                    "label": "9",
+                    "capabilities": [
+                      {
+                        "capabilityId": "button",
+                        "kind": "org.deckweave.input.button",
+                        "ports": [
+                          {
+                            "portId": "pressed",
+                            "kind": "EventOut",
+                            "schema": {
+                              "id": "org.deckweave.preview.boolean",
+                              "version": {
+                                "major": 1,
+                                "minor": 0
+                              }
+                            },
+                            "availability": {
+                              "status": "available"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "elementId": "key-10",
+                    "label": "10",
+                    "capabilities": [
+                      {
+                        "capabilityId": "button",
+                        "kind": "org.deckweave.input.button",
+                        "ports": [
+                          {
+                            "portId": "pressed",
+                            "kind": "EventOut",
+                            "schema": {
+                              "id": "org.deckweave.preview.boolean",
+                              "version": {
+                                "major": 1,
+                                "minor": 0
+                              }
+                            },
+                            "availability": {
+                              "status": "available"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "elementId": "key-11",
+                    "label": "11",
+                    "capabilities": [
+                      {
+                        "capabilityId": "button",
+                        "kind": "org.deckweave.input.button",
+                        "ports": [
+                          {
+                            "portId": "pressed",
+                            "kind": "EventOut",
+                            "schema": {
+                              "id": "org.deckweave.preview.boolean",
+                              "version": {
+                                "major": 1,
+                                "minor": 0
+                              }
+                            },
+                            "availability": {
+                              "status": "available"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "elementId": "key-12",
+                    "label": "12",
+                    "capabilities": [
+                      {
+                        "capabilityId": "button",
+                        "kind": "org.deckweave.input.button",
+                        "ports": [
+                          {
+                            "portId": "pressed",
+                            "kind": "EventOut",
+                            "schema": {
+                              "id": "org.deckweave.preview.boolean",
+                              "version": {
+                                "major": 1,
+                                "minor": 0
+                              }
+                            },
+                            "availability": {
+                              "status": "available"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "elementId": "key-13",
+                    "label": "13",
+                    "capabilities": [
+                      {
+                        "capabilityId": "button",
+                        "kind": "org.deckweave.input.button",
+                        "ports": [
+                          {
+                            "portId": "pressed",
+                            "kind": "EventOut",
+                            "schema": {
+                              "id": "org.deckweave.preview.boolean",
+                              "version": {
+                                "major": 1,
+                                "minor": 0
+                              }
+                            },
+                            "availability": {
+                              "status": "available"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "elementId": "key-14",
+                    "label": "14",
+                    "capabilities": [
+                      {
+                        "capabilityId": "button",
+                        "kind": "org.deckweave.input.button",
+                        "ports": [
+                          {
+                            "portId": "pressed",
+                            "kind": "EventOut",
+                            "schema": {
+                              "id": "org.deckweave.preview.boolean",
+                              "version": {
+                                "major": 1,
+                                "minor": 0
+                              }
+                            },
+                            "availability": {
+                              "status": "available"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "elementId": "key-15",
+                    "label": "15",
+                    "capabilities": [
+                      {
+                        "capabilityId": "button",
+                        "kind": "org.deckweave.input.button",
+                        "ports": [
+                          {
+                            "portId": "pressed",
+                            "kind": "EventOut",
+                            "schema": {
+                              "id": "org.deckweave.preview.boolean",
+                              "version": {
+                                "major": 1,
+                                "minor": 0
+                              }
+                            },
+                            "availability": {
+                              "status": "available"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "org.deckweave.controlLayout": {
+                  "version": 1,
+                  "width": 5,
+                  "height": 3,
+                  "elements": {
+                    "key-1": {
+                      "x": 0,
+                      "y": 0,
+                      "width": 1,
+                      "height": 1
+                    },
+                    "key-2": {
+                      "x": 1,
+                      "y": 0,
+                      "width": 1,
+                      "height": 1
+                    },
+                    "key-3": {
+                      "x": 2,
+                      "y": 0,
+                      "width": 1,
+                      "height": 1
+                    },
+                    "key-4": {
+                      "x": 3,
+                      "y": 0,
+                      "width": 1,
+                      "height": 1
+                    },
+                    "key-5": {
+                      "x": 4,
+                      "y": 0,
+                      "width": 1,
+                      "height": 1
+                    },
+                    "key-6": {
+                      "x": 0,
+                      "y": 1,
+                      "width": 1,
+                      "height": 1
+                    },
+                    "key-7": {
+                      "x": 1,
+                      "y": 1,
+                      "width": 1,
+                      "height": 1
+                    },
+                    "key-8": {
+                      "x": 2,
+                      "y": 1,
+                      "width": 1,
+                      "height": 1
+                    },
+                    "key-9": {
+                      "x": 3,
+                      "y": 1,
+                      "width": 1,
+                      "height": 1
+                    },
+                    "key-10": {
+                      "x": 4,
+                      "y": 1,
+                      "width": 1,
+                      "height": 1
+                    },
+                    "key-11": {
+                      "x": 0,
+                      "y": 2,
+                      "width": 1,
+                      "height": 1
+                    },
+                    "key-12": {
+                      "x": 1,
+                      "y": 2,
+                      "width": 1,
+                      "height": 1
+                    },
+                    "key-13": {
+                      "x": 2,
+                      "y": 2,
+                      "width": 1,
+                      "height": 1
+                    },
+                    "key-14": {
+                      "x": 3,
+                      "y": 2,
+                      "width": 1,
+                      "height": 1
+                    },
+                    "key-15": {
+                      "x": 4,
+                      "y": 2,
+                      "width": 1,
+                      "height": 1
+                    }
+                  }
+                }
+              },
+              "x": 0,
+              "y": 0,
+              "appearance": {
+                "mode": "gradient",
+                "start": "#3e6687",
+                "end": "#b47769",
+                "angle": 30,
+                "brightness": 100
+              },
+              "controls": {}
+            }
+          ]
+        }
+      }
+    }
+  },
+  "catalog": {
+    "package": {
+      "packageId": "org.deckweave.preview.studio",
+      "version": "1.0.0",
+      "artifactSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "manifestSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "translations": {
+      "defaultLocale": "en",
+      "messages": {
+        "ru": {
+          "show-text": "Показать текст",
+          "create-note": "Создать заметку",
+          "copy-text": "Передать текст"
+        },
+        "en": {
+          "show-text": "Show text",
+          "create-note": "Create a note",
+          "copy-text": "Pass text"
+        }
+      }
+    },
+    "schemas": [
+      {
+        "schema": {
+          "id": "org.deckweave.preview.boolean",
+          "version": {
+            "major": 1,
+            "minor": 0
+          }
+        },
+        "shape": "boolean",
+        "unit": null,
+        "range": null
+      },
+      {
+        "schema": {
+          "id": "org.deckweave.preview.unit",
+          "version": {
+            "major": 1,
+            "minor": 0
+          }
+        },
+        "shape": "unit",
+        "unit": null,
+        "range": null
+      },
+      {
+        "schema": {
+          "id": "org.deckweave.preview.text",
+          "version": {
+            "major": 1,
+            "minor": 0
+          }
+        },
+        "shape": {
+          "structured": {
+            "type": "string",
+            "maximumBytes": 2048
+          }
+        },
+        "unit": null,
+        "range": null
+      },
+      {
+        "schema": {
+          "id": "org.deckweave.preview.message",
+          "version": {
+            "major": 1,
+            "minor": 0
+          }
+        },
+        "shape": {
+          "structured": {
+            "type": "record",
+            "fields": {
+              "text": {
+                "schema": {
+                  "type": "string",
+                  "maximumBytes": 2048
+                }
+              },
+              "title": {
+                "schema": {
+                  "type": "string",
+                  "maximumBytes": 80
+                },
+                "optional": true
+              }
+            }
+          }
+        },
+        "unit": null,
+        "range": null
+      }
+    ],
+    "endpoints": [
+      {
+        "endpoint": {
+          "packageId": "org.deckweave.preview.studio",
+          "nodeId": "preview-node",
+          "target": {
+            "kind": "device",
+            "providerId": "preview",
+            "deviceIdentity": "virtual-deck"
+          },
+          "port": {
+            "elementId": "key-1",
+            "capabilityId": "button",
+            "portId": "pressed"
+          }
+        },
+        "contributionId": "device",
+        "runtimeGroupId": "preview",
+        "port": {
+          "portId": "pressed",
+          "kind": "EventOut",
+          "schema": {
+            "id": "org.deckweave.preview.boolean",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "availability": {
+            "status": "available"
+          }
+        },
+        "operation": null
+      },
+      {
+        "endpoint": {
+          "packageId": "org.deckweave.preview.studio",
+          "nodeId": "preview-node",
+          "target": {
+            "kind": "device",
+            "providerId": "preview",
+            "deviceIdentity": "virtual-deck"
+          },
+          "port": {
+            "elementId": "key-2",
+            "capabilityId": "button",
+            "portId": "pressed"
+          }
+        },
+        "contributionId": "device",
+        "runtimeGroupId": "preview",
+        "port": {
+          "portId": "pressed",
+          "kind": "EventOut",
+          "schema": {
+            "id": "org.deckweave.preview.boolean",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "availability": {
+            "status": "available"
+          }
+        },
+        "operation": null
+      },
+      {
+        "endpoint": {
+          "packageId": "org.deckweave.preview.studio",
+          "nodeId": "preview-node",
+          "target": {
+            "kind": "device",
+            "providerId": "preview",
+            "deviceIdentity": "virtual-deck"
+          },
+          "port": {
+            "elementId": "key-3",
+            "capabilityId": "button",
+            "portId": "pressed"
+          }
+        },
+        "contributionId": "device",
+        "runtimeGroupId": "preview",
+        "port": {
+          "portId": "pressed",
+          "kind": "EventOut",
+          "schema": {
+            "id": "org.deckweave.preview.boolean",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "availability": {
+            "status": "available"
+          }
+        },
+        "operation": null
+      },
+      {
+        "endpoint": {
+          "packageId": "org.deckweave.preview.studio",
+          "nodeId": "preview-node",
+          "target": {
+            "kind": "device",
+            "providerId": "preview",
+            "deviceIdentity": "virtual-deck"
+          },
+          "port": {
+            "elementId": "key-4",
+            "capabilityId": "button",
+            "portId": "pressed"
+          }
+        },
+        "contributionId": "device",
+        "runtimeGroupId": "preview",
+        "port": {
+          "portId": "pressed",
+          "kind": "EventOut",
+          "schema": {
+            "id": "org.deckweave.preview.boolean",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "availability": {
+            "status": "available"
+          }
+        },
+        "operation": null
+      },
+      {
+        "endpoint": {
+          "packageId": "org.deckweave.preview.studio",
+          "nodeId": "preview-node",
+          "target": {
+            "kind": "device",
+            "providerId": "preview",
+            "deviceIdentity": "virtual-deck"
+          },
+          "port": {
+            "elementId": "key-5",
+            "capabilityId": "button",
+            "portId": "pressed"
+          }
+        },
+        "contributionId": "device",
+        "runtimeGroupId": "preview",
+        "port": {
+          "portId": "pressed",
+          "kind": "EventOut",
+          "schema": {
+            "id": "org.deckweave.preview.boolean",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "availability": {
+            "status": "available"
+          }
+        },
+        "operation": null
+      },
+      {
+        "endpoint": {
+          "packageId": "org.deckweave.preview.studio",
+          "nodeId": "preview-node",
+          "target": {
+            "kind": "device",
+            "providerId": "preview",
+            "deviceIdentity": "virtual-deck"
+          },
+          "port": {
+            "elementId": "key-6",
+            "capabilityId": "button",
+            "portId": "pressed"
+          }
+        },
+        "contributionId": "device",
+        "runtimeGroupId": "preview",
+        "port": {
+          "portId": "pressed",
+          "kind": "EventOut",
+          "schema": {
+            "id": "org.deckweave.preview.boolean",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "availability": {
+            "status": "available"
+          }
+        },
+        "operation": null
+      },
+      {
+        "endpoint": {
+          "packageId": "org.deckweave.preview.studio",
+          "nodeId": "preview-node",
+          "target": {
+            "kind": "device",
+            "providerId": "preview",
+            "deviceIdentity": "virtual-deck"
+          },
+          "port": {
+            "elementId": "key-7",
+            "capabilityId": "button",
+            "portId": "pressed"
+          }
+        },
+        "contributionId": "device",
+        "runtimeGroupId": "preview",
+        "port": {
+          "portId": "pressed",
+          "kind": "EventOut",
+          "schema": {
+            "id": "org.deckweave.preview.boolean",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "availability": {
+            "status": "available"
+          }
+        },
+        "operation": null
+      },
+      {
+        "endpoint": {
+          "packageId": "org.deckweave.preview.studio",
+          "nodeId": "preview-node",
+          "target": {
+            "kind": "device",
+            "providerId": "preview",
+            "deviceIdentity": "virtual-deck"
+          },
+          "port": {
+            "elementId": "key-8",
+            "capabilityId": "button",
+            "portId": "pressed"
+          }
+        },
+        "contributionId": "device",
+        "runtimeGroupId": "preview",
+        "port": {
+          "portId": "pressed",
+          "kind": "EventOut",
+          "schema": {
+            "id": "org.deckweave.preview.boolean",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "availability": {
+            "status": "available"
+          }
+        },
+        "operation": null
+      },
+      {
+        "endpoint": {
+          "packageId": "org.deckweave.preview.studio",
+          "nodeId": "preview-node",
+          "target": {
+            "kind": "device",
+            "providerId": "preview",
+            "deviceIdentity": "virtual-deck"
+          },
+          "port": {
+            "elementId": "key-9",
+            "capabilityId": "button",
+            "portId": "pressed"
+          }
+        },
+        "contributionId": "device",
+        "runtimeGroupId": "preview",
+        "port": {
+          "portId": "pressed",
+          "kind": "EventOut",
+          "schema": {
+            "id": "org.deckweave.preview.boolean",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "availability": {
+            "status": "available"
+          }
+        },
+        "operation": null
+      },
+      {
+        "endpoint": {
+          "packageId": "org.deckweave.preview.studio",
+          "nodeId": "preview-node",
+          "target": {
+            "kind": "device",
+            "providerId": "preview",
+            "deviceIdentity": "virtual-deck"
+          },
+          "port": {
+            "elementId": "key-10",
+            "capabilityId": "button",
+            "portId": "pressed"
+          }
+        },
+        "contributionId": "device",
+        "runtimeGroupId": "preview",
+        "port": {
+          "portId": "pressed",
+          "kind": "EventOut",
+          "schema": {
+            "id": "org.deckweave.preview.boolean",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "availability": {
+            "status": "available"
+          }
+        },
+        "operation": null
+      },
+      {
+        "endpoint": {
+          "packageId": "org.deckweave.preview.studio",
+          "nodeId": "preview-node",
+          "target": {
+            "kind": "device",
+            "providerId": "preview",
+            "deviceIdentity": "virtual-deck"
+          },
+          "port": {
+            "elementId": "key-11",
+            "capabilityId": "button",
+            "portId": "pressed"
+          }
+        },
+        "contributionId": "device",
+        "runtimeGroupId": "preview",
+        "port": {
+          "portId": "pressed",
+          "kind": "EventOut",
+          "schema": {
+            "id": "org.deckweave.preview.boolean",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "availability": {
+            "status": "available"
+          }
+        },
+        "operation": null
+      },
+      {
+        "endpoint": {
+          "packageId": "org.deckweave.preview.studio",
+          "nodeId": "preview-node",
+          "target": {
+            "kind": "device",
+            "providerId": "preview",
+            "deviceIdentity": "virtual-deck"
+          },
+          "port": {
+            "elementId": "key-12",
+            "capabilityId": "button",
+            "portId": "pressed"
+          }
+        },
+        "contributionId": "device",
+        "runtimeGroupId": "preview",
+        "port": {
+          "portId": "pressed",
+          "kind": "EventOut",
+          "schema": {
+            "id": "org.deckweave.preview.boolean",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "availability": {
+            "status": "available"
+          }
+        },
+        "operation": null
+      },
+      {
+        "endpoint": {
+          "packageId": "org.deckweave.preview.studio",
+          "nodeId": "preview-node",
+          "target": {
+            "kind": "device",
+            "providerId": "preview",
+            "deviceIdentity": "virtual-deck"
+          },
+          "port": {
+            "elementId": "key-13",
+            "capabilityId": "button",
+            "portId": "pressed"
+          }
+        },
+        "contributionId": "device",
+        "runtimeGroupId": "preview",
+        "port": {
+          "portId": "pressed",
+          "kind": "EventOut",
+          "schema": {
+            "id": "org.deckweave.preview.boolean",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "availability": {
+            "status": "available"
+          }
+        },
+        "operation": null
+      },
+      {
+        "endpoint": {
+          "packageId": "org.deckweave.preview.studio",
+          "nodeId": "preview-node",
+          "target": {
+            "kind": "device",
+            "providerId": "preview",
+            "deviceIdentity": "virtual-deck"
+          },
+          "port": {
+            "elementId": "key-14",
+            "capabilityId": "button",
+            "portId": "pressed"
+          }
+        },
+        "contributionId": "device",
+        "runtimeGroupId": "preview",
+        "port": {
+          "portId": "pressed",
+          "kind": "EventOut",
+          "schema": {
+            "id": "org.deckweave.preview.boolean",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "availability": {
+            "status": "available"
+          }
+        },
+        "operation": null
+      },
+      {
+        "endpoint": {
+          "packageId": "org.deckweave.preview.studio",
+          "nodeId": "preview-node",
+          "target": {
+            "kind": "device",
+            "providerId": "preview",
+            "deviceIdentity": "virtual-deck"
+          },
+          "port": {
+            "elementId": "key-15",
+            "capabilityId": "button",
+            "portId": "pressed"
+          }
+        },
+        "contributionId": "device",
+        "runtimeGroupId": "preview",
+        "port": {
+          "portId": "pressed",
+          "kind": "EventOut",
+          "schema": {
+            "id": "org.deckweave.preview.boolean",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "availability": {
+            "status": "available"
+          }
+        },
+        "operation": null
+      },
+      {
+        "endpoint": {
+          "packageId": "org.deckweave.preview.studio",
+          "nodeId": "preview-node",
+          "target": {
+            "kind": "service",
+            "providerId": "preview",
+            "serviceId": "text"
+          },
+          "port": {
+            "elementId": "show-text",
+            "capabilityId": "action",
+            "portId": "invoke"
+          }
+        },
+        "contributionId": "text",
+        "runtimeGroupId": "preview",
+        "port": {
+          "portId": "invoke",
+          "kind": "CommandIn",
+          "schema": {
+            "id": "org.deckweave.preview.message",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "availability": {
+            "status": "available"
+          }
+        },
+        "operation": {
+          "operationId": "show-text",
+          "inputSchema": {
+            "id": "org.deckweave.preview.message",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "resultSchema": {
+            "id": "org.deckweave.preview.text",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "errorSchema": {
+            "id": "org.deckweave.preview.text",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          }
+        }
+      },
+      {
+        "endpoint": {
+          "packageId": "org.deckweave.preview.studio",
+          "nodeId": "preview-node",
+          "target": {
+            "kind": "service",
+            "providerId": "preview",
+            "serviceId": "text"
+          },
+          "port": {
+            "elementId": "create-note",
+            "capabilityId": "action",
+            "portId": "invoke"
+          }
+        },
+        "contributionId": "text",
+        "runtimeGroupId": "preview",
+        "port": {
+          "portId": "invoke",
+          "kind": "CommandIn",
+          "schema": {
+            "id": "org.deckweave.preview.message",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "availability": {
+            "status": "available"
+          }
+        },
+        "operation": {
+          "operationId": "create-note",
+          "inputSchema": {
+            "id": "org.deckweave.preview.message",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "resultSchema": {
+            "id": "org.deckweave.preview.text",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "errorSchema": {
+            "id": "org.deckweave.preview.text",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          }
+        }
+      },
+      {
+        "endpoint": {
+          "packageId": "org.deckweave.preview.studio",
+          "nodeId": "preview-node",
+          "target": {
+            "kind": "service",
+            "providerId": "preview",
+            "serviceId": "text"
+          },
+          "port": {
+            "elementId": "copy-text",
+            "capabilityId": "action",
+            "portId": "invoke"
+          }
+        },
+        "contributionId": "text",
+        "runtimeGroupId": "preview",
+        "port": {
+          "portId": "invoke",
+          "kind": "CommandIn",
+          "schema": {
+            "id": "org.deckweave.preview.message",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "availability": {
+            "status": "available"
+          }
+        },
+        "operation": {
+          "operationId": "copy-text",
+          "inputSchema": {
+            "id": "org.deckweave.preview.message",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "resultSchema": {
+            "id": "org.deckweave.preview.text",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "errorSchema": {
+            "id": "org.deckweave.preview.text",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          }
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,321 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+.workspace-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: radial-gradient(#cdd6da 0.7px, transparent 0.7px) 0 0 / 20px 20px;
+  background-color: #f1f4f5;
+  touch-action: none;
+  user-select: none;
+}
+.canvas-topline {
+  position: absolute;
+  z-index: 1;
+  inset: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 19px 23px;
+  pointer-events: none;
+  background: linear-gradient(#f1f4f5 30%, #f1f4f500);
+}
+.canvas-topline > * {
+  pointer-events: auto;
+}
+.breadcrumb {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 11px;
+}
+.breadcrumb strong {
+  font-weight: 500;
+  color: #334e59;
+}
+.canvas-topline .subtle-button {
+  background: #fafcfc;
+}
+.canvas-world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+.device-object {
+  position: absolute;
+  user-select: none;
+}
+.device-heading {
+  width: 100%;
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: left;
+  padding: 0 4px 16px;
+  cursor: grab;
+}
+.device-heading:active {
+  cursor: grabbing;
+}
+.device-heading strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+}
+.device-heading small {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.device-symbol {
+  background: white;
+  width: 35px;
+  height: 35px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #d8e0e3;
+  border-radius: 9px;
+  color: #496372;
+}
+.device-state {
+  font-size: 10px;
+  color: var(--muted);
+  margin-left: auto;
+  border: 1px solid #d9e1e4;
+  background: #f7f9fa;
+  border-radius: 4px;
+  padding: 4px 7px;
+}
+.device-body {
+  border: 1px solid #28323b;
+  border-radius: 19px;
+  padding: 19px 18px 0;
+  background: linear-gradient(155deg, #38434d, #252d35);
+  box-shadow:
+    0 14px 25px #24333d1c,
+    0 3px 4px #24333d15,
+    inset 0 1px #ffffff25;
+}
+.device-selected .device-body {
+  outline: 1px solid #bacdca;
+  outline-offset: 5px;
+}
+.device-keys {
+  position: relative;
+  width: 100%;
+  overflow: visible;
+}
+.device-key {
+  position: absolute;
+  padding: 4px;
+  background: transparent;
+  border: 0;
+  border-radius: 12px;
+  overflow: visible;
+  container-type: inline-size;
+}
+.key-face {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 9px;
+  border: 1px solid #ffffff27;
+  box-shadow:
+    0 2px 4px #0005,
+    inset 0 1px #ffffff20;
+  overflow: hidden;
+  gap: 4px;
+}
+.device-key:hover .key-face {
+  outline: 1px solid #ffffff8c;
+  outline-offset: 1px;
+}
+.device-key.selected .key-face {
+  outline: 2px solid #ecf8f4;
+  outline-offset: 2px;
+}
+.device-key.selected::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  outline: 1px solid #6dc2ab;
+  pointer-events: none;
+}
+.key-number {
+  position: absolute;
+  top: 5px;
+  left: 6px;
+  color: #ffffffb0;
+  font: 9px/1 system-ui;
+}
+.key-add {
+  font-size: 24px;
+  font-weight: 200;
+  color: #ffffff60;
+}
+.key-label {
+  display: block;
+  max-width: 95%;
+  padding: 0 3px;
+  font-size: 10px;
+  line-height: 1.3;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-height: 27px;
+  text-shadow: 0 1px 3px #0006;
+}
+.key-label:empty {
+  display: none;
+}
+.override-mark {
+  position: absolute;
+  bottom: 5px;
+  right: 6px;
+  font-size: 7px;
+}
+.step-count {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  font-size: 9px;
+  line-height: 13px;
+  min-width: 13px;
+  border-radius: 3px;
+  background: #0003;
+}
+.device-edge {
+  height: 27px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  color: #c2ccd0;
+  font: 7px system-ui;
+  letter-spacing: 3px;
+}
+.edge-indicator {
+  position: absolute;
+  right: 8px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #75aa98;
+  box-shadow: 0 0 5px #75aa9840;
+}
+.device-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 10px;
+  margin: 18px 4px 0;
+  gap: 10px;
+}
+.device-caption .text-button {
+  font-size: 10px;
+}
+.canvas-bottom {
+  position: absolute;
+  bottom: 19px;
+  left: 23px;
+  right: 23px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.canvas-bottom > * {
+  pointer-events: auto;
+}
+.canvas-hint {
+  font-size: 10px;
+  color: var(--muted);
+}
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  background: #ffffffed;
+  border: 1px solid #dce3e7;
+  border-radius: 7px;
+  padding: 3px;
+  box-shadow: 0 2px 5px #24333d06;
+  margin-left: auto;
+}
+.zoom-controls output {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  width: 38px;
+  text-align: center;
+}
+.zoom-controls > span {
+  width: 1px;
+  height: 18px;
+  background: var(--line);
+  margin: 0 3px;
+}
+.workspace-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 40px;
+  text-align: center;
+}
+.workspace-empty h1 {
+  font-size: 23px;
+  letter-spacing: -0.5px;
+  font-weight: 600;
+}
+.workspace-empty p {
+  max-width: 280px;
+  line-height: 1.8;
+  font-size: 12px;
+  color: var(--muted);
+  margin: 16px 0 24px;
+}
+.empty-device {
+  border: 1px solid #cbdcd5;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 70px;
+  background: #e6efeb;
+  color: #43786a;
+  margin-bottom: 26px;
+}
+@media (max-width: 1060px) {
+  .canvas-topline {
+    padding: 16px;
+  }
+  .breadcrumb {
+    gap: 5px;
+    font-size: 10px;
+  }
+  .breadcrumb > strong,
+  .breadcrumb > svg {
+    display: none;
+  }
+  .canvas-topline .subtle-button {
+    font-size: 11px;
+    padding: 6px 8px;
+  }
+  .canvas-bottom {
+    left: 16px;
+    right: 16px;
+  }
+}

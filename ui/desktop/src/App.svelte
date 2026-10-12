@@ -10,253 +10,288 @@
     onHostChanged,
     type HostSnapshot,
   } from "./bridge";
-
+  import { desktopClient } from "./editor/api";
+  import { EditorSession } from "./editor/session.svelte";
+  import Library from "./components/Library.svelte";
+  import WorkspaceCanvas from "./components/WorkspaceCanvas.svelte";
+  import Inspector from "./components/Inspector.svelte";
+  import DevicePicker from "./components/DevicePicker.svelte";
+  import Icon from "./components/Icon.svelte";
+  let session = $state(new EditorSession(desktopClient));
   let host = $state<HostSnapshot | null>(null);
-  let error = $state("");
-  let startupError = $state("");
-  let startup = $state(false);
-  let busy = $state(false);
-  let lang = $state<"ru" | "en">("ru");
-  const t = (ru: string, en: string) => (lang === "ru" ? ru : en);
-
-  async function refresh() {
+  let ready = $state(!native),
+    adding = $state(false),
+    settings = $state(false),
+    startup = $state(false);
+  const t = (ru: string, en: string) => session.t(ru, en);
+  async function connect() {
+    session = new EditorSession(desktopClient);
+    await session.load();
     try {
       host = await getSnapshot();
-      error = "";
+      if (host.mode === "installed") startup = await getAutostart();
     } catch (cause) {
-      error = String(cause);
+      session.error = String(cause);
     }
+    ready = true;
+  }
+  async function example() {
+    const { previewClient } = await import("./editor/preview");
+    session = new EditorSession(previewClient(), true);
+    await session.load();
+    adding = false;
   }
   async function toggleStartup() {
-    busy = true;
-    try {
+    await session.run(async () => {
       await setAutostart(!startup);
       startup = await getAutostart();
-      startupError = "";
-    } catch (cause) {
-      startupError = String(cause);
-    } finally {
-      busy = false;
-    }
+    });
   }
-  async function exit() {
-    try {
-      await exitApp();
-    } catch (cause) {
-      error = String(cause);
+  function keyboard(e: KeyboardEvent) {
+    const input = ["INPUT", "TEXTAREA", "SELECT"].includes(
+      (e.target as HTMLElement)?.tagName,
+    );
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+      e.preventDefault();
+      void session.run(() => session.save());
     }
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+      e.preventDefault();
+      void session.apply();
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !input) {
+      e.preventDefault();
+      session.history(e.shiftKey ? "redo" : "undo");
+    }
+    if (e.key === "/" && !input) {
+      e.preventDefault();
+      document.querySelector<HTMLInputElement>("#action-search")?.focus();
+    }
+    if (e.key === "Escape") settings = false;
   }
   onMount(() => {
     if (!native) return;
-    let disposed = false;
-    let unsubscribe: (() => void) | undefined;
-    void (async () => {
-      await refresh();
-      if (host?.mode === "installed") {
-        try {
-          startup = await getAutostart();
-        } catch (cause) {
-          startupError = String(cause);
-        }
-      }
-      const off = await onHostChanged(() => {
-        void refresh();
+    let disposed = false,
+      off: (() => void) | undefined;
+    void connect()
+      .then(async () => {
+        const unsubscribe = await onHostChanged(() => {
+          void getSnapshot().then((value) => (host = value));
+        });
+        if (disposed) unsubscribe();
+        else off = unsubscribe;
+      })
+      .catch((cause) => {
+        session.error = String(cause);
+        ready = true;
       });
-      if (disposed) off();
-      else unsubscribe = off;
-    })().catch((cause) => {
-      error = String(cause);
-    });
     return () => {
       disposed = true;
-      unsubscribe?.();
+      off?.();
     };
+  });
+  $effect(() => {
+    document.documentElement.lang = session.lang;
   });
 </script>
 
-<svelte:head><title>DeckWeave</title></svelte:head>
-
+<svelte:head
+  ><title>DeckWeave — {t("Рабочее пространство", "Workspace")}</title
+  ></svelte:head
+>
+<svelte:window
+  onkeydown={keyboard}
+  onbeforeunload={(e) => {
+    if (session.dirty || session.pending) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+  }}
+/>
 <div class="shell">
-  <header>
+  <header class="app-header">
     <div class="brand">
-      <img src="/deckweave.svg" alt="" /><strong>DeckWeave</strong><span
-        class="version">0.1 · foundation</span
-      >
+      <img src="/deckweave.svg" alt="" /><strong>DeckWeave</strong>
     </div>
+    <span class="header-divider"></span><span class="workspace-name"
+      >{t("Основное", "Main")}</span
+    >
+    <span class="draft-state" class:modified={session.dirty}
+      ><i></i>{session.dirty
+        ? t("Есть изменения", "Unsaved changes")
+        : t("Черновик сохранён", "Draft saved")}</span
+    >
     <div class="header-tools">
-      <span class="status" class:online={host?.lifecycle === "running"}
-        ><i></i>{host
-          ? t("Host работает", "Host running")
-          : native
-            ? t("Подключение…", "Connecting…")
-            : t("Предпросмотр UI", "UI preview")}</span
+      <button
+        class="icon-button"
+        title={t("Отменить · Ctrl+Z", "Undo · Ctrl+Z")}
+        aria-label={t("Отменить", "Undo")}
+        disabled={!session.undoStack.length ||
+          session.busy ||
+          Boolean(session.pending)}
+        onclick={() => session.history("undo")}><Icon name="undo" /></button
       >
       <button
-        class="language"
-        onclick={() => {
-          lang = lang === "ru" ? "en" : "ru";
-          document.documentElement.lang = lang;
-        }}>{lang === "ru" ? "EN" : "RU"}</button
+        class="icon-button"
+        title={t("Повторить · Ctrl+Shift+Z", "Redo · Ctrl+Shift+Z")}
+        aria-label={t("Повторить", "Redo")}
+        disabled={!session.redoStack.length ||
+          session.busy ||
+          Boolean(session.pending)}
+        onclick={() => session.history("redo")}><Icon name="redo" /></button
+      >
+      <button
+        class="secondary save-button"
+        disabled={!session.dirty || session.busy || Boolean(session.pending)}
+        onclick={() => session.run(() => session.save())}
+        >{t("Сохранить", "Save")}</button
+      >
+      <button
+        class="primary"
+        disabled={!session.document || session.busy || Boolean(session.pending)}
+        onclick={() => session.apply()}
+        ><Icon name="play" size={14} />{session.busy
+          ? t("Подождите…", "Working…")
+          : session.preview
+            ? t("Сохранить пример", "Save example")
+            : t("Применить действия", "Apply actions")}</button
+      >
+      <button
+        class="icon-button"
+        aria-label={t("Настройки приложения", "Application settings")}
+        aria-expanded={settings}
+        onclick={() => (settings = !settings)}><Icon name="settings" /></button
       >
     </div>
   </header>
-  <div class="body">
-    <aside class="navigation">
-      <div class="section-label">{t("РАБОЧЕЕ ПРОСТРАНСТВО", "WORKSPACE")}</div>
-      <div class="nav-current">
-        <span class="grid-icon">▦</span>{t("Обзор", "Overview")}<span
-          class="count">0</span
-        >
-      </div>
-      <div class="nav-future">
-        {t("Устройства", "Devices")}<span>{t("Позже", "Later")}</span>
-      </div>
-      <div class="nav-future">
-        {t("Автоматизации", "Automations")}<span>{t("Позже", "Later")}</span>
-      </div>
-      <div class="nav-future">
-        {t("Плагины", "Plugins")}<span>{t("Позже", "Later")}</span>
-      </div>
-      <div class="sidebar-note">
-        <span class="tiny-square"></span>{t("Фаза 1", "Phase 1")}
-        <p>
-          {t(
-            "Оболочка и жизненный цикл приложения.",
-            "Application shell and lifecycle.",
-          )}
-        </p>
-      </div>
-    </aside>
-    <main>
-      <div class="page-heading">
-        <div>
-          <div class="eyebrow">DECKWEAVE / 01</div>
-          <h1>{t("Рабочее пространство", "Workspace")}</h1>
-        </div>
-        <span class="outline-tag"
-          >{t("Скелет приложения", "Application scaffold")}</span
-        >
-      </div>
-      {#if !native}<div class="notice">
-          {t(
-            "В браузере доступен только интерфейс. Запустите desktop-приложение для связи с host.",
-            "This browser shows the interface only. Launch the desktop app to connect to the host.",
-          )}
-        </div>{/if}
-      {#if error}<div class="notice error" role="alert">{error}</div>{/if}
-      {#if host?.notice}<div class="notice" role="alert">
-          {host.notice}
-        </div>{/if}
-      <section
-        class="canvas"
-        aria-label={t(
-          "Будущее рабочее пространство устройств",
-          "Future device workspace",
-        )}
-      >
-        <div class="canvas-coordinate">0, 0</div>
-        <div class="empty-state">
-          <div class="device-outline" aria-hidden="true">
-            <div class="keys">
-              {#each Array(10) as _}<span></span>{/each}
-            </div>
-            <div class="touch-strip"></div>
-            <div class="knobs">
-              {#each Array(4) as _}<span></span>{/each}
-            </div>
-          </div>
-          <h2>{t("Место для ваших устройств", "A place for your devices")}</h2>
+  {#if session.preview}<div class="preview-bar">
+      <span
+        >{t(
+          "Учебный пример · без оборудования · изменения хранятся до закрытия",
+          "Practice workspace · no hardware · changes last until you close it",
+        )}</span
+      >{#if native}<button class="text-button" onclick={connect}
+          >{t("Вернуться к устройствам", "Return to devices")}</button
+        >{/if}
+    </div>{/if}
+  {#if session.error}<div class="error-bar" role="alert">
+      <Icon name="alert" size={17} /><span>{session.error}</span
+      >{#if session.pending}<button
+          class="secondary"
+          disabled={session.busy}
+          onclick={() => session.retry()}
+          >{t("Повторить тот же запрос", "Retry same request")}</button
+        >{/if}
+    </div>{/if}
+  <div class="workspace-body">
+    <Library {session} onadd={() => (adding = true)} />
+    <main class="canvas-container">
+      <WorkspaceCanvas {session} onadd={() => (adding = true)} />
+      {#if !native && !session.preview}<div class="browser-welcome">
+          <div class="welcome-mark"><Icon name="grid" size={34} /></div>
+          <h1>
+            {t("Ваши устройства. Ваш порядок.", "Your devices. Your way.")}
+          </h1>
           <p>
             {t(
-              "Здесь появятся панели, клавиатуры и другие устройства. Первый этап готовит приложение к их подключению.",
-              "Panels, keyboards and other devices will appear here. This first stage prepares the application for them.",
+              "Настраивайте кнопки, собирайте действия и задавайте общий стиль. Подключение оборудования доступно в desktop-приложении.",
+              "Configure controls, connect actions and create a shared style. Hardware connections are available in the desktop app.",
             )}
           </p>
-          <div class="phase-tag">
-            <span></span>{t(
-              "Подключение оборудования — следующие фазы",
-              "Hardware support comes in later phases",
-            )}
-          </div>
-        </div>
-        <div class="canvas-caption">
-          {t("Оборудование пока не используется", "No hardware is in use")}
-        </div>
-      </section>
+          <button class="primary" onclick={example}
+            >{t("Попробовать на примере", "Explore an example")}<Icon
+              name="arrow"
+              size={16}
+            /></button
+          ><small
+            >{t(
+              "Можно попробовать без подключения устройств",
+              "No device needed",
+            )}</small
+          >
+        </div>{/if}
+      {#if !ready}<div class="loading-overlay">
+          {t("Открываем рабочее пространство…", "Opening workspace…")}
+        </div>{/if}
     </main>
-    <aside class="inspector">
-      <div class="section-label">{t("ПРИЛОЖЕНИЕ", "APPLICATION")}</div>
-      <h2>{t("Состояние host", "Host status")}</h2>
-      <dl>
-        <dt>{t("Режим", "Mode")}</dt>
-        <dd>
-          {host?.mode === "portable" ? "Portable" : host ? "Installed" : "—"}
-        </dd>
-        <dt>{t("Версия", "Version")}</dt>
-        <dd>{host?.version ?? "—"}</dd>
-      </dl>
-      <div class="divider"></div>
+    <Inspector {session} />
+  </div>
+  <footer class="status-bar">
+    <span class="host-state"
+      ><i class:online={host?.lifecycle === "running" || session.preview}
+      ></i>{session.preview
+        ? t("Учебный пример", "Practice mode")
+        : host?.lifecycle === "running"
+          ? t("Host работает", "Host running")
+          : t("Нет подключения", "Disconnected")}</span
+    ><span
+      >{session.devices.length}
+      {t("устройств", "devices")} · {session.catalogs.length}
+      {t("плагинов", "plugins")}</span
+    ><span class="status-notice" role="status">{session.notice}</span><button
+      class="text-button"
+      title={t("Обновить состояние устройств", "Refresh device status")}
+      disabled={!session.document || session.busy}
+      onclick={() => session.run(() => session.refresh())}
+      ><Icon name="refresh" size={13} /></button
+    ><button
+      class="text-button language"
+      disabled={!session.document || session.busy}
+      onclick={() => session.language(session.lang === "ru" ? "en" : "ru")}
+      >{session.lang.toUpperCase()}<Icon name="chevron" size={12} /></button
+    >
+  </footer>
+  {#if settings}<section
+      class="settings-popover"
+      aria-label={t("Настройки приложения", "Application settings")}
+    >
+      <div class="section-heading">
+        <h2>{t("Приложение", "Application")}</h2>
+        <button
+          class="icon-button"
+          aria-label={t("Закрыть", "Close")}
+          onclick={() => (settings = false)}><Icon name="close" /></button
+        >
+      </div>
+      <label class="check-row"
+        ><input
+          type="checkbox"
+          checked={startup}
+          disabled={!host || host.mode === "portable" || session.busy}
+          onchange={toggleStartup}
+        />{t("Запускать при входе", "Start at login")}</label
+      >{#if host?.mode === "portable"}<p class="help">
+          {t(
+            "В portable-режиме автозапуск недоступен.",
+            "Autostart is unavailable in portable mode.",
+          )}
+        </p>{/if}
+      <div class="section-divider"></div>
       <label class="field-label" for="data-root"
         >{t("Каталог данных", "Data directory")}</label
-      >
-      <output id="data-root" class="root-path">{host?.dataRoot ?? "—"}</output>
+      ><output id="data-root" class="root-path">{host?.dataRoot ?? "—"}</output>
       <p class="help">
         {t(
-          "Каталог защищён от одновременной записи другим экземпляром.",
-          "The directory is protected against concurrent writes by another instance.",
+          "Закрытие окна оставляет автоматизации работающими в трее.",
+          "Closing the window keeps automations running in the tray.",
         )}
       </p>
-      <div class="divider"></div>
-      <div class="startup-row">
-        <span>{t("Запуск при входе", "Start at login")}</span><button
-          class="toggle"
-          class:enabled={startup}
-          role="switch"
-          aria-checked={startup}
-          aria-label={t("Запуск при входе", "Start at login")}
-          disabled={!host || host.mode === "portable" || busy}
-          onclick={toggleStartup}><span></span></button
-        >
-      </div>
-      <p class="help">
-        {host?.mode === "portable"
-          ? t(
-              "В portable-режиме автозапуск недоступен.",
-              "Autostart is unavailable in portable mode.",
-            )
-          : t(
-              "Включается только по вашему выбору.",
-              "Enabled only when you choose to.",
-            )}
-      </p>
-      {#if startupError}<p class="inline-error" role="alert">
-          {startupError}
-        </p>{/if}
-      <div class="tray-note">
-        <strong
-          >{t(
-            "Приложение остаётся в трее",
-            "The app stays in the tray",
-          )}</strong
-        >
-        <p>
-          {t(
-            "Закрытие окна сохраняет host работающим. Для завершения используйте «Выход».",
-            "Closing this window keeps the host running. Use Exit to shut it down.",
-          )}
-        </p>
-      </div>
-      <button class="exit" disabled={!host} onclick={exit}
+      <button
+        class="secondary full-width"
+        disabled={!host || session.dirty || Boolean(session.pending)}
+        onclick={() => session.run(exitApp)}
         >{t("Выход из DeckWeave", "Exit DeckWeave")}</button
-      >
-    </aside>
-  </div>
-  <footer>
-    <span
-      ><i class="footer-dot"></i>{t(
-        "0 устройств · 0 плагинов",
-        "0 devices · 0 plugins",
-      )}</span
-    ><span>{t("Rust + Tauri + Svelte", "Rust + Tauri + Svelte")}</span>
-  </footer>
+      >{#if session.dirty}<p class="help">
+          {t(
+            "Перед выходом сохраните черновик.",
+            "Save your draft before exiting.",
+          )}
+        </p>{/if}
+    </section>{/if}
 </div>
+<DevicePicker
+  {session}
+  open={adding}
+  onclose={() => (adding = false)}
+  onexample={example}
+/>
