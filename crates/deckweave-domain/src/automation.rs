@@ -183,6 +183,25 @@ pub enum InvocationReply {
     },
 }
 
+/// Local dispatch result. `Enqueued` only confirms admission to the bounded
+/// host queue; it is never evidence that the provider accepted or completed
+/// the operation.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum InvocationDeliveryOutcome {
+    RejectedBeforeSend {
+        invocation_id: InvocationId,
+        error: DeckWeaveError,
+    },
+    Enqueued {
+        invocation_id: InvocationId,
+    },
+    PossiblySent {
+        invocation_id: InvocationId,
+        error: DeckWeaveError,
+    },
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeArtifactRef {
@@ -204,6 +223,8 @@ pub enum OperationValidationError {
     ShortOperationJobFeature,
     #[error("unknown outcome должен иметь category unknown_outcome")]
     WrongUnknownCategory,
+    #[error("possibly-sent delivery должен иметь category unknown_outcome")]
+    WrongDeliveryCategory,
     #[error("artifact digest должен быть 64-символьным SHA-256 hex")]
     InvalidDigest,
 }
@@ -216,6 +237,7 @@ impl OperationDescriptor {
             || limits.maximum_input_bytes == 0
             || limits.maximum_output_bytes == 0
             || limits.maximum_concurrent_invocations == 0
+            || limits.maximum_queue_depth == 0
             || limits.maximum_per_minute == 0
         {
             return Err(OperationValidationError::ZeroLimit);
@@ -226,6 +248,17 @@ impl OperationDescriptor {
                 || self.execution.reconciliation)
         {
             return Err(OperationValidationError::ShortOperationJobFeature);
+        }
+        Ok(())
+    }
+}
+
+impl InvocationDeliveryOutcome {
+    pub fn validate(&self) -> Result<(), OperationValidationError> {
+        if let Self::PossiblySent { error, .. } = self
+            && error.category != ErrorCategory::UnknownOutcome
+        {
+            return Err(OperationValidationError::WrongDeliveryCategory);
         }
         Ok(())
     }

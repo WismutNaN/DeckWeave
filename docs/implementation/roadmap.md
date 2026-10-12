@@ -326,7 +326,7 @@ checkpoint/compaction B2 пока отсутствует. Durable apply и produ
 **Цель:** выполнить deterministic source → action → feedback path.
 **Результат:** virtual button вызывает virtual action, меняет state и feedback; replay повторяет результат.
 **Трудоёмкость:** L
-**Статус:** [~] В процессе: 5.0 завершён; часть 5.1/5.2 реализована
+**Статус:** [~] В процессе: 5.0–5.1 завершены; 5.2 начат
 
 ### Контекст для агента
 > Profile/API и isolated virtual apply дают основу интеграции. Три обнаруженных dedup/recovery дефекта закрываются в 5.0 до live effects; pure compiler/scheduler можно делать независимо. Реализуется узкий graph subset без schedules и complex UI.
@@ -348,7 +348,7 @@ checkpoint/compaction B2 пока отсутствует. Durable apply и produ
 ### Задачи
 
 - [x] Закрыть F5-R1–R3 до подключения effects (→ [срез 5.0](phase-5-automation.md#50--закрыть-обнаруженные-переходы-фазы-4)).
-- [~] Полный invocation target, required-feature ID и Rust/TS wire fixtures реализованы; versioned graph и dispatcher enforcement остаются (→ [срез 5.1](phase-5-automation.md#51--graph-contract-и-адресуемый-invocation-protocol), [Capabilities](../contracts/capabilities.md)).
+- [x] Versioned typed graph, полный invocation target, required-feature ID, delivery vocabulary, limits и Rust/TS/domain fixtures реализованы; применение limits и feature fence живым dispatcher относится к 5.3–5.4 (→ [срез 5.1](phase-5-automation.md#51--graph-contract-и-адресуемый-invocation-protocol), [Capabilities](../contracts/capabilities.md)).
 - [ ] Реализовать graph compiler для source/action/state/condition/feedback (→ [Модуль: Automation Engine](../architecture/modules/automation-engine.md)).
 - [~] Runtime/recovery JSON branches удалены: оба пути используют checksum-версию compiled requirements с точными package/group/contribution. Настоящий graph IR, cold-start catalog/binding и несколько required runtime groups остаются (→ [срезы 5.2–5.5](phase-5-automation.md)).
 - [ ] Реализовать immutable ExecutionPlan и serialized workspace scheduler (→ [ADR-0010](../decisions/0010-compiled-automation-plan.md)).
@@ -384,7 +384,7 @@ checkpoint/compaction B2 пока отсутствует. Durable apply и produ
 **Статус:** [ ] Не начата
 
 ### Контекст для агента
-> ApplicationService и minimal graph работают. UI использует только этот contract и не получает plugin handles.
+> ApplicationService и minimal graph работают. UI использует только этот contract и не получает plugin handles. Каждый экран проходит [стандарт качества интерфейса](../product/ui-quality-standard.md): данные вытесняют empty-state декор, а заголовки, пустоты и контейнеры остаются только при доказанной функции.
 
 ### Задачи
 
@@ -396,12 +396,14 @@ checkpoint/compaction B2 пока отсутствует. Durable apply и produ
 - [ ] Реализовать schema-form inspector, draft status, inline validation, undo/redo/apply (→ [Модуль: Profile Store](../architecture/modules/profile-store.md), [Settings UI](../contracts/plugins.md#settings-и-ui-contributions)).
 - [ ] Реализовать Runtime health summary и no-device/first-run states (→ [UI — Состояния интерфейса](../product/ux.md#состояния-интерфейса)).
 - [ ] Добавить ru/en localization skeleton и keyboard navigation (→ [UX](../product/ux.md)).
+- [ ] Проверить canvas, library и inspector по removal/data-first/alignment/resize/keyboard gates без декоративных пустот и повторяющих подписей (→ [Стандарт качества интерфейса](../product/ui-quality-standard.md)).
 
 ### Тесты
 
 - [ ] Component: selection, drag/drop, inspector mutation.
 - [ ] End-to-end: assignment за ≤ 3 действия.
 - [ ] Manual: close/reopen WebView сохраняет active runtime/draft.
+- [ ] Visual acceptance: empty-state графика исчезает при появлении устройств; реальные RU/EN данные не уступают место hero-блокам, лишним заголовкам или нефункциональному whitespace.
 
 ### Ссылки
 

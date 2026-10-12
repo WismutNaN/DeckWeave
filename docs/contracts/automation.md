@@ -43,6 +43,8 @@ created → dispatched → accepted → running → succeeded(result)
               └───────────┴──────────└── unknown_outcome
 ```
 
+Локальный delivery и ответ provider — разные факты. `rejected_before_send` гарантирует, что запрос не покинул Host; `enqueued` подтверждает только помещение в bounded локальную очередь; `possibly_sent` означает потерю уверенности после возможной передачи и обязательно несёт `unknown_outcome`. Успешный `ProcessRuntime::send` не является provider acceptance и тем более terminal result.
+
 `accepted` подтверждает принятие работы, не завершение эффекта. Короткая операция может сразу вернуть terminal response. Долгая возвращает `JobId` и далее progress/terminal outcome с `InvocationId`; `JobId` также scoped к provider session, если descriptor не обещает durable reconciliation. Progress coalesce допустим; terminal outcome — нет. Host принимает один terminal outcome, дубликат того же результата игнорирует, противоречащий результат регистрирует как protocol fault. До доставки запрос можно отклонить с гарантией отсутствия эффекта; потеря связи после dispatch без подтверждения даёт неизвестный outcome.
 
 Cancel — запрос остановить работу. `cancelled` означает подтверждённое завершение cancellation, но не отмену уже выполненных внешних действий; report содержит известные частичные effects. По deadline host прекращает continuation, запрашивает cancel и очищает собственные leases. Если provider не подтвердил исход, остаётся `unknown_outcome`. Поздний результат может уточнить audit record, но не запускает отменённую/старую цепочку. Длительный job удерживает runtime lease, имеет общий deadline и progress timeout policy; heartbeat процесса не заменяет progress.
@@ -50,6 +52,10 @@ Cancel — запрос остановить работу. `cancelled` озна�
 После host restart незавершённые runs не возобновляются автоматически. Сохранённый redacted run journal позволяет показать interrupted/unknown и запросить reconcile у поддерживающего его provider. Это не durable workflow engine с exactly-once effects. Apply отменяет runs прежней epoch по общему lifecycle. Перенос живых continuations между revisions вне v1.
 
 ## Композиция графа
+
+`GraphDocument` имеет version, исполняемый `GraphDefinition`, отдельный UI `GraphLayout` и явные extension maps. Исполняемые варианты v1 закрыты: source, action, state, condition и feedback. Неизвестный executable kind отклоняется; extension не может скрытно добавлять исполняемую семантику. Flow/data edge всегда ссылается на существующие output/input ports, а их `SchemaRef` совпадает точно до появления явного converter. Layout может ссылаться только на существующий node, но его координаты, collapse и viewport не участвуют в semantic compile/hash.
+
+Host policy задаёт ненулевые limits document bytes, nodes, edges, ports per node, reliable queued events, pending runs/invocations, timers и trace entries. Документ не может увеличивать эти значения. Превышение возвращает structured limit kind, maximum и actual; executable/data payload не усекается для продолжения работы.
 
 | Узел или политика | Нормативное поведение |
 |---|---|

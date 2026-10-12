@@ -1,6 +1,6 @@
 # Фаза 5: минимальный automation engine
 
-Статус: срез 5.0 завершён, адресуемая wire-часть 5.1 и runtime manifest 5.2 начаты. Основание и исходные дефекты — [повторная проверка apply](../research/pre-apply-review.md#phase-5-readiness). Фаза 4 создала рабочую основу для apply и восстановления isolated fixture; общий command claim, superseded recovery и отдельный pending budget теперь закрывают найденные P1-переходы.
+Статус: срезы 5.0–5.1 завершены, runtime manifest 5.2 начат. Основание и исходные дефекты — [повторная проверка apply](../research/pre-apply-review.md#phase-5-readiness). Фаза 4 создала рабочую основу для apply и восстановления isolated fixture; общий command claim, superseded recovery и отдельный pending budget теперь закрывают найденные P1-переходы.
 
 ## Граница результата
 
@@ -38,10 +38,10 @@ Graph vocabulary принадлежит Automation; shared endpoint/IDs/schema r
 
 ### 5.1 — Graph contract и адресуемый invocation protocol
 
-- [ ] Зафиксировать versioned `GraphDocument`: стабильные GraphNodeId, source/action/state/condition/feedback, edges и typed value references. Отделить UI layout, unknown extensions и semantic data. Неизвестный executable node возвращает unsupported; он не пропускается.
+- [x] Зафиксировать versioned `GraphDocument`: стабильные GraphNodeId, source/action/state/condition/feedback, edges и typed value references. Отделить UI layout, unknown extensions и semantic data. Неизвестный executable node возвращает unsupported; он не пропускается.
 - [x] Согласовать `InvocationRequest` с `RuntimeEndpointRef`: process session задаётся authenticated transport, request содержит полный `EndpointPath`, а operation ID определяет операцию, не экземпляр устройства. Rust/TS encode/decode fixtures фиксируют путь; Host объявляет `org.deckweave.invocation.endpoint_path` v1. Будущий dispatcher обязан отправлять invocation только session, согласовавшей feature.
-- [ ] Определить command delivery outcomes: rejected-before-send, enqueued/possibly-sent, accepted job, terminal result. Успех `ProcessRuntime::send` означает только помещение в локальную очередь; потеря ответа после возможной передачи не даёт права повторить внешний effect.
-- [ ] Зафиксировать limits для graph nodes/edges, payload bytes, queued events, pending runs/invocations, timers и trace; ошибки возвращаются структурированно, без обрезания данных.
+- [x] Определить command delivery outcomes: rejected-before-send, enqueued/possibly-sent, accepted job, terminal result. Успех `ProcessRuntime::send` означает только помещение в локальную очередь; потеря ответа после возможной передачи не даёт права повторить внешний effect.
+- [x] Зафиксировать limits для graph nodes/edges, payload bytes, queued events, pending runs/invocations, timers и trace; ошибки возвращаются структурированно, без обрезания данных. Расход runtime budgets начинается вместе с owner scheduler в 5.3.
 
 Выход: два одинаковых device targets и service с одинаковым operation/local port ID получают разные wire requests; отсутствующий target отклоняется. Short terminal и accepted-job/result проходят один vocabulary. На этом этапе достаточно encode/decode и domain fixtures.
 

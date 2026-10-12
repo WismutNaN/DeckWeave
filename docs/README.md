@@ -4,7 +4,7 @@ DeckWeave объединяет устройства и приложения че
 
 ## Порядок чтения
 
-1. [Замысел](product/vision.md), [сценарии](product/scenarios.md) и [требования](product/requirements.md): что должно получиться и как это проверить.
+1. [Замысел](product/vision.md), [сценарии](product/scenarios.md), [требования](product/requirements.md) и [стандарт UI](product/ui-quality-standard.md): что должно получиться и как это проверить.
 2. [Архитектура](architecture/overview.md) и [DDD-границы](architecture/ddd.md): владельцы состояния, bounded contexts и зависимости.
 3. Нужный контракт из таблицы ниже и соответствующая [граница модуля](architecture/modules/README.md).
 4. [План реализации](implementation/roadmap.md): ближайший рабочий срез и acceptance gate.
@@ -14,7 +14,7 @@ DeckWeave объединяет устройства и приложения че
 
 | Каталог | Что хранится | Точка входа |
 |---|---|---|
-| `product/` | Назначение, требования, сценарии, режимы и UX | [Замысел](product/vision.md), [режимы](product/modes.md), [UX](product/ux.md) |
+| `product/` | Назначение, требования, сценарии, режимы и UX | [Замысел](product/vision.md), [режимы](product/modes.md), [UX](product/ux.md), [стандарт UI](product/ui-quality-standard.md) |
 | `architecture/` | Устройство системы, DDD-контексты и границы модулей | [Обзор](architecture/overview.md), [DDD](architecture/ddd.md), [модули](architecture/modules/README.md) |
 | `contracts/` | Нормативное поведение на границах | Таблица ниже |
 | `implementation/` | Порядок реализации, срезы и проверки | [Roadmap](implementation/roadmap.md), [Фаза 5](implementation/phase-5-automation.md), [разработка](implementation/development.md) |
