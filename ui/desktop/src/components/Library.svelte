@@ -2,10 +2,12 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
   import { actionShape } from "../editor/bindings";
+  import { writeActionDrag } from "../editor/drag";
   import type { EditorSession } from "../editor/session.svelte";
   let { session, onadd }: { session: EditorSession; onadd: () => void } =
     $props();
   let search = $state("");
+  let dragging = $state("");
   const t = (ru: string, en: string) => session.t(ru, en);
   let filtered = $derived(
     session.actions.filter((a) =>
@@ -72,6 +74,7 @@
       {#each filtered.filter((a) => a.catalog.package.packageId === packageId) as action}{@const supported =
           actionShape(action)}<button
           class="library-action"
+          class:dragging={dragging === action.contributionId}
           draggable={Boolean(supported)}
           disabled={!supported || session.busy || Boolean(session.pending)}
           title={!supported
@@ -87,12 +90,14 @@
                 )}
           onclick={() => session.assign(action)}
           ondragstart={(e) => {
-            e.dataTransfer?.setData(
-              "application/deckweave-action",
-              JSON.stringify(action.endpoint),
-            );
-            if (e.dataTransfer) e.dataTransfer.effectAllowed = "copy";
+            if (!e.dataTransfer || !supported) {
+              e.preventDefault();
+              return;
+            }
+            dragging = action.contributionId;
+            writeActionDrag(e.dataTransfer, action.endpoint);
           }}
+          ondragend={() => (dragging = "")}
           ><span class="action-symbol"><Icon name="text" size={17} /></span
           ><span>{action.title}</span><Icon name="plus" size={14} /></button
         >{/each}{/each}

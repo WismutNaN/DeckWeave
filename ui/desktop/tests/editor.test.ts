@@ -14,12 +14,54 @@ import {
 } from "../src/editor/bindings";
 import { assignable, valuePaths } from "../src/editor/variables";
 import {
+  ACTION_DRAG_TYPE,
+  hasActionDrag,
+  readActionDrag,
+  writeActionDrag,
+} from "../src/editor/drag";
+import {
   mergeDocuments,
   type Recovery,
   type RecoveryJournal,
 } from "../src/editor/recovery";
 import type { MutationEnvelope } from "../src/editor/types";
 import { EditorSession } from "./session-loader";
+
+class TestDataTransfer {
+  private readonly values = new Map<string, string>();
+  effectAllowed = "uninitialized";
+  get types() {
+    return [...this.values.keys()];
+  }
+  setData(type: string, value: string) {
+    this.values.set(type, value);
+  }
+  getData(type: string) {
+    return this.values.get(type) ?? "";
+  }
+  delete(type: string) {
+    this.values.delete(type);
+  }
+}
+
+test("action drag survives the WebView text fallback and rejects foreign data", () => {
+  const endpoint = previewData().catalog.endpoints.find(
+    (item) => item.operation,
+  )!.endpoint;
+  const transfer = new TestDataTransfer();
+  writeActionDrag(transfer as DataTransfer, endpoint);
+  assert.equal(transfer.effectAllowed, "copy");
+  assert.ok(hasActionDrag(transfer as DataTransfer));
+  assert.deepEqual(readActionDrag(transfer as DataTransfer), endpoint);
+
+  transfer.delete(ACTION_DRAG_TYPE);
+  assert.deepEqual(readActionDrag(transfer as DataTransfer), endpoint);
+
+  const foreign = new TestDataTransfer();
+  foreign.setData("text/plain", JSON.stringify(endpoint));
+  assert.equal(readActionDrag(foreign as DataTransfer), null);
+});
+
 test("action metadata follows the pinned version and never guesses between installed versions", async () => {
   const session = new EditorSession(previewClient());
   await session.load();

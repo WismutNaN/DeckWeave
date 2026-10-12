@@ -139,6 +139,14 @@
   outline: 1px solid #ffffff8c;
   outline-offset: 1px;
 }
+.device-key.drop-target .key-face {
+  outline: 3px solid #71d3b9;
+  outline-offset: 3px;
+  box-shadow:
+    0 0 0 7px #71d3b92b,
+    0 2px 4px #0005,
+    inset 0 1px #ffffff20;
+}
 .device-key.selected .key-face {
   outline: 2px solid #ecf8f4;
   outline-offset: 2px;

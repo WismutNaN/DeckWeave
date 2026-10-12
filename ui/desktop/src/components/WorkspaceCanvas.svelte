@@ -3,6 +3,7 @@
   import Icon from "./Icon.svelte";
   import { controlBackground, geometry, neighbor } from "../editor/appearance";
   import { equal, steps } from "../editor/bindings";
+  import { hasActionDrag, readActionDrag } from "../editor/drag";
   import type { EditorSession } from "../editor/session.svelte";
   import type { EditorDevice } from "../editor/types";
   let { session, onadd }: { session: EditorSession; onadd: () => void } =
@@ -13,6 +14,7 @@
     area = $state<HTMLElement>(),
     width = $state(900),
     height = $state(700);
+  let dropTarget = $state("");
   let drag = $state<{
     id: string;
     startX: number;
@@ -129,20 +131,32 @@
       session.select(device.id, device.descriptor.elements[next].elementId);
     }
   }
-  function drop(e: DragEvent, device: EditorDevice, id: string) {
+  const dropKey = (deviceId: string, elementId: string) =>
+    `${deviceId}\u0000${elementId}`;
+  function dragOver(e: DragEvent, device: EditorDevice, id: string) {
+    if (!hasActionDrag(e.dataTransfer)) return;
     e.preventDefault();
-    try {
-      const endpoint = JSON.parse(
-        e.dataTransfer?.getData("application/deckweave-action") ?? "null",
-      );
-      const action = session.actions.find((a) => equal(a.endpoint, endpoint));
-      if (action) {
-        session.select(device.id, id);
-        session.assign(action);
-      }
-    } catch {
-      /* Чужой drag payload не является назначением. */
+    e.stopPropagation();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+    dropTarget = dropKey(device.id, id);
+  }
+  function dragLeave(e: DragEvent, device: EditorDevice, id: string) {
+    const current = e.currentTarget as HTMLElement;
+    if (e.relatedTarget instanceof Node && current.contains(e.relatedTarget)) {
+      return;
     }
+    if (dropTarget === dropKey(device.id, id)) dropTarget = "";
+  }
+  function drop(e: DragEvent, device: EditorDevice, id: string) {
+    const endpoint = readActionDrag(e.dataTransfer);
+    if (!endpoint) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dropTarget = "";
+    const action = session.actions.find((a) => equal(a.endpoint, endpoint));
+    if (!action) return;
+    session.select(device.id, id);
+    session.assign(action);
   }
 </script>
 
@@ -164,7 +178,10 @@
   onblur={() => {
     space = false;
     drag = null;
+    dropTarget = "";
   }}
+  ondragend={() => (dropTarget = "")}
+  ondrop={() => (dropTarget = "")}
 />
 <section
   class="workspace-stage"
@@ -260,6 +277,8 @@
                 {@const custom = device.controls[element.elementId]}
                 <button
                   class="device-key"
+                  class:drop-target={dropTarget ===
+                    dropKey(device.id, element.elementId)}
                   class:selected={session.selectedDevice === device.id &&
                     session.selectedControl === element.elementId}
                   class:assigned={assigned.length > 0}
@@ -272,7 +291,9 @@
                   style:height={`${(bounds.height / geo.height) * 100}%`}
                   onclick={() => session.select(device.id, element.elementId)}
                   onkeydown={(e) => navigate(e, device, index)}
-                  ondragover={(e) => e.preventDefault()}
+                  ondragenter={(e) => dragOver(e, device, element.elementId)}
+                  ondragover={(e) => dragOver(e, device, element.elementId)}
+                  ondragleave={(e) => dragLeave(e, device, element.elementId)}
                   ondrop={(e) => drop(e, device, element.elementId)}
                 >
                   <span

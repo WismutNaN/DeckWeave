@@ -157,6 +157,13 @@
   padding: 10px 8px;
   font-size: 12px;
   line-height: 1.4;
+  cursor: grab;
+}
+.library-action:active:enabled {
+  cursor: grabbing;
+}
+.library-action.dragging {
+  opacity: 0.48;
 }
 .library-action:hover:enabled {
   background: #edf1f4;
