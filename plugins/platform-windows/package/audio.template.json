@@ -304,7 +304,55 @@
             "minor": 0
           }
         },
-        "valueKind": "json",
+        "valueKind": {
+          "structured": {
+            "type": "record",
+            "fields": {
+              "endpointRef": {
+                "schema": {
+                  "type": "string",
+                  "maximumBytes": 256,
+                  "choices": []
+                },
+                "optional": false
+              },
+              "scalar": {
+                "schema": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "optional": false
+              },
+              "muted": {
+                "schema": {
+                  "type": "boolean"
+                },
+                "optional": false
+              },
+              "availability": {
+                "schema": {
+                  "type": "string",
+                  "maximumBytes": 16,
+                  "choices": [
+                    "available",
+                    "unavailable",
+                    "rebind"
+                  ]
+                },
+                "optional": false
+              },
+              "revision": {
+                "schema": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "optional": false
+              }
+            }
+          }
+        },
         "unit": null,
         "range": null
       },
@@ -1129,6 +1177,69 @@
             "retentionSeconds": 60
           }
         }
+      },
+      {
+        "endpoint": {
+          "packageId": "org.deckweave.platform.windows.audio",
+          "nodeId": "windows-control-node",
+          "target": {
+            "kind": "service",
+            "providerId": "org.deckweave.platform.windows.control",
+            "serviceId": "windows-platform"
+          },
+          "port": {
+            "elementId": "audio",
+            "capabilityId": "endpoint-control",
+            "portId": "state"
+          }
+        },
+        "runtimeRequirement": {
+          "packageId": "org.deckweave.platform.windows.audio",
+          "packageVersion": "0.1.0",
+          "artifactSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "runtimeGroupId": "audio",
+          "contributionId": "audio-control"
+        },
+        "port": {
+          "portId": "state",
+          "kind": "StateOut",
+          "direction": "output",
+          "semantics": "state",
+          "schema": {
+            "id": "org.deckweave.windows.audio_state",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "compatibleVersions": {
+            "minimum": {
+              "major": 1,
+              "minor": 0
+            },
+            "maximum": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "requiredPermissions": [
+            "windows.audio.observe"
+          ],
+          "availability": {
+            "status": "available",
+            "reason": null
+          },
+          "lifetime": "always",
+          "descriptorRevision": 1,
+          "tags": [
+            "windows",
+            "audio",
+            "state"
+          ],
+          "unit": null,
+          "range": null
+        },
+        "operation": null
       }
     ]
   },

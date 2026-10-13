@@ -4,15 +4,43 @@ use super::*;
 use deckweave_automation::{ActionArguments, ValueBinding};
 use serde_json::{Value, json};
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Case {
+    WindowQuery,
+    WindowState,
+    AudioState,
+}
+
 #[test]
 #[ignore = "Run npm run test:windows-integration to build and stage real packages"]
 fn virtual_button_reads_windows_catalog_and_delivers_typed_feedback() -> Result<(), Box<dyn Error>>
 {
-    let bundle = PathBuf::from(std::env::var("DECKWEAVE_WINDOWS_E2E_PACKAGE")?);
+    run(Case::WindowQuery)
+}
+#[test]
+#[ignore = "Run npm run test:windows-integration to build and stage real packages"]
+fn native_audio_state_reaches_virtual_feedback_without_audio_mutation() -> Result<(), Box<dyn Error>>
+{
+    run(Case::AudioState)
+}
+#[test]
+#[ignore = "Run npm run test:windows-integration to build and stage real packages"]
+fn native_window_state_reaches_virtual_feedback_without_focus_mutation()
+-> Result<(), Box<dyn Error>> {
+    run(Case::WindowState)
+}
+fn run(case: Case) -> Result<(), Box<dyn Error>> {
+    let bundles = PathBuf::from(std::env::var("DECKWEAVE_WINDOWS_E2E_BUNDLES")?);
+    let family = if case == Case::AudioState {
+        "audio"
+    } else {
+        "window"
+    };
+    let bundle = bundles.join(format!("windows-{family}"));
     let directory = tempfile::tempdir()?;
     let root = directory.path();
     let (mut draft, initial, feedback_marker) = m1_fixture::stage_and_build(root)?;
-    let target = root.join("packages/windows-window/content");
+    let target = root.join(format!("packages/windows-{family}/content"));
     copy_tree(&bundle, &target)?;
     let mut index = PackageIndex::default();
     index.insert(
@@ -26,14 +54,31 @@ fn virtual_button_reads_windows_catalog_and_delivers_typed_feedback() -> Result<
     let query = windows
         .endpoints()
         .iter()
-        .find(|e| {
-            e.operation
+        .find(|e| match case {
+            Case::WindowQuery => e
+                .operation
                 .as_ref()
-                .is_some_and(|o| o.operation_id.as_str() == "list-windows")
+                .is_some_and(|o| o.operation_id.as_str() == "list-windows"),
+            Case::WindowState => {
+                e.operation.is_none()
+                    && e.port.schema.id.as_str() == "org.deckweave.windows.active_window_state"
+            }
+            Case::AudioState => {
+                e.operation.is_none()
+                    && e.port.schema.id.as_str() == "org.deckweave.windows.audio_state"
+            }
         })
-        .ok_or("catalog operation")?
+        .ok_or("Windows endpoint")?
         .clone();
-    let operation = query.operation.as_ref().ok_or("operation")?;
+    let result_schema = query
+        .operation
+        .as_ref()
+        .map(|o| o.result_schema.clone())
+        .unwrap_or_else(|| query.port.schema.clone());
+    let result_contract = windows
+        .schema(&result_schema)
+        .ok_or("result contract")?
+        .clone();
     let mut schemas = initial.catalog().schemas().to_vec();
     for schema in windows.schemas() {
         if !schemas.iter().any(|s| s.schema == schema.schema) {
@@ -51,30 +96,31 @@ fn virtual_button_reads_windows_catalog_and_delivers_typed_feedback() -> Result<
         .iter_mut()
         .find(|e| e.endpoint.package_id.as_str() == m1_fixture::FEEDBACK_PACKAGE)
         .ok_or("feedback")?;
-    feedback.port.schema = operation.result_schema.clone();
-    feedback.port.compatible_versions.minimum = operation.result_schema.version;
-    feedback.port.compatible_versions.maximum = operation.result_schema.version;
+    feedback.port.schema = result_schema.clone();
+    feedback.port.compatible_versions.minimum = result_schema.version;
+    feedback.port.compatible_versions.maximum = result_schema.version;
     let schema_file = feedback_marker
         .parent()
         .ok_or("feedback parent")?
         .join("bin/feedback-schema");
-    fs::write(schema_file, operation.result_schema.id.as_str())?;
+    fs::write(schema_file, result_schema.id.as_str())?;
     let mut graph: GraphDocument = serde_json::from_value(draft.document)?;
     graph.schema_version.minor = 1;
     for node in &mut graph.graph.nodes {
         match node.id.as_str() {
-            "action" => {
+            "action" if case == Case::WindowQuery => {
+                let operation = query.operation.as_ref().ok_or("operation")?;
                 node.kind = GraphNodeKind::Action {
                     endpoint: query.endpoint.clone(),
                     operation_id: operation.operation_id.clone(),
                     availability: EndpointAvailabilityPolicy::Required,
                 };
-                node.outputs[0].schema = operation.result_schema.clone();
+                node.outputs[0].schema = result_schema.clone();
                 node.outputs[1].schema = operation.error_schema.clone();
             }
             "result-state" | "feedback" => {
                 for port in node.inputs.iter_mut().chain(node.outputs.iter_mut()) {
-                    port.schema = operation.result_schema.clone();
+                    port.schema = result_schema.clone();
                 }
                 if let GraphNodeKind::State { initial_value, .. } = &mut node.kind {
                     *initial_value = None;
@@ -83,16 +129,46 @@ fn virtual_button_reads_windows_catalog_and_delivers_typed_feedback() -> Result<
             _ => {}
         }
     }
-    graph.graph.action_arguments.insert(
-        GraphNodeId::try_new("action")?,
-        ActionArguments {
-            trigger_port: GraphPortId::try_new("trigger")?,
-            fields: BTreeMap::new(),
-            value: Some(ValueBinding::Constant {
-                value: json!({"offset":0,"limit":10}),
-            }),
-        },
-    );
+    if case == Case::WindowQuery {
+        graph.graph.action_arguments.insert(
+            GraphNodeId::try_new("action")?,
+            ActionArguments {
+                trigger_port: GraphPortId::try_new("trigger")?,
+                fields: BTreeMap::new(),
+                value: Some(ValueBinding::Constant {
+                    value: json!({"offset":0,"limit":10}),
+                }),
+            },
+        );
+    } else {
+        graph
+            .graph
+            .nodes
+            .retain(|n| ["state-source", "result-state", "feedback"].contains(&n.id.as_str()));
+        let source = graph
+            .graph
+            .nodes
+            .iter_mut()
+            .find(|n| n.id.as_str() == "state-source")
+            .ok_or("source")?;
+        source.kind = GraphNodeKind::Source {
+            endpoint: query.endpoint.clone(),
+            availability: EndpointAvailabilityPolicy::Required,
+        };
+        source.outputs[0].schema = result_schema.clone();
+        graph
+            .graph
+            .edges
+            .retain(|e| ["action-state", "state-feedback"].contains(&e.id.as_str()));
+        let edge = graph
+            .graph
+            .edges
+            .iter_mut()
+            .find(|e| e.id.as_str() == "action-state")
+            .ok_or("edge")?;
+        edge.source.node_id = GraphNodeId::try_new("state-source")?;
+        edge.source.port_id = GraphPortId::try_new("value")?;
+    }
     draft.document = serde_json::to_value(graph)?;
     draft.package_lock.push(PackageLockEntry {
         package_id: query.runtime_requirement.package_id.clone(),
@@ -195,19 +271,32 @@ fn virtual_button_reads_windows_catalog_and_delivers_typed_feedback() -> Result<
         AppCommandResult::OperationAccepted(receipt) => receipt.operation_id,
         _ => return Err("apply response".into()),
     };
-    wait_until(|| fs::read_to_string(&feedback_marker).is_ok_and(|v| v.lines().count() == 2))?;
-    let result: Vec<Value> = fs::read_to_string(&feedback_marker)?
-        .lines()
-        .map(serde_json::from_str)
-        .collect::<Result<_, _>>()?;
-    assert_eq!(result.len(), 2);
-    for page in result {
-        assert!(page["total"].as_u64().is_some());
-        assert!(page["windows"].as_array().is_some_and(|v| v.len() <= 10));
+    let expected_results = if case == Case::WindowQuery { 2 } else { 1 };
+    let mut result = Vec::new();
+    wait_until(|| {
+        if let Ok(text) = fs::read_to_string(&feedback_marker) {
+            result = text
+                .lines()
+                .take(expected_results)
+                .map(serde_json::from_str::<Value>)
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap_or_default();
+        }
+        result.len() == expected_results
+    })?;
+    for value in result {
+        assert!(result_contract.accepts(&value));
+        if case == Case::WindowQuery {
+            assert!(value["total"].as_u64().is_some());
+            assert!(value["windows"].as_array().is_some_and(|v| v.len() <= 10));
+        }
     }
     let scheduler = runtime.live_execution().snapshot()?.ok_or("scheduler")?;
     assert!(scheduler.pending.is_empty());
-    assert_eq!(scheduler.completed.len(), 2);
+    assert_eq!(
+        scheduler.completed.len(),
+        if case == Case::WindowQuery { 2 } else { 0 }
+    );
     assert_eq!(
         runtime
             .runtime_health()
@@ -215,7 +304,7 @@ fn virtual_button_reads_windows_catalog_and_delivers_typed_feedback() -> Result<
             .iter()
             .filter(|r| r.status == RuntimeHealthStatus::Active)
             .count(),
-        3
+        if case == Case::WindowQuery { 3 } else { 2 }
     );
     let before = fs::read(&feedback_marker)?;
     authorization.revoke();
@@ -227,7 +316,10 @@ fn virtual_button_reads_windows_catalog_and_delivers_typed_feedback() -> Result<
             .is_some_and(|s| s.nodes.is_empty())
     })?;
     runtime.shutdown()?;
-    assert_eq!(fs::read(&feedback_marker)?, before);
+    if case == Case::WindowQuery {
+        assert_eq!(fs::read(&feedback_marker)?, before);
+    }
+    assert!(runtime.live_execution().snapshot()?.is_none());
     assert_eq!(
         repository.operation(&operation_id)?.state,
         ApplyOperationState::Succeeded

@@ -42,10 +42,6 @@ cargo(
   ],
   {
     ...process.env,
-    DECKWEAVE_WINDOWS_E2E_PACKAGE: path.join(
-      target,
-      "bundled",
-      "windows-window",
-    ),
+    DECKWEAVE_WINDOWS_E2E_BUNDLES: path.join(target, "bundled"),
   },
 );

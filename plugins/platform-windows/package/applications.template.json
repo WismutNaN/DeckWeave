@@ -304,7 +304,55 @@
             "minor": 0
           }
         },
-        "valueKind": "json",
+        "valueKind": {
+          "structured": {
+            "type": "record",
+            "fields": {
+              "endpointRef": {
+                "schema": {
+                  "type": "string",
+                  "maximumBytes": 256,
+                  "choices": []
+                },
+                "optional": false
+              },
+              "scalar": {
+                "schema": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "optional": false
+              },
+              "muted": {
+                "schema": {
+                  "type": "boolean"
+                },
+                "optional": false
+              },
+              "availability": {
+                "schema": {
+                  "type": "string",
+                  "maximumBytes": 16,
+                  "choices": [
+                    "available",
+                    "unavailable",
+                    "rebind"
+                  ]
+                },
+                "optional": false
+              },
+              "revision": {
+                "schema": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "optional": false
+              }
+            }
+          }
+        },
         "unit": null,
         "range": null
       },
