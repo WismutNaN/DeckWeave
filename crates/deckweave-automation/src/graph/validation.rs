@@ -10,7 +10,7 @@ use thiserror::Error;
 mod bindings;
 
 const SUPPORTED_GRAPH_MAJOR: u32 = 1;
-const SUPPORTED_GRAPH_MINOR: u32 = 0;
+const SUPPORTED_GRAPH_MINOR: u32 = 1;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct GraphLimits {

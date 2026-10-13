@@ -50,6 +50,7 @@ pub(super) fn binding_fixture() -> Result<(GraphDocument, GraphPlanCompiler), Bo
     graph.graph.action_arguments.insert(
         action.clone(),
         ActionArguments {
+            value: None,
             trigger_port: GraphPortId::try_new("trigger")?,
             fields: BTreeMap::from([
                 (

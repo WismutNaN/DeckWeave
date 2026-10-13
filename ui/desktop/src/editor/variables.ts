@@ -1,22 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { equal } from "./bindings";
-import type { Schema, Shape } from "./types";
-// A conservative presentation filter. The core compiler remains authoritative.
-export function valueShape(schema: Schema): Shape | null {
-  if (schema.unit) return null;
-  if (typeof schema.shape === "object") return schema.shape.structured;
-  if (schema.shape === "unit") return { type: "null" };
-  if (schema.shape === "boolean") return { type: "boolean" };
-  if (schema.shape === "string")
-    return { type: "string", maximumBytes: 1048576 };
-  if (schema.shape === "number")
-    return {
-      type: "number",
-      minimum: schema.range?.minimum ?? -Number.MAX_VALUE,
-      maximum: schema.range?.maximum ?? Number.MAX_VALUE,
-    };
-  return null;
-}
+import type { Shape } from "./types";
+export { valueShape } from "./value-shape";
 export function assignable(source: Shape, target: Shape): boolean {
   if (source.type === "string" && target.type === "string")
     return (

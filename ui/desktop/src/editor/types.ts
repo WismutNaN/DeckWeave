@@ -159,15 +159,17 @@ export type GraphEdge = {
   target: { nodeId: string; portId: string };
   extensions: Record<string, Json>;
 };
+export type ActionArguments = {
+  triggerPort: string;
+  fields: Record<string, Binding>;
+  value?: Binding;
+};
 export type GraphDocument = {
   schemaVersion: { major: number; minor: number };
   graph: {
     nodes: GraphNode[];
     edges: GraphEdge[];
-    actionArguments?: Record<
-      string,
-      { triggerPort: string; fields: Record<string, Binding> }
-    >;
+    actionArguments?: Record<string, ActionArguments>;
     nodeInstances?: Record<string, string>;
     extensions: Record<string, Json>;
   };

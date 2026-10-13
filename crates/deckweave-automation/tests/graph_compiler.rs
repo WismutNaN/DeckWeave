@@ -31,6 +31,8 @@ use std::{collections::BTreeMap, error::Error};
 mod action_results;
 #[path = "support/argument_compiler.rs"]
 mod argument_compiler;
+#[path = "support/whole_arguments.rs"]
+mod whole_arguments;
 
 fn schema(id: &str) -> Result<SchemaRef, Box<dyn Error>> {
     Ok(SchemaRef {

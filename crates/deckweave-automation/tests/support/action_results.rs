@@ -14,6 +14,15 @@ use serde_json::json;
 #[test]
 fn concurrent_task_creation_results_feed_the_matching_completion_action()
 -> Result<(), Box<dyn Error>> {
+    completion_results(false)
+}
+
+#[test]
+fn whole_input_results_remain_owned_by_their_run() -> Result<(), Box<dyn Error>> {
+    completion_results(true)
+}
+
+fn completion_results(whole: bool) -> Result<(), Box<dyn Error>> {
     let (mut graph, initial) = argument_compiler::binding_fixture()?;
     let mut schemas = initial.catalog().schemas().to_vec();
     let mut endpoints = initial.catalog().endpoints().to_vec();
@@ -88,6 +97,7 @@ fn concurrent_task_creation_results_feed_the_matching_completion_action()
     graph.graph.action_arguments.insert(
         complete_node,
         ActionArguments {
+            value: None,
             trigger_port: GraphPortId::try_new("input")?,
             fields: BTreeMap::from([(
                 "id".into(),
@@ -98,6 +108,19 @@ fn concurrent_task_creation_results_feed_the_matching_completion_action()
             )]),
         },
     );
+    if whole {
+        graph.schema_version.minor = 1;
+        let args = graph
+            .graph
+            .action_arguments
+            .get_mut(&GraphNodeId::try_new("complete")?)
+            .ok_or("args")?;
+        args.fields.clear();
+        args.value = Some(ValueBinding::RunResult {
+            node_id: GraphNodeId::try_new("action")?,
+            pointer: String::new(),
+        });
+    }
     let compiler = GraphPlanCompiler::new(
         DescriptorCatalog::try_new(schemas, endpoints)?,
         GraphLimits::default(),

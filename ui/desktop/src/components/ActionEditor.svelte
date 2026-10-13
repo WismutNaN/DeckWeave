@@ -44,9 +44,24 @@
     session.actions.find((a) => equal(a.endpoint, node?.kind.endpoint)),
   );
   let shape = $derived(action ? actionShape(action) : null);
-  let fields = $derived(
-    node
-      ? (session.document?.graph.actionArguments?.[node.id]?.fields ?? {})
+  let arguments_ = $derived(
+    node ? session.document?.graph.actionArguments?.[node.id] : undefined,
+  );
+  let wholeInput = $derived(
+    shape?.type !== "record" || Boolean(arguments_?.value),
+  );
+  let fields = $derived<Record<string, Binding | undefined>>(
+    wholeInput ? { $input: arguments_?.value } : (arguments_?.fields ?? {}),
+  );
+  let argumentFields = $derived<
+    Record<string, { schema: Shape; optional?: boolean }>
+  >(
+    shape && shape.type !== "null"
+      ? wholeInput
+        ? { $input: { schema: shape } }
+        : shape.type === "record"
+          ? shape.fields
+          : {}
       : {},
   );
   let blocked = $derived(session.editLocked);
@@ -76,7 +91,11 @@
     session.edit((doc) => {
       doc.graph.actionArguments ??= {};
       doc.graph.actionArguments[id] ??= { triggerPort: "trigger", fields: {} };
-      if (binding) doc.graph.actionArguments[id].fields[key] = binding;
+      if (wholeInput) {
+        doc.graph.actionArguments[id].value = binding;
+        doc.graph.actionArguments[id].fields = {};
+        doc.schemaVersion.minor = Math.max(doc.schemaVersion.minor, 1);
+      } else if (binding) doc.graph.actionArguments[id].fields[key] = binding;
       else delete doc.graph.actionArguments[id].fields[key];
     });
   }
@@ -116,12 +135,21 @@
             ? t("Событие кнопки", "Control event")
             : (session.actions.find((a) => equal(a.endpoint, n.kind.endpoint))
                 ?.title ?? n.id);
-        const sourceShape = s ? valueShape(s) : null;
+        const targetUnit =
+          wholeInput && action?.operation
+            ? schemaFor(action.catalog, action.operation.inputSchema)?.unit
+            : undefined;
+        const sourceShape =
+          s && (s.unit ?? null) === (targetUnit ?? null)
+            ? valueShape(s, Boolean(targetUnit))
+            : null;
         const pointers = sourceShape
-          ? valuePaths(sourceShape, target).map((p) => ({
-              pointer: p.pointer,
-              title: p.pointer ? title + " · " + p.label : title,
-            }))
+          ? valuePaths(sourceShape, target)
+              .filter((p) => !targetUnit || !p.pointer)
+              .map((p) => ({
+                pointer: p.pointer,
+                title: p.pointer ? title + " · " + p.label : title,
+              }))
           : [];
         return pointers.map((p) => ({ ...p, nodeId: n.id }));
       });
@@ -345,7 +373,7 @@
         >
           {diagnosticMessage(diagnostic, session.lang)}
         </p>{/each}
-      {#if shape?.type === "record"}{#each Object.entries(shape.fields) as [key, field]}{@const binding =
+      {#if Object.keys(argumentFields).length}{#each Object.entries(argumentFields) as [key, field]}{@const binding =
             fields[key]}
           <div
             class="argument-field"
@@ -377,7 +405,11 @@
                 />{key}</label
               >{/if}
             {#if !field.optional || binding}<div class="argument-source">
-                <label for={`source-${node.id}-${key}`}>{key}</label><select
+                <label for={`source-${node.id}-${key}`}
+                  >{wholeInput
+                    ? t("Входное значение", "Input value")
+                    : key}</label
+                ><select
                   id={`source-${node.id}-${key}`}
                   disabled={blocked}
                   value={binding && binding.type !== "constant"

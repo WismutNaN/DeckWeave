@@ -12,6 +12,8 @@ pub(super) fn validate(
         };
         let node = nodes.get(node_id).ok_or_else(invalid)?;
         if !matches!(node.kind, GraphNodeKind::Action { .. })
+            || (arguments.value.is_some()
+                && (document.schema_version.minor < 1 || !arguments.fields.is_empty()))
             || arguments.fields.len() > limits.maximum_ports_per_node
             || !node
                 .inputs
@@ -29,10 +31,14 @@ pub(super) fn validate(
         {
             return Err(invalid());
         }
-        for (name, binding) in &arguments.fields {
-            if name.is_empty() || name.len() > 128 {
-                return Err(invalid());
-            }
+        if arguments
+            .fields
+            .keys()
+            .any(|name| name.is_empty() || name.len() > 128)
+        {
+            return Err(invalid());
+        }
+        for binding in arguments.bindings() {
             use crate::ValueBinding;
             let pointer = match binding {
                 ValueBinding::Constant { value } => {

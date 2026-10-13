@@ -28,7 +28,7 @@ use std::collections::BTreeSet;
 use thiserror::Error;
 
 const COMPILER_ID: &str = "org.deckweave.compiler.graph-v1";
-const COMPILER_VERSION: &str = "1";
+const COMPILER_VERSION: &str = "2";
 
 #[derive(Debug, Clone)]
 pub struct GraphPlanCompiler {

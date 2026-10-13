@@ -17,24 +17,47 @@ pub(super) fn validate(
     let schema = catalog
         .schema(&operation.input_schema)
         .ok_or_else(invalid)?;
-    let SchemaValueKind::Structured(PayloadSchema::Record { fields }) = &schema.value_kind else {
-        return Err(invalid());
+    let root_shape;
+    let arguments: Vec<_> = if let Some(value) = &binding.value {
+        root_shape = payload_shape(schema).ok_or_else(invalid)?;
+        vec![("$input", value, &root_shape, schema.unit.as_deref())]
+    } else {
+        let SchemaValueKind::Structured(PayloadSchema::Record { fields }) = &schema.value_kind
+        else {
+            return Err(invalid());
+        };
+        // A record assembled from fields has no unit-bearing wrapper.
+        if schema.unit.is_some() || schema.range.is_some() {
+            return Err(invalid());
+        }
+        if let Some((name, _)) = fields
+            .iter()
+            .find(|(name, field)| !field.optional && !binding.fields.contains_key(*name))
+        {
+            return Err(GraphCompileError::InvalidArgument {
+                node_id: action.id.clone(),
+                field: name.clone(),
+            });
+        }
+        binding
+            .fields
+            .iter()
+            .map(|(name, value)| {
+                fields
+                    .get(name)
+                    .map(|field| (name.as_str(), value, &field.schema, None))
+                    .ok_or_else(|| GraphCompileError::InvalidArgument {
+                        node_id: action.id.clone(),
+                        field: name.clone(),
+                    })
+            })
+            .collect::<Result<_, _>>()?
     };
-    if let Some((name, _)) = fields
-        .iter()
-        .find(|(name, field)| !field.optional && !binding.fields.contains_key(*name))
-    {
-        return Err(GraphCompileError::InvalidArgument {
-            node_id: action.id.clone(),
-            field: name.clone(),
-        });
-    }
-    for (name, value) in &binding.fields {
+    for (name, value, expected, target_unit) in arguments {
         let invalid = || GraphCompileError::InvalidArgument {
             node_id: action.id.clone(),
-            field: name.clone(),
+            field: name.to_owned(),
         };
-        let expected = &fields.get(name).ok_or_else(invalid)?.schema;
         let (node, pointer) = match value {
             ValueBinding::Constant { value } => {
                 if !expected.accepts(value) {
@@ -74,28 +97,20 @@ pub(super) fn validate(
                 .inputs
                 .iter()
                 .any(|port| port.id == binding.trigger_port && port.kind == GraphPortKind::Flow);
-        // Flow is only a scheduling token, even when it follows a value condition.
-        // Nested physical quantities must use explicit records/converters. Never discard units.
-        if !flow_trigger && source.unit.is_some() {
+        // Flow is only a scheduling token. Whole values preserve their unit;
+        // pointers into unit-bearing values need an explicit converter.
+        let source_unit = if flow_trigger {
+            None
+        } else {
+            source.unit.as_deref()
+        };
+        if source_unit != target_unit || (source_unit.is_some() && !pointer.is_empty()) {
             return Err(invalid());
         }
         let mut shape = if flow_trigger {
             PayloadSchema::Null
         } else {
-            match &source.value_kind {
-                SchemaValueKind::Structured(shape) => shape.clone(),
-                SchemaValueKind::Unit => PayloadSchema::Null,
-                SchemaValueKind::Boolean => PayloadSchema::Boolean,
-                SchemaValueKind::String => PayloadSchema::String {
-                    maximum_bytes: 1024 * 1024,
-                    choices: vec![],
-                },
-                SchemaValueKind::Number => PayloadSchema::Number {
-                    minimum: source.range.as_ref().map_or(f64::MIN, |r| r.minimum),
-                    maximum: source.range.as_ref().map_or(f64::MAX, |r| r.maximum),
-                },
-                SchemaValueKind::Json => return Err(invalid()),
-            }
+            payload_shape(source).ok_or_else(invalid)?
         };
         if !pointer.is_empty() {
             for segment in pointer.strip_prefix('/').ok_or_else(invalid)?.split('/') {
@@ -155,4 +170,32 @@ fn assignable(source: &PayloadSchema, target: &PayloadSchema) -> bool {
         ) => s0 >= t0 && s1 <= t1,
         _ => source == target,
     }
+}
+
+fn payload_shape(schema: &super::CatalogSchema) -> Option<PayloadSchema> {
+    let mut shape = match &schema.value_kind {
+        SchemaValueKind::Structured(shape) => shape.clone(),
+        SchemaValueKind::Unit => PayloadSchema::Null,
+        SchemaValueKind::Boolean => PayloadSchema::Boolean,
+        SchemaValueKind::String => PayloadSchema::String {
+            maximum_bytes: 1024 * 1024,
+            choices: vec![],
+        },
+        SchemaValueKind::Number => PayloadSchema::Number {
+            minimum: f64::MIN,
+            maximum: f64::MAX,
+        },
+        SchemaValueKind::Json => return None,
+    };
+    if let Some(range) = &schema.range {
+        let PayloadSchema::Number { minimum, maximum } = &mut shape else {
+            return None;
+        };
+        *minimum = minimum.max(range.minimum);
+        *maximum = maximum.min(range.maximum);
+        if *minimum > *maximum {
+            return None;
+        }
+    }
+    Some(shape)
 }

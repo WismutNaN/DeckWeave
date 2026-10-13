@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // An explicit result-to-display binding, including provider readback through a state node.
+import { argumentBindings } from "./arguments";
 import { copy } from "./api";
 import { layout } from "./appearance";
 import { BINDING_KEY, equal, owner, steps } from "./bindings";
@@ -44,7 +45,7 @@ export function removeEditorFeedback(doc: GraphDocument) {
     Object.entries(doc.graph.actionArguments ?? {}).some(
       ([id, args]) =>
         !ids.has(id) &&
-        Object.values(args.fields).some(
+        argumentBindings(args).some(
           (b) =>
             (b.type === "state" || b.type === "run_result") &&
             ids.has(b.nodeId),

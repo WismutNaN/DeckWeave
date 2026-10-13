@@ -47,6 +47,7 @@ fn structured_plan() -> Result<ExecutableGraph, Box<dyn Error>> {
     plan.action_arguments.insert(
         GraphNodeId::try_new("action")?,
         ActionArguments {
+            value: None,
             trigger_port: GraphPortId::try_new("trigger")?,
             fields: BTreeMap::from([
                 (

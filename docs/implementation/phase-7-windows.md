@@ -68,6 +68,7 @@ Evidence: `plugins/platform-windows/tests/package_shell.rs` собирает в�
 - [x] Подключить `IAudioEndpointVolumeCallback` и `IMMNotificationClient`. Callback складывает минимальное событие в bounded channel; rebind/default-device resolution выполняет worker.
 - [x] Публиковать snapshot `{endpointRef, scalar, muted, availability, revision}` после activation commit. EndpointRef содержит SHA-256 от endpoint ID, не раскрывает raw COM identity и меняется при default-device switch.
 - [x] Собственный context GUID помечает изменения DeckWeave; command success возвращается только после повторного чтения подтверждённого состояния. Успешный set с неудавшимся подтверждением возвращает `unknown_outcome`.
+- [x] Общий контракт `actionArguments.value` (graph 1.1) и schema-driven inspector поддерживают число, boolean, enum, массив и null; назначение всех bundled Windows actions проверяется по настоящим manifests. Переходы, диапазоны, units и run-result ownership проверяются в core.
 - [x] Добавить четыре простых action forms и RU/EN labels в статический automation catalog; UI не требует ручного ввода tagged JSON command.
 
 Acceptance:

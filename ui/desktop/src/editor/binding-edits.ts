@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { appendAction, bindingNodes, equal, schemaFor } from "./bindings";
+import { argumentBindings } from "./arguments";
 import { copy } from "./api";
 import type { Catalog, EditorDevice, GraphDocument, GraphNode } from "./types";
 
@@ -29,14 +30,20 @@ function chain(document: GraphDocument, deviceId: string, controlId: string) {
     );
   return nodes;
 }
-function checkOrder(document: GraphDocument, actions: GraphNode[]) {
+function checkOrder(
+  document: GraphDocument,
+  actions: GraphNode[],
+  sources: GraphNode[],
+) {
   actions.forEach((node, i) => {
-    for (const binding of Object.values(
-      document.graph.actionArguments?.[node.id]?.fields ?? {},
+    for (const binding of argumentBindings(
+      document.graph.actionArguments?.[node.id],
     )) {
       if (
         binding.type === "run_result" &&
-        !actions.slice(0, i).some((n) => n.id === binding.nodeId)
+        ![...sources, ...actions.slice(0, i)].some(
+          (n) => n.id === binding.nodeId,
+        )
       )
         throw new Error(
           "Сначала должен выполняться шаг, чей результат используется / The result producer must run first",
@@ -65,10 +72,15 @@ function wire(
       unit &&
       input.kind === "value" &&
       !equal(input.schema, action!.operation!.inputSchema)
-    )
-      throw new Error(
-        "Для перехода к этому шагу нужен преобразователь / This transition requires a converter",
-      );
+    ) {
+      document.graph.actionArguments ??= {};
+      document.graph.actionArguments[node.id] ??= {
+        triggerPort: "trigger",
+        fields: {},
+        value: { type: "constant", value: null },
+      };
+      document.schemaVersion.minor = Math.max(document.schemaVersion.minor, 1);
+    }
     node.inputs[0] = {
       ...copy(input),
       id: "trigger",
@@ -108,7 +120,11 @@ export function reorderAction(
     0,
     moving,
   );
-  checkOrder(document, reordered);
+  checkOrder(
+    document,
+    reordered,
+    nodes.filter((n) => n.kind.type === "source"),
+  );
   wire(
     document,
     [...nodes.filter((n) => n.kind.type !== "action"), ...reordered],
@@ -124,9 +140,7 @@ export function removeControlBinding(
     ids = new Set(nodes.map((n) => n.id));
   for (const node of document.graph.nodes.filter((n) => !ids.has(n.id))) {
     if (
-      Object.values(
-        document.graph.actionArguments?.[node.id]?.fields ?? {},
-      ).some(
+      argumentBindings(document.graph.actionArguments?.[node.id]).some(
         (b) =>
           (b.type === "run_result" || b.type === "state") && ids.has(b.nodeId),
       )
@@ -162,7 +176,13 @@ export function copyControlBinding(
   const actions = chain(document, source.id, control).filter(
     (n) => n.kind.type === "action",
   );
-  checkOrder(document, actions);
+  checkOrder(
+    document,
+    actions,
+    bindingNodes(document, source.id, control).filter(
+      (n) => n.kind.type === "source",
+    ),
+  );
   const remap = new Map<string, string>();
   for (const node of actions) {
     const catalog = catalogs.find((c) =>
@@ -184,10 +204,17 @@ export function copyControlBinding(
       crypto.randomUUID(),
     );
     remap.set(node.id, id);
+    const sourceNode = bindingNodes(document, source.id, control).find(
+        (n) => n.kind.type === "source",
+      ),
+      targetNode = bindingNodes(document, target.id, targetControl).find(
+        (n) => n.kind.type === "source",
+      );
+    if (sourceNode && targetNode) remap.set(sourceNode.id, targetNode.id);
     const arguments_ = document.graph.actionArguments?.[node.id];
     if (arguments_) {
       const cloned = copy(arguments_);
-      for (const binding of Object.values(cloned.fields))
+      for (const binding of argumentBindings(cloned))
         if (binding.type === "run_result")
           binding.nodeId = remap.get(binding.nodeId)!;
       document.graph.actionArguments![id] = cloned;

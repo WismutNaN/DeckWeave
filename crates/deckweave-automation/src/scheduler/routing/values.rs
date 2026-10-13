@@ -54,7 +54,7 @@ pub(super) fn remember_result(
     node_id: &GraphNodeId,
     value: &Value,
 ) -> Result<bool, SchedulerTransitionError> {
-    let referenced = context.plan.action_arguments.values().any(|arguments| arguments.fields.values().any(|binding| matches!(binding, crate::ValueBinding::RunResult { node_id: source, .. } if source == node_id)));
+    let referenced = context.plan.action_arguments.values().any(|arguments| arguments.bindings().any(|binding| matches!(binding, crate::ValueBinding::RunResult { node_id: source, .. } if source == node_id)));
     if !referenced {
         return Ok(true);
     }

@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import { valueShape } from "./value-shape";
+import { argumentBindings } from "./arguments";
 import type {
   Action,
   Binding,
@@ -60,14 +62,9 @@ export function initialValue(shape: Shape): Json {
   }
 }
 export function actionShape(action: Action): Shape | null {
-  const shape =
-    action.operation &&
-    schemaFor(action.catalog, action.operation.inputSchema)?.shape;
-  return typeof shape === "object" && shape?.structured.type === "record"
-    ? shape.structured
-    : shape === "unit"
-      ? { type: "null" }
-      : null;
+  const schema =
+    action.operation && schemaFor(action.catalog, action.operation.inputSchema);
+  return schema ? valueShape(schema, true) : null;
 }
 export function owner(deviceId: string, elementId: string): string {
   return JSON.stringify([deviceId, elementId]);
@@ -196,8 +193,8 @@ export function appendAction(
   if (!source || !action.operation)
     throw new Error("This control has no static input contract");
   const shape = actionShape(action);
-  if (!shape || (shape.type !== "record" && shape.type !== "null"))
-    throw new Error("This action needs a supported record or unit schema");
+  if (!shape)
+    throw new Error("This action needs a supported bounded input schema");
   const identity = owner(device.id, elementId);
   if (foreignBinding(document, device, elementId))
     throw new Error(
@@ -273,19 +270,7 @@ export function appendAction(
       previous = condition;
     }
   }
-  if (previous.kind.type === "source" && shape.type === "null") {
-    previous.outputs[0].kind = "flow";
-    previous.outputs[0].role = "trigger";
-  }
   const priorPort = previous.outputs[0];
-  if (
-    shape.type === "null" &&
-    priorPort.kind === "value" &&
-    !equal(priorPort.schema, action.operation.inputSchema)
-  )
-    throw new Error(
-      "Для этого перехода нужен преобразователь / This transition requires a converter",
-    );
   const node: GraphNode = {
     id: `action-${uid}`,
     kind: {
@@ -329,6 +314,15 @@ export function appendAction(
       ),
     };
   }
+  if (shape.type !== "record") {
+    document.schemaVersion.minor = Math.max(document.schemaVersion.minor, 1);
+    document.graph.actionArguments ??= {};
+    document.graph.actionArguments[node.id] = {
+      triggerPort: "trigger",
+      fields: {},
+      value: { type: "constant", value: initialValue(shape) },
+    };
+  }
   return node.id;
 }
 export function removeLastAction(
@@ -350,9 +344,7 @@ export function removeLastAction(
       .map((n) => n.id),
   );
   for (const node of document.graph.nodes.filter((n) => !remove.has(n.id))) {
-    const args = Object.values(
-      document.graph.actionArguments?.[node.id]?.fields ?? {},
-    );
+    const args = argumentBindings(document.graph.actionArguments?.[node.id]);
     if (
       args.some(
         (b) =>
