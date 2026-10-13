@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct NativeWindow {
     pub token: u64,
+    pub incarnation: u64,
     pub process_id: u32,
     pub process_started_at: Option<u64>,
     pub executable: Option<String>,

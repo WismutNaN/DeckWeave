@@ -1,12 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #![allow(unsafe_code)]
-use super::{NativeWindow, WindowBackend, WindowFailure};
+use super::{NativeWindow, WindowBackend, WindowCommandError, WindowFailure};
 use std::{
     ffi::c_void,
-    sync::{
-        Mutex, OnceLock,
-        mpsc::{self, Receiver, SyncSender},
-    },
+    sync::mpsc::{self, Receiver, SyncSender},
     thread::{self, JoinHandle},
     time::{Duration, Instant},
 };
@@ -23,7 +20,8 @@ use windows::{
         UI::{
             Accessibility::{HWINEVENTHOOK, SetWinEventHook, UnhookWinEvent},
             WindowsAndMessaging::{
-                DispatchMessageW, EVENT_SYSTEM_FOREGROUND, EnumWindows, GW_OWNER,
+                DispatchMessageW, EVENT_OBJECT_CREATE, EVENT_OBJECT_DESTROY,
+                EVENT_OBJECT_NAMECHANGE, EVENT_SYSTEM_FOREGROUND, EnumWindows, GW_OWNER,
                 GetForegroundWindow, GetMessageW, GetWindow, GetWindowTextW,
                 GetWindowThreadProcessId, IsWindow, IsWindowVisible, MSG, OBJID_WINDOW,
                 PM_NOREMOVE, PeekMessageW, PostThreadMessageW, SW_RESTORE, SetForegroundWindow,
@@ -41,12 +39,14 @@ const VERIFY_CAP: Duration = Duration::from_millis(250);
 
 pub(super) struct NativeWindowBackend {
     session_id: Option<u32>,
+    lifetimes: WindowLifetimes,
 }
 
 impl NativeWindowBackend {
-    pub(super) fn new() -> Self {
+    pub(super) fn new(hook: &ForegroundHook) -> Self {
         Self {
             session_id: process_session(std::process::id()),
+            lifetimes: hook.lifetimes.clone(),
         }
     }
 }
@@ -65,6 +65,7 @@ impl WindowBackend for NativeWindowBackend {
             )
         }
         .map_err(map_error)?;
+        self.lifetimes.assign(&mut context.windows)?;
         Ok(context.windows)
     }
 
@@ -74,25 +75,39 @@ impl WindowBackend for NativeWindowBackend {
         Ok((!hwnd.0.is_null()).then(|| token(hwnd)))
     }
 
-    fn activate(&mut self, value: u64, timeout: Duration) -> Result<(), WindowFailure> {
-        let hwnd = handle(value);
-        // SAFETY: HWND is validated before requesting activation; Windows owns it.
-        if !unsafe { IsWindow(Some(hwnd)) }.as_bool() {
-            return Err(WindowFailure::StaleReference);
+    fn activate(
+        &mut self,
+        window: &NativeWindow,
+        timeout: Duration,
+    ) -> Result<(), WindowCommandError> {
+        let stale = || WindowCommandError::before_effect(WindowFailure::StaleReference);
+        let hwnd = handle(window.token);
+        // Revalidate identity immediately before any OS effect, including process-start evidence.
+        let mut current = describe_window(hwnd, self.session_id).ok_or_else(stale)?;
+        current.incarnation = window.incarnation;
+        if !super::service::same_identity(&current, window) || !self.lifetimes.matches(window) {
+            return Err(stale());
         }
-        // SAFETY: restoring and foregrounding a validated top-level HWND do not transfer ownership.
+        // SAFETY: HWND still belongs to the revalidated window; Windows owns it.
         unsafe {
             let _ = ShowWindowAsync(hwnd, SW_RESTORE);
             let _ = SetForegroundWindow(hwnd);
         }
         let deadline = Instant::now() + timeout.min(VERIFY_CAP);
         loop {
+            if !self.lifetimes.matches(window) {
+                return Err(WindowCommandError::after_attempt(
+                    WindowFailure::StaleReference,
+                ));
+            }
             // SAFETY: GetForegroundWindow returns a borrowed HWND.
             if unsafe { GetForegroundWindow() } == hwnd {
                 return Ok(());
             }
             if Instant::now() >= deadline {
-                return Err(WindowFailure::ForegroundDenied);
+                return Err(WindowCommandError::after_attempt(
+                    WindowFailure::ForegroundDenied,
+                ));
             }
             thread::sleep(Duration::from_millis(10));
         }
@@ -110,32 +125,38 @@ unsafe extern "system" fn collect_window(hwnd: HWND, parameter: LPARAM) -> BOOL 
     if context.windows.len() >= 256 {
         return BOOL(1);
     }
+    if let Some(window) = describe_window(hwnd, context.session_id) {
+        context.windows.push(window);
+    }
+    BOOL(1)
+}
+
+fn describe_window(hwnd: HWND, session_id: Option<u32>) -> Option<NativeWindow> {
     // SAFETY: query functions borrow a HWND owned by Windows.
-    if !unsafe { IsWindowVisible(hwnd) }.as_bool() || unsafe { GetWindow(hwnd, GW_OWNER) }.is_ok() {
-        return BOOL(1);
+    if !unsafe { IsWindow(Some(hwnd)) }.as_bool()
+        || !unsafe { IsWindowVisible(hwnd) }.as_bool()
+        || unsafe { GetWindow(hwnd, GW_OWNER) }.is_ok()
+    {
+        return None;
     }
     let mut process_id = 0;
-    // SAFETY: process_id points to initialized writable memory.
     unsafe { GetWindowThreadProcessId(hwnd, Some(&raw mut process_id)) };
     if process_id == 0
-        || context
-            .session_id
-            .is_some_and(|session| process_session(process_id) != Some(session))
+        || session_id.is_some_and(|session| process_session(process_id) != Some(session))
     {
-        return BOOL(1);
+        return None;
     }
     let (executable, process_started_at) = process_evidence(process_id);
     let mut title = [0_u16; TITLE_UNITS];
-    // SAFETY: buffer is writable and length is bounded by its slice.
     let read = unsafe { GetWindowTextW(hwnd, &mut title) }.max(0) as usize;
-    context.windows.push(NativeWindow {
+    Some(NativeWindow {
         token: token(hwnd),
+        incarnation: 0,
         process_id,
         process_started_at,
         executable,
         title: String::from_utf16_lossy(&title[..read]),
-    });
-    BOOL(1)
+    })
 }
 
 fn process_session(process_id: u32) -> Option<u32> {
@@ -203,146 +224,7 @@ fn map_error(error: windows_core::Error) -> WindowFailure {
     }
 }
 
-static HOOK_SENDER: OnceLock<Mutex<Option<SyncSender<()>>>> = OnceLock::new();
-
-pub(super) struct ForegroundHook {
-    thread_id: Option<u32>,
-    join: Option<JoinHandle<()>>,
-}
-
-impl ForegroundHook {
-    pub(super) fn start() -> (Self, Receiver<()>) {
-        let (events, receiver) = mpsc::sync_channel(1);
-        let (ready, readiness) = mpsc::sync_channel(1);
-        let join = thread::Builder::new()
-            .name("deckweave-window-hook".into())
-            .spawn(move || hook_loop(events, ready))
-            .ok();
-        let thread_id = readiness
-            .recv_timeout(Duration::from_secs(1))
-            .ok()
-            .flatten();
-        (Self { thread_id, join }, receiver)
-    }
-}
-
-impl Drop for ForegroundHook {
-    fn drop(&mut self) {
-        if let Some(thread_id) = self.thread_id {
-            // SAFETY: posting WM_QUIT to the owned message thread transfers no memory.
-            let _ = unsafe { PostThreadMessageW(thread_id, WM_QUIT, WPARAM(0), LPARAM(0)) };
-        }
-        if let Some(join) = self.join.take() {
-            let _ = join.join();
-        }
-    }
-}
-
-fn hook_loop(events: SyncSender<()>, ready: SyncSender<Option<u32>>) {
-    if let Ok(mut current) = HOOK_SENDER.get_or_init(|| Mutex::new(None)).lock() {
-        *current = Some(events);
-    }
-    // SAFETY: the empty peek creates this thread's message queue before readiness is published.
-    unsafe {
-        let mut message = MSG::default();
-        let _ = PeekMessageW(&mut message, None, 0, 0, PM_NOREMOVE);
-    }
-    // SAFETY: callback is a static function and the hook is removed before thread exit.
-    let hook = unsafe {
-        SetWinEventHook(
-            EVENT_SYSTEM_FOREGROUND,
-            EVENT_SYSTEM_FOREGROUND,
-            None,
-            Some(foreground_event),
-            0,
-            0,
-            WINEVENT_OUTOFCONTEXT,
-        )
-    };
-    if hook.0.is_null() {
-        clear_hook_sender();
-        let _ = ready.send(None);
-        return;
-    }
-    // SAFETY: this is the current message thread identifier.
-    let thread_id = unsafe { GetCurrentThreadId() };
-    let _ = ready.send(Some(thread_id));
-    // SAFETY: message is initialized for each GetMessage iteration.
-    unsafe {
-        let mut message = MSG::default();
-        loop {
-            let result = GetMessageW(&raw mut message, None, 0, 0);
-            if result.0 <= 0 {
-                break;
-            }
-            let _ = TranslateMessage(&raw const message);
-            DispatchMessageW(&raw const message);
-        }
-        let _ = UnhookWinEvent(hook);
-    }
-    clear_hook_sender();
-}
-
-unsafe extern "system" fn foreground_event(
-    _hook: HWINEVENTHOOK,
-    event: u32,
-    _hwnd: HWND,
-    object: i32,
-    child: i32,
-    _event_thread: u32,
-    _event_time: u32,
-) {
-    if event != EVENT_SYSTEM_FOREGROUND || object != OBJID_WINDOW.0 || child != 0 {
-        return;
-    }
-    if let Ok(current) = HOOK_SENDER.get_or_init(|| Mutex::new(None)).lock()
-        && let Some(sender) = current.as_ref()
-    {
-        let _ = sender.try_send(());
-    }
-}
-
-fn clear_hook_sender() {
-    if let Ok(mut current) = HOOK_SENDER.get_or_init(|| Mutex::new(None)).lock() {
-        *current = None;
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn callback_burst_coalesces_without_blocking() {
-        let (sender, receiver) = mpsc::sync_channel(1);
-        if let Ok(mut current) = HOOK_SENDER.get_or_init(|| Mutex::new(None)).lock() {
-            *current = Some(sender);
-        }
-        for _ in 0..100 {
-            // SAFETY: test supplies inert values; callback only touches the bounded sender.
-            unsafe {
-                foreground_event(
-                    HWINEVENTHOOK::default(),
-                    EVENT_SYSTEM_FOREGROUND,
-                    HWND::default(),
-                    OBJID_WINDOW.0,
-                    0,
-                    0,
-                    0,
-                );
-            }
-        }
-        assert_eq!(receiver.try_iter().count(), 1);
-        clear_hook_sender();
-    }
-
-    #[test]
-    fn stable_failure_mapping_keeps_permission_distinct() {
-        assert_eq!(
-            map_error(windows_core::Error::from_hresult(windows_core::HRESULT(
-                0x8007_0005_u32 as i32
-            ))),
-            WindowFailure::PermissionDenied
-        );
-    }
-}
+mod hook;
+mod lifetimes;
+pub(super) use hook::ForegroundHook;
+use lifetimes::WindowLifetimes;

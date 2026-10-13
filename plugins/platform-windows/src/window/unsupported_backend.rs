@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-use super::{NativeWindow, WindowBackend, WindowFailure};
+use super::{NativeWindow, WindowBackend, WindowCommandError, WindowFailure};
 use std::{
     sync::mpsc::{self, Receiver, SyncSender},
     time::Duration,
@@ -8,7 +8,7 @@ use std::{
 pub(super) struct NativeWindowBackend;
 
 impl NativeWindowBackend {
-    pub(super) fn new() -> Self {
+    pub(super) fn new(_hook: &ForegroundHook) -> Self {
         Self
     }
 }
@@ -22,8 +22,14 @@ impl WindowBackend for NativeWindowBackend {
         Err(WindowFailure::UnsupportedOperatingSystem)
     }
 
-    fn activate(&mut self, _token: u64, _timeout: Duration) -> Result<(), WindowFailure> {
-        Err(WindowFailure::UnsupportedOperatingSystem)
+    fn activate(
+        &mut self,
+        _window: &NativeWindow,
+        _timeout: Duration,
+    ) -> Result<(), WindowCommandError> {
+        Err(WindowCommandError::before_effect(
+            WindowFailure::UnsupportedOperatingSystem,
+        ))
     }
 }
 

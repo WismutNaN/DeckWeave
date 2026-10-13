@@ -11,7 +11,11 @@ const MAX_WINDOWS: usize = 256;
 pub(crate) trait WindowBackend: Send + 'static {
     fn list_windows(&mut self) -> Result<Vec<NativeWindow>, WindowFailure>;
     fn foreground_token(&mut self) -> Result<Option<u64>, WindowFailure>;
-    fn activate(&mut self, token: u64, timeout: Duration) -> Result<(), WindowFailure>;
+    fn activate(
+        &mut self,
+        window: &NativeWindow,
+        timeout: Duration,
+    ) -> Result<(), WindowCommandError>;
 }
 
 pub(crate) struct WindowService<B: WindowBackend> {
@@ -146,9 +150,7 @@ impl<B: WindowBackend> WindowService<B> {
         record: NativeWindow,
         timeout: Duration,
     ) -> Result<ActiveWindowState, WindowCommandError> {
-        self.backend
-            .activate(record.token, timeout)
-            .map_err(WindowCommandError::after_attempt)?;
+        self.backend.activate(&record, timeout)?;
         let state = self.refresh().map_err(WindowCommandError::after_attempt)?;
         if !state
             .window_ref
@@ -232,11 +234,11 @@ fn reference_for(generation: u64, record: &NativeWindow) -> String {
     let mut hasher = Sha256::new();
     hasher.update(generation.to_le_bytes());
     hasher.update(record.token.to_le_bytes());
+    hasher.update(record.incarnation.to_le_bytes());
     hasher.update(record.process_id.to_le_bytes());
     hasher.update(record.process_started_at.unwrap_or_default().to_le_bytes());
     hasher.update(record.executable.as_deref().unwrap_or_default().as_bytes());
-    hasher.update([0]);
-    hasher.update(record.title.as_bytes());
+
     let mut encoded = String::with_capacity(64);
     for byte in hasher.finalize() {
         let _ = write!(encoded, "{byte:02x}");
@@ -254,8 +256,9 @@ fn same_state(left: &ActiveWindowState, right: &ActiveWindowState) -> bool {
         && left.fresh == right.fresh
 }
 
-fn same_identity(left: &NativeWindow, right: &NativeWindow) -> bool {
+pub(super) fn same_identity(left: &NativeWindow, right: &NativeWindow) -> bool {
     left.token == right.token
+        && left.incarnation == right.incarnation
         && left.process_id == right.process_id
         && left.process_started_at == right.process_started_at
         && left.executable == right.executable

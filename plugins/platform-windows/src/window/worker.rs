@@ -174,7 +174,7 @@ impl Drop for WindowWorker {
 
 fn worker_loop(generation: u64, commands: Receiver<WorkerCommand>, publisher: StatePublisher) {
     let (hook, changes) = ForegroundHook::start();
-    let mut service = WindowService::new(NativeWindowBackend::new(), generation);
+    let mut service = WindowService::new(NativeWindowBackend::new(&hook), generation);
     let mut published_revision = 0;
     publish_result(
         &publisher,
@@ -228,7 +228,7 @@ fn worker_loop(generation: u64, commands: Receiver<WorkerCommand>, publisher: St
             Ok(WorkerCommand::Shutdown) | Err(RecvTimeoutError::Disconnected) => break,
             Err(RecvTimeoutError::Timeout) => {}
         }
-        while let Ok(()) = changes.try_recv() {
+        if let Ok(()) = changes.try_recv() {
             publish_result(
                 &publisher,
                 service.refresh(),
