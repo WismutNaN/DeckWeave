@@ -64,6 +64,8 @@ pub enum DraftRepositoryError {
     IdempotencyExpired,
     #[error("mutation receipt quota is exhausted")]
     ReceiptQuota,
+    #[error("workspace storage document exceeds its byte limit")]
+    DocumentTooLarge,
     #[error("draft command is invalid: {0}")]
     InvalidCommand(String),
     #[error("workspace candidate is invalid or incomplete: {0}")]

@@ -145,6 +145,8 @@ export type GraphNode = {
     availability?: string;
     operator?: string;
     operand?: Json;
+    state_key?: string;
+    initial_value?: Json;
   };
   inputs: GraphPort[];
   outputs: GraphPort[];
@@ -207,6 +209,7 @@ export type ControlStyle = {
   when?: "true" | "false" | "any";
   label?: string;
   background?: Background;
+  showResult?: boolean;
   foreground?: string;
 };
 export type EditorDevice = {

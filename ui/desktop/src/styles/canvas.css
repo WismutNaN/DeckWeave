@@ -328,3 +328,61 @@
     right: 16px;
   }
 }
+
+.live-toolbar {
+  position: absolute;
+  top: 54px;
+  left: 20px;
+  right: 20px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  pointer-events: none;
+}
+.live-toolbar > * {
+  pointer-events: auto;
+}
+.live-toolbar .help {
+  max-width: 480px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--panel);
+  margin: 0;
+}
+.live-toolbar .active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.device-key:disabled {
+  cursor: default;
+}
+
+[data-editor-drop][data-pointer-drop] {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+[data-pointer-dragging] {
+  opacity: 0.55;
+}
+.transfer-ghost {
+  position: fixed;
+  z-index: 10000;
+  pointer-events: none;
+  max-width: 220px;
+  padding: 10px 14px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 8px 30px #0003;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.library-action,
+.device-key,
+.step-select,
+.device-list button {
+  touch-action: none;
+}

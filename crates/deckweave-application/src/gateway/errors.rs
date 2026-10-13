@@ -113,6 +113,13 @@ pub(crate) fn map_store_error(context: &RequestContext, error: DraftRepositoryEr
             false,
             BTreeMap::new(),
         ),
+        DraftRepositoryError::DocumentTooLarge => api_error(
+            context,
+            ApiErrorCode::CapacityExceeded,
+            "api.error.document_too_large",
+            false,
+            BTreeMap::new(),
+        ),
         DraftRepositoryError::ReceiptQuota => api_error(
             context,
             ApiErrorCode::CapacityExceeded,

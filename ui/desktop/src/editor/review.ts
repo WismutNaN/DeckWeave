@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import { reviewDetails } from "./review-details";
 import { equal } from "./bindings";
 import { layout } from "./appearance";
 import type { GraphDocument, DraftDiagnostic } from "./types";
@@ -6,30 +7,11 @@ export function summarizeChanges(
   before: GraphDocument | null,
   after: GraphDocument,
 ) {
-  const previous = before?.graph.nodes ?? [],
-    next = after.graph.nodes;
+  const rows = reviewDetails(before, after);
   return {
-    added: next.filter(
-      (n) => !previous.some((p) => p.id === n.id) && n.kind.type === "action",
-    ).length,
-    removed: previous.filter(
-      (n) => !next.some((p) => p.id === n.id) && n.kind.type === "action",
-    ).length,
-    changed: next.filter(
-      (n) =>
-        n.kind.type === "action" &&
-        previous.some((p) => p.id === n.id) &&
-        (!equal(
-          n,
-          previous.find((p) => p.id === n.id),
-        ) ||
-          !equal(
-            before?.graph.actionArguments?.[n.id],
-            after.graph.actionArguments?.[n.id],
-          ) ||
-          before?.graph.nodeInstances?.[n.id] !==
-            after.graph.nodeInstances?.[n.id]),
-    ).length,
+    added: rows.filter((row) => row.kind === "added").length,
+    removed: rows.filter((row) => row.kind === "removed").length,
+    changed: rows.filter((row) => row.kind === "changed").length,
     connections: !equal(
       before?.pluginInstances ?? {},
       after.pluginInstances ?? {},

@@ -222,6 +222,13 @@ fn store_errors_keep_the_stable_application_error_contract() -> Result<(), Box<d
 
     let cases = [
         Case {
+            store_error: DraftStoreError::DocumentTooLarge,
+            code: ApiErrorCode::CapacityExceeded,
+            message_key: "api.error.document_too_large",
+            retryable: false,
+            details: BTreeMap::new(),
+        },
+        Case {
             store_error: DraftStoreError::NotFound,
             code: ApiErrorCode::NotFound,
             message_key: "api.error.draft_not_found",

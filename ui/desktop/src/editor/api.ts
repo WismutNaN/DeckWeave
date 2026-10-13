@@ -30,6 +30,26 @@ export function message(cause: unknown, lang: string): string {
     message?: string;
     messageKey?: string;
   };
+  const keys: Record<string, [string, string]> = {
+    "api.error.document_too_large": [
+      "Черновик превышает лимит размера хранилища. Уменьшите объём конфигурации; предыдущая версия сохранена.",
+      "The draft exceeds the storage size limit. Reduce the configuration size; the previous version is preserved.",
+    ],
+    "api.error.virtual_stale": [
+      "Устройство переподключилось или конфигурация изменилась. Обновите состояние и повторите нажатие.",
+      "The device reconnected or the configuration changed. Refresh before clicking again.",
+    ],
+    "api.error.virtual_unsupported": [
+      "Для этой кнопки нет применённого виртуального входа.",
+      "This control has no applied virtual input.",
+    ],
+    "api.error.virtual_unavailable": [
+      "Виртуальное устройство сейчас недоступно.",
+      "The virtual device is currently unavailable.",
+    ],
+  };
+  if (error?.messageKey && keys[error.messageKey])
+    return keys[error.messageKey][lang === "ru" ? 0 : 1];
   const reasons: Record<string, [string, string]> = {
     revision_conflict: [
       "Черновик изменён в другом окне. Обновите его перед сохранением.",

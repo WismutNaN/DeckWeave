@@ -620,3 +620,6 @@ fn corrupt_primary_head_falls_back_to_last_published_backup() -> Result<(), Box<
     assert_eq!(reopened.draft.document["title"], "Recovered write");
     Ok(())
 }
+
+#[path = "support/capacity.rs"]
+mod capacity;

@@ -11,7 +11,9 @@ import {
   schemaDefinitions,
 } from "../plugins/virtual-device/metadata.mjs";
 const root = fileURLToPath(new URL("../", import.meta.url));
-const release = process.argv.includes("--release");
+const release =
+  process.argv.includes("--release") ||
+  (process.argv.includes("--tauri") && process.env.TAURI_ENV_DEBUG !== "true");
 const asset = path.join(root, "plugins/virtual-device/assets/descriptors.json");
 fs.mkdirSync(path.dirname(asset), { recursive: true });
 const json = (value) => JSON.stringify(value, null, 2) + "\n";

@@ -1,8 +1,14 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script lang="ts">
-  import { hasActionDrag, writeSelectionDrag } from "../editor/drag";
+  import { dragSource, dropZone } from "../editor/pointer-drag";
+  import {
+    hasActionDrag,
+    writeSelectionDrag,
+    readSelectionDrag,
+  } from "../editor/drag";
   import { dropOnControl } from "../editor/drops";
   import { reorderAction } from "../editor/binding-edits";
+  import { displayEndpoints } from "../editor/feedback";
   import Icon from "./Icon.svelte";
   import { instanceLabel } from "../editor/instances";
   import { diagnosticMessage } from "../editor/review";
@@ -125,6 +131,20 @@
 <div
   role="group"
   aria-label={t("Назначение действий", "Action assignment")}
+  use:dropZone={{
+    accept: (data) =>
+      !blocked &&
+      hasActionDrag(data) &&
+      readSelectionDrag(data)?.kind !== "device" &&
+      readSelectionDrag(data)?.kind !== "step",
+    drop: (e) =>
+      dropOnControl(
+        session,
+        e,
+        session.selectedDevice,
+        session.selectedControl,
+      ),
+  }}
   class="binding-drop-zone"
   ondragover={(e) => {
     if (hasActionDrag(e.dataTransfer) && !blocked) {
@@ -212,6 +232,18 @@
     </div>
     <ol class="action-chain">
       {#each chain as step, index}<li
+          use:dropZone={{
+            accept: (data) =>
+              !blocked && readSelectionDrag(data)?.kind === "step",
+            drop: (e) =>
+              dropOnControl(
+                session,
+                e,
+                session.selectedDevice,
+                session.selectedControl,
+                step.id,
+              ),
+          }}
           ondragover={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -226,7 +258,17 @@
             )}
         >
           <button
-            draggable={!blocked}
+            draggable={false}
+            use:dragSource={(data) => {
+              if (blocked) return false;
+              writeSelectionDrag(data, {
+                kind: "step",
+                deviceId: session.selectedDevice,
+                controlId: session.selectedControl,
+                stepId: step.id,
+              });
+              return true;
+            }}
             ondragstart={(e) => {
               if (e.dataTransfer)
                 writeSelectionDrag(e.dataTransfer, {
@@ -391,6 +433,25 @@
           )}
         </p>{/if}
     {/if}
+    {#if session.device && displayEndpoints(session.availableCatalogs, session.device, session.selectedControl).some((e) => e.port.kind === "ValueIn")}<label
+        class="check-row"
+        ><input
+          type="checkbox"
+          checked={Boolean(
+            session.device.controls[session.selectedControl]?.showResult,
+          )}
+          disabled={blocked}
+          onchange={(e) =>
+            session.updateDevice((d) => {
+              d.controls[session.selectedControl] ??= {};
+              d.controls[session.selectedControl].showResult =
+                e.currentTarget.checked;
+            })}
+        />{t(
+          "Показать результат на этой кнопке",
+          "Show the result on this control",
+        )}</label
+      >{/if}
     <button
       class="subtle-button wide"
       disabled={blocked}

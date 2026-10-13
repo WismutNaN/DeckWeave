@@ -1,5 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script lang="ts">
+  import { dragSource } from "../editor/pointer-drag";
   import Icon from "./Icon.svelte";
   import { actionShape } from "../editor/bindings";
   import { writeActionDrag, writeSelectionDrag } from "../editor/drag";
@@ -32,7 +33,16 @@
   </div>
   <nav class="device-list" aria-label={t("Мои устройства", "My devices")}>
     {#each session.devices as device}<button
-        draggable={!session.busy && !session.pending}
+        draggable={false}
+        use:dragSource={(data) => {
+          if (session.busy || session.pending) return false;
+          writeSelectionDrag(data, {
+            kind: "device",
+            deviceId: device.id,
+            controlId: "",
+          });
+          return true;
+        }}
         ondragstart={(e) => {
           if (e.dataTransfer)
             writeSelectionDrag(e.dataTransfer, {
@@ -84,7 +94,12 @@
           actionShape(action)}<button
           class="library-action"
           class:dragging={dragging === action.contributionId}
-          draggable={Boolean(supported)}
+          draggable={false}
+          use:dragSource={(data) => {
+            if (!supported || session.busy || session.pending) return false;
+            writeActionDrag(data, action.endpoint);
+            return true;
+          }}
           disabled={!supported || session.busy || Boolean(session.pending)}
           title={!supported
             ? t(
@@ -92,7 +107,7 @@
                 "Schema not supported by the inspector",
               )
             : !session.selectedControl
-              ? t("Сначала выберите кнопку", "Select a key first")
+              ? t("Перетащите на кнопку", "Drag onto a key")
               : t(
                   "Добавить действие к выбранной кнопке",
                   "Add action to selected key",

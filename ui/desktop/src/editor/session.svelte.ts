@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import { pushHistory } from "./history";
+import { removeEditorFeedback, syncEditorFeedback } from "./feedback";
 import { copy, message, type EditorClient } from "./api";
 import {
   saveDraft,
@@ -55,9 +57,9 @@ export class EditorSession {
   conflict = $state(false);
   localePending = $state(false);
   journal?: RecoveryJournal;
-  persist() {
+  async persist() {
     if (this.draft && this.document)
-      this.journal?.write({
+      await this.journal?.write({
         version: 1,
         base: copy(this.draft),
         document: copy(this.document),
@@ -66,11 +68,20 @@ export class EditorSession {
         operationId: this.operationId,
       });
   }
+  persistSoon() {
+    void this.persist().catch((cause) => {
+      this.error =
+        this.t(
+          "Не удалось сохранить восстановление черновика: ",
+          "Draft recovery could not be saved: ",
+        ) + message(cause, this.lang);
+    });
+  }
   async sendPending<T>(): Promise<T> {
     if (!this.pending) throw new Error("No pending command");
     const replay = this.attempted;
     this.attempted = true;
-    this.persist(); // Publish the retry identity before any possible effect.
+    await this.persist(); // Publish the retry identity before any possible effect.
     try {
       return await this.client.command<T>(copy(this.pending));
     } catch (cause) {
@@ -90,7 +101,7 @@ export class EditorSession {
         this.pending = null;
         this.attempted = false;
         this.conflict = code === "revision_conflict";
-        this.persist();
+        await this.persist();
       }
       throw cause;
     }
@@ -189,7 +200,7 @@ export class EditorSession {
       this.draft = await this.client.open();
       layout(this.draft.document);
       this.document = copy(this.draft.document);
-      const recovery = this.journal?.read();
+      const recovery = await this.journal?.read();
       if (recovery && recovery.base.draftId === this.draft.draftId) {
         layout(recovery.document);
         if (
@@ -214,7 +225,7 @@ export class EditorSession {
           "An unfinished request was restored. Retry it to resolve its outcome.",
         );
       }
-      this.persist();
+      await this.persist();
     });
   }
   async refresh() {
@@ -247,12 +258,14 @@ export class EditorSession {
     try {
       const before = copy(this.document),
         next = copy(this.document);
+      removeEditorFeedback(next);
       change(next);
+      syncEditorFeedback(next, this.availableCatalogs);
       if (equal(before, next)) return;
-      this.undoStack = [...this.undoStack.slice(-63), before];
+      this.undoStack = pushHistory(this.undoStack, before);
       this.redoStack = [];
       this.document = next;
-      this.persist();
+      this.persistSoon();
       this.plan = null;
       this.review = null;
       this.diagnostics = [];
@@ -270,13 +283,13 @@ export class EditorSession {
     const current = copy(this.document);
     if (direction === "undo") {
       this.undoStack = source.slice(0, -1);
-      this.redoStack = [...this.redoStack, current];
+      this.redoStack = pushHistory(this.redoStack, current);
     } else {
       this.redoStack = source.slice(0, -1);
-      this.undoStack = [...this.undoStack, current];
+      this.undoStack = pushHistory(this.undoStack, current);
     }
     this.document = copy(next);
-    this.persist();
+    this.persistSoon();
     this.plan = null;
     this.review = null;
     this.diagnostics = [];
@@ -388,7 +401,7 @@ export class EditorSession {
       this.plan = null;
       this.review = null;
       this.diagnostics = [];
-      this.persist();
+      await this.persist();
       this.notice = this.t(
         "Изменения объединены. Проверьте и сохраните черновик.",
         "Changes merged. Review and save your draft.",

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import type { TransferDrop } from "./pointer-drag";
 import type { EditorSession } from "./session.svelte";
 import { readActionDrag, readSelectionDrag } from "./drag";
 import { copyControlBinding, reorderAction } from "./binding-edits";
@@ -7,7 +8,7 @@ import { layout, putLayout } from "./appearance";
 import { copy } from "./api";
 export function dropOnControl(
   session: EditorSession,
-  event: DragEvent,
+  event: TransferDrop,
   deviceId: string,
   controlId: string,
   beforeStep?: string,

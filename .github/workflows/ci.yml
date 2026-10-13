@@ -35,6 +35,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build:web
+      - run: npm run prepare:desktop
       - run: cargo build --locked -p deckweave-desktop --features smoke-test
       - run: cargo clippy --locked -p deckweave-desktop --all-targets --all-features -- -D warnings
       - name: Настоящий desktop lifecycle

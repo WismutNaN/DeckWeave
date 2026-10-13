@@ -10,24 +10,8 @@ export type Recovery = {
   operationId: string | null;
 };
 export interface RecoveryJournal {
-  read(): Recovery | null;
-  write(value: Recovery): void;
-}
-export function browserJournal(storage: Storage): RecoveryJournal {
-  const key = "deckweave.editor.recovery.v1";
-  return {
-    read() {
-      const raw = storage.getItem(key);
-      if (!raw) return null;
-      const value = JSON.parse(raw) as Recovery;
-      if (value.version !== 1 || !value.base?.draftId || !value.document?.graph)
-        throw new Error("Unsupported editor recovery record");
-      return value;
-    },
-    write(value) {
-      storage.setItem(key, JSON.stringify(value));
-    },
-  };
+  read(): Recovery | null | Promise<Recovery | null>;
+  write(value: Recovery): void | Promise<void>;
 }
 // Objects merge by field; arrays are atomic so graph ordering is never guessed.
 // A conflicting path leaves both original documents untouched.

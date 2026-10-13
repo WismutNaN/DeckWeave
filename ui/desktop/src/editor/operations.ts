@@ -62,7 +62,7 @@ export async function saveDraft(s: EditorSession) {
   s.pending = null;
   s.attempted = false;
   s.conflict = false;
-  s.persist();
+  await s.persist();
   s.notice = s.t("Черновик сохранён", "Draft saved");
 }
 export async function applyDraft(s: EditorSession) {
@@ -96,7 +96,7 @@ export async function finishApply(s: EditorSession) {
   if (!s.pending) return;
   const receipt = await s.sendPending<{ operationId: string }>();
   s.operationId = receipt.operationId;
-  s.persist();
+  await s.persist();
   s.operation = await s.client.query<Operation>({
     type: "operation",
     operation_id: receipt.operationId,
@@ -104,7 +104,7 @@ export async function finishApply(s: EditorSession) {
   await s.refresh();
   s.pending = null;
   s.attempted = false;
-  s.persist();
+  await s.persist();
   s.notice = s.preview
     ? s.t(
         "Пример сохранён. Оборудование не используется.",

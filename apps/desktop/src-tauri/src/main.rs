@@ -10,6 +10,7 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
 };
 
+mod bundled;
 mod commands;
 mod composition;
 mod editor_seed;
@@ -44,6 +45,8 @@ fn run(options: LaunchOptions) -> Result<(), Box<dyn std::error::Error>> {
                 "main",
                 tauri::WebviewUrl::App("index.html".into()),
             )
+            // WebView2 needs HTML5 DnD for action/control transfers inside the editor.
+            .disable_drag_drop_handler()
             .title("DeckWeave")
             .inner_size(1160.0, 760.0)
             .min_inner_size(760.0, 520.0)

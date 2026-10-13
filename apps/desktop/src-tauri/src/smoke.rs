@@ -39,8 +39,14 @@ pub fn plugin() -> TauriPlugin<Wry> {
             {
                 return;
             }
-            let script = include_str!("smoke-editor.js");
-            if let Err(error) = window.eval(script) {
+            let _ = window.set_size(tauri::LogicalSize::new(760.0, 520.0));
+            let script = format!(
+                "{}\n{}\n{}",
+                include_str!("smoke-ui.js"),
+                include_str!("smoke-stress.js"),
+                include_str!("smoke-editor.js")
+            );
+            if let Err(error) = window.eval(&script) {
                 eprintln!("smoke eval: {error}");
             }
         })
@@ -174,8 +180,17 @@ pub fn start(app: tauri::AppHandle) {
     std::thread::spawn(move || {
         let result = verify(&app);
         let (report, code) = match result {
-            Ok(()) => ("PASS: WebView IPC; tray; close-to-tray; same-root focus; different-root conflict; explicit exit\n".to_owned(), 0),
-            Err(error) => (format!("FAIL: {error}\n"), 1)
+            Ok(()) => (
+                format!(
+                    "PASS: {}; WebView IPC; tray; close-to-tray; same-root focus; different-root conflict; explicit exit\n",
+                    app.state::<SmokeState>()
+                        .detail
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner())
+                ),
+                0,
+            ),
+            Err(error) => (format!("FAIL: {error}\n"), 1),
         };
         if let Err(error) = std::fs::write(path, report) {
             eprintln!("smoke result: {error}");

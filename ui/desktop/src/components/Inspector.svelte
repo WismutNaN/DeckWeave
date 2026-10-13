@@ -1,5 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script lang="ts">
+  import { instanceLabel } from "../editor/instances";
   import Icon from "./Icon.svelte";
   import AppearanceEditor from "./AppearanceEditor.svelte";
   import ActionEditor from "./ActionEditor.svelte";
@@ -104,7 +105,7 @@
             <SchemaField
               shape={shape.structured}
               value={instance.settings}
-              label={instance.instanceId}
+              label={instanceLabel(instance)}
               lang={session.lang}
               disabled={session.busy || Boolean(session.pending)}
               onchange={(value) =>

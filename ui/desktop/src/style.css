@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 @import "./styles/panels.css";
 @import "./styles/canvas.css";
+@import "./styles/review.css";
 :root {
   --text: #273139;
   --panel: #ffffff;
@@ -449,4 +450,8 @@ svg {
   * {
     transition: none !important;
   }
+}
+
+.instance-content {
+  padding: 0 24px 24px;
 }

@@ -12,8 +12,7 @@
   padding: 0;
   flex: 0 0 24px;
 }
-.instance-manager,
-.apply-review {
+.instance-manager {
   max-height: calc(100dvh - 48px);
   overflow: auto;
 }
@@ -26,26 +25,6 @@
 .instance-list .active {
   border-color: var(--accent);
   background: var(--soft);
-}
-.review-diff {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 12px;
-  margin: 20px 0;
-}
-.review-diff dd {
-  margin: 0;
-  font-weight: 600;
-}
-.review-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 22px;
-}
-.disruption-consent {
-  margin-top: 18px;
-  align-items: flex-start;
 }
 .field-invalid {
   border-left: 2px solid var(--error);

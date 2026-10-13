@@ -108,6 +108,9 @@ fn draft_view(draft: WorkspaceDraft) -> DraftView {
 
 fn map_application_store_error(error: DraftMutationError) -> DraftRepositoryError {
     match error {
+        DraftMutationError::Store(ProfileStoreError::TooLarge) => {
+            DraftRepositoryError::DocumentTooLarge
+        }
         DraftMutationError::Store(ProfileStoreError::NotFound) => DraftRepositoryError::NotFound,
         DraftMutationError::Store(ProfileStoreError::InvalidDocument(message))
         | DraftMutationError::InvalidCommand(message) => {

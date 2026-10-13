@@ -5,7 +5,7 @@
   "identifier": "io.deckweave.desktop",
   "build": {
     "beforeDevCommand": "npm --prefix ../.. run prepare:desktop && npm --prefix ../.. run dev:web",
-    "beforeBuildCommand": "npm --prefix ../.. run prepare:desktop -- --release && npm --prefix ../.. run build:web",
+    "beforeBuildCommand": "npm --prefix ../.. run prepare:desktop -- --tauri && npm --prefix ../.. run build:web",
     "devUrl": "http://localhost:1420",
     "frontendDist": "../../../ui/desktop/dist"
   },

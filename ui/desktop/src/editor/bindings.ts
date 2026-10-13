@@ -156,7 +156,8 @@ export function sourceCandidates(
         e.endpoint.target.deviceIdentity === device.descriptor.identity &&
         e.endpoint.target.providerId === device.descriptor.providerId &&
         e.endpoint.port.elementId === elementId &&
-        ["EventOut", "ValueOut"].includes(e.port.kind),
+        ["EventOut", "ValueOut"].includes(e.port.kind) &&
+        !e.port.tags?.includes("org.deckweave.virtual.display"),
     );
 }
 function port(

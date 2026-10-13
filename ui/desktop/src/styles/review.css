@@ -1,0 +1,239 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+dialog.apply-review {
+  width: min(600px, calc(100vw - 40px));
+  max-width: none;
+  max-height: calc(100dvh - 48px);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: var(--text);
+  background: var(--panel);
+  overflow: hidden;
+  box-shadow: 0 24px 90px #0005;
+}
+.apply-review[open] {
+  display: flex;
+  flex-direction: column;
+}
+.apply-review::backdrop {
+  background: #0d17276b;
+  backdrop-filter: blur(3px);
+}
+.review-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 24px 26px 20px;
+  flex-shrink: 0;
+}
+.review-symbol {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: var(--soft);
+  color: var(--accent);
+}
+.review-header h2 {
+  font-size: 19px;
+  line-height: 1.35;
+  letter-spacing: -0.3px;
+}
+.review-header p {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 5px;
+  line-height: 1.5;
+}
+.review-header .icon-button {
+  margin-left: auto;
+  align-self: flex-start;
+}
+.review-content {
+  padding: 0 26px 24px;
+  overflow: auto;
+  min-height: 0;
+}
+.review-context {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+  color: var(--muted);
+  font-size: 11px;
+  padding: 0 0 18px;
+}
+.review-context strong {
+  color: var(--text);
+  font-weight: 500;
+}
+.review-counts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  margin-bottom: 24px;
+}
+.review-counts > div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 15px 18px;
+}
+.review-counts > div + div {
+  border-left: 1px solid var(--line);
+}
+.review-counts strong {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.review-counts span {
+  font-size: 11px;
+  color: var(--muted);
+}
+.review-section-title {
+  margin-bottom: 10px;
+}
+.review-change-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.review-change-list li {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.review-change-list li:last-child {
+  border-bottom: 0;
+}
+.review-change-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  flex-shrink: 0;
+  color: var(--accent);
+  background: var(--soft);
+}
+.review-change-icon.removed {
+  color: var(--error);
+  background: var(--error-bg);
+}
+.review-change-list li > div {
+  flex: 1;
+  min-width: 0;
+}
+.review-change-list strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.review-change-list small {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.review-change-label {
+  color: var(--muted);
+  font-size: 10px;
+}
+.review-more {
+  margin: 10px 0;
+}
+.review-other {
+  border-top: 1px solid var(--line);
+  margin-top: 16px;
+  padding-top: 14px;
+  display: grid;
+  gap: 13px;
+}
+.review-other p {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+.review-empty {
+  color: var(--muted);
+  line-height: 1.6;
+}
+.review-warning,
+.review-errors {
+  margin-top: 18px;
+  padding: 16px;
+  border-radius: 9px;
+  background: var(--info-bg);
+  color: var(--info);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.review-warning > div {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+}
+.review-warning p {
+  margin: 7px 0 12px;
+}
+.review-errors {
+  background: var(--error-bg);
+  color: var(--error);
+  border: 1px solid var(--error-line);
+}
+.review-errors p {
+  margin: 6px 0;
+  overflow-wrap: anywhere;
+}
+.review-errors .text-button {
+  color: var(--error);
+}
+.review-footer {
+  border-top: 1px solid var(--line);
+  padding: 16px 26px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--surface);
+  flex-shrink: 0;
+}
+.review-validation {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 11px;
+  color: var(--accent);
+}
+.review-validation.invalid {
+  color: var(--error);
+}
+.review-footer .review-actions {
+  margin: 0;
+  display: flex;
+  gap: 8px;
+}
+@media (max-height: 620px) {
+  .review-header {
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+  .review-counts {
+    margin-bottom: 16px;
+  }
+  .review-counts > div {
+    padding: 10px 16px;
+  }
+}

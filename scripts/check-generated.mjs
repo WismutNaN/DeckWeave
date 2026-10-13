@@ -4,7 +4,23 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
+import { descriptors } from "../plugins/virtual-device/metadata.mjs";
 const root = process.cwd();
+if (
+  JSON.stringify(
+    JSON.parse(
+      fs.readFileSync(
+        path.join(root, "plugins/virtual-device/assets/descriptors.json"),
+        "utf8",
+      ),
+    ),
+  ) !== JSON.stringify(descriptors)
+) {
+  console.error(
+    "Bundled virtual descriptors are stale. Run npm run prepare:desktop.",
+  );
+  process.exitCode = 1;
+}
 const generatedRoot = path.join(
   root,
   "protocol",

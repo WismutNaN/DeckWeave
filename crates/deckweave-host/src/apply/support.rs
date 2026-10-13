@@ -113,7 +113,9 @@ pub(super) fn map_draft_error(error: DraftRepositoryError) -> ApplyUseCaseError 
         }
         DraftRepositoryError::IdempotencyConflict => ApplyUseCaseError::IdempotencyConflict,
         DraftRepositoryError::IdempotencyExpired => ApplyUseCaseError::IdempotencyExpired,
-        DraftRepositoryError::ReceiptQuota => ApplyUseCaseError::CapacityExceeded,
+        DraftRepositoryError::ReceiptQuota | DraftRepositoryError::DocumentTooLarge => {
+            ApplyUseCaseError::CapacityExceeded
+        }
         DraftRepositoryError::InvalidCandidate(reason)
         | DraftRepositoryError::InvalidCommand(reason) => ApplyUseCaseError::InvalidPlan(reason),
         DraftRepositoryError::Unavailable(reason) => ApplyUseCaseError::Unavailable(reason),

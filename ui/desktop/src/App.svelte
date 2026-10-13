@@ -12,8 +12,9 @@
   } from "./bridge";
   import { desktopClient } from "./editor/api";
   import { EditorSession } from "./editor/session.svelte";
-  import { browserJournal } from "./editor/recovery";
+  import { browserJournal } from "./editor/indexed-journal";
   import Library from "./components/Library.svelte";
+  import { LiveControls } from "./editor/live.svelte";
   import WorkspaceCanvas from "./components/WorkspaceCanvas.svelte";
   import Inspector from "./components/Inspector.svelte";
   import DevicePicker from "./components/DevicePicker.svelte";
@@ -23,6 +24,7 @@
   import Icon from "./components/Icon.svelte";
   import RuntimeStatus from "./components/RuntimeStatus.svelte";
   let session = $state(new EditorSession(desktopClient));
+  let live = $derived(new LiveControls(session));
   let host = $state<HostSnapshot | null>(null);
   let ready = $state(!native),
     adding = $state(false),
@@ -58,7 +60,10 @@
     const input = ["INPUT", "TEXTAREA", "SELECT"].includes(
       (e.target as HTMLElement)?.tagName,
     );
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+    if (
+      (e.ctrlKey || e.metaKey) &&
+      (e.code === "KeyS" || e.key.toLowerCase() === "s")
+    ) {
       e.preventDefault();
       void session.run(() => session.save());
     }
@@ -66,7 +71,11 @@
       e.preventDefault();
       void session.apply();
     }
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !input) {
+    if (
+      (e.ctrlKey || e.metaKey) &&
+      (e.code === "KeyZ" || e.key.toLowerCase() === "z") &&
+      !input
+    ) {
       e.preventDefault();
       session.history(e.shiftKey ? "redo" : "undo");
     }
@@ -219,7 +228,7 @@
   <div class="workspace-body">
     <Library {session} onadd={() => (adding = true)} />
     <main class="canvas-container">
-      <WorkspaceCanvas {session} onadd={() => (adding = true)} />
+      <WorkspaceCanvas {session} {live} onadd={() => (adding = true)} />
       {#if !native && !session.preview}<div class="browser-welcome">
           <div class="welcome-mark"><Icon name="grid" size={34} /></div>
           <h1>

@@ -1,5 +1,8 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <script lang="ts">
+  import { dragSource, dropZone } from "../editor/pointer-drag";
+  import LiveToolbar from "./LiveToolbar.svelte";
+  import type { LiveControls } from "../editor/live.svelte";
   import { tick } from "svelte";
   import {
     assignmentIndex,
@@ -18,7 +21,11 @@
   import { dropOnControl } from "../editor/drops";
   import type { EditorSession } from "../editor/session.svelte";
   import type { EditorDevice } from "../editor/types";
-  let { session, onadd }: { session: EditorSession; onadd: () => void } =
+  let {
+    session,
+    live,
+    onadd,
+  }: { session: EditorSession; live: LiveControls; onadd: () => void } =
     $props();
   let zoom = $state(1),
     pan = $state({ x: 64, y: 110 }),
@@ -218,6 +225,19 @@
   ondrop={() => (dropTarget = "")}
 />
 <section
+  use:dropZone={{
+    accept: (data) => readSelectionDrag(data)?.kind === "device",
+    drop: (e) => {
+      const value = readSelectionDrag(e.dataTransfer);
+      if (!value) return;
+      const bounds = area!.getBoundingClientRect();
+      session.select(value.deviceId);
+      session.updateDevice((d) => {
+        d.x = (e.clientX - bounds.left - pan.x) / zoom;
+        d.y = (e.clientY - bounds.top - pan.y) / zoom;
+      });
+    },
+  }}
   class="workspace-stage"
   aria-label={t("Рабочее пространство устройств", "Device workspace")}
   bind:this={area}
@@ -255,6 +275,7 @@
       ><Icon name="plus" size={15} />{t("Устройство", "Device")}</button
     >
   </div>
+  <LiveToolbar {live} />
   {#if session.devices.length === 0}<div class="workspace-empty">
       <div class="empty-device"><Icon name="grid" size={38} /></div>
       <h1>{t("Ваше рабочее место", "Your workspace")}</h1>
@@ -323,7 +344,30 @@
                 {@const custom = device.controls[element.elementId]}
                 <button
                   class="device-key"
-                  draggable={!session.busy && !session.pending}
+                  draggable={false}
+                  use:dragSource={(data) => {
+                    if (live.enabled || session.busy || session.pending)
+                      return false;
+                    writeSelectionDrag(data, {
+                      kind: "control",
+                      deviceId: device.id,
+                      controlId: element.elementId,
+                    });
+                    return true;
+                  }}
+                  use:dropZone={{
+                    accept: (data) =>
+                      !live.enabled &&
+                      hasActionDrag(data) &&
+                      readSelectionDrag(data)?.kind !== "device" &&
+                      readSelectionDrag(data)?.kind !== "step",
+                    drop: (e) =>
+                      dropOnControl(session, e, device.id, element.elementId),
+                  }}
+                  disabled={live.enabled &&
+                    (!live.ready ||
+                      live.pending ||
+                      device.descriptor.kind !== "virtual")}
                   title={t(
                     "Перетащите для копирования; Shift — перенести",
                     "Drag to copy; Shift to move",
@@ -350,7 +394,11 @@
                   style:top={`${(bounds.y / geo.height) * 100}%`}
                   style:width={`${(bounds.width / geo.width) * 100}%`}
                   style:height={`${(bounds.height / geo.height) * 100}%`}
-                  onclick={() => session.select(device.id, element.elementId)}
+                  onclick={() => {
+                    if (live.enabled)
+                      void live.click(device, element.elementId);
+                    else session.select(device.id, element.elementId);
+                  }}
                   onkeydown={(e) => navigate(e, device, index)}
                   ondragenter={(e) => dragOver(e, device, element.elementId)}
                   ondragover={(e) => dragOver(e, device, element.elementId)}
@@ -372,7 +420,10 @@
                         size={21}
                       />{:else}<span class="key-add">+</span>{/if}<span
                       class="key-label"
-                      >{custom?.label ||
+                      >{(live.enabled
+                        ? live.text(device, element.elementId)
+                        : null) ||
+                        custom?.label ||
                         (assigned?.first
                           ? (session.actions.find((a) =>
                               equal(a.endpoint, assigned?.first.kind.endpoint),
