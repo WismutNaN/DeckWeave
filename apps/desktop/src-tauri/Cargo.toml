@@ -23,6 +23,10 @@ deckweave-workspace.workspace = true
 tauri = { version = "2.12.3", features = ["tray-icon"] }
 tauri-plugin-single-instance = "2.5.3"
 serde_json.workspace = true
+tempfile = "3"
+
+[dev-dependencies]
+sha2 = "0.10"
 
 [features]
 default = ["custom-protocol"]

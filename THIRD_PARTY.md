@@ -18,7 +18,7 @@ JavaScript-зависимостей — в [package-lock.json](package-lock.json
 | Buf CLI, Protobuf-ES | [bufbuild/buf](https://github.com/bufbuild/buf), [bufbuild/protobuf-es](https://github.com/bufbuild/protobuf-es) | Lint `.proto` и TypeScript wire types; install scripts разрешены только для закреплённых версий |
 | Typify | [oxidecomputer/typify](https://github.com/oxidecomputer/typify) | Rust document types из JSON Schema; schema-valued `additionalProperties` сохраняют расширения |
 | JSON Schema to TypeScript, Ajv | [bcherny/json-schema-to-typescript](https://github.com/bcherny/json-schema-to-typescript), [ajv-validator/ajv](https://github.com/ajv-validator/ajv) | TypeScript document types и Draft 2020-12 fixture validation |
-| tempfile | [tempfile](https://github.com/Stebalien/tempfile) | Только тестовые каталоги |
+| tempfile | [tempfile](https://github.com/Stebalien/tempfile) | Изолированные staging-каталоги bundled packages с очисткой при ошибке; тестовые каталоги |
 | github-slugger | [github-slugger](https://github.com/Flet/github-slugger) | Проверка Markdown anchors |
 | cargo-deny | [cargo-deny](https://github.com/EmbarkStudios/cargo-deny) | CI-проверка лицензий, источников и advisories |
 

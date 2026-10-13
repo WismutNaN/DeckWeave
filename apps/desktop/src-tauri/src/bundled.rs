@@ -2,6 +2,8 @@
 //! Install first-party providers once; existing package bytes remain pinned.
 use deckweave_plugin_supervisor::package::{PackageStager, StagingLimits};
 use std::{error::Error, fs, path::Path};
+#[cfg(test)]
+mod tests;
 
 pub(crate) fn ensure_bundled(root: &Path) -> Result<(), Box<dyn Error>> {
     let executable = std::env::current_exe()?;
@@ -33,14 +35,6 @@ fn install(
     folder: &str,
     package_id: &str,
 ) -> Result<(), Box<dyn Error>> {
-    let destination = root.join(format!("packages/{folder}/0.1.0/content"));
-    if destination.exists() {
-        let staged = PackageStager::inspect(&destination, &StagingLimits::default())?;
-        if staged.package.package_id.as_str() != package_id {
-            return Err("bundled package identity mismatch".into());
-        }
-        return Ok(());
-    }
     // Cargo-only builds may intentionally omit desktop assets; standard npm dev/build prepares them.
     if !source.exists() {
         return Ok(());
@@ -49,13 +43,25 @@ fn install(
     if staged.package.package_id.as_str() != package_id {
         return Err("bundled package identity mismatch".into());
     }
-    let temporary = root.join(format!(
-        ".{folder}-staging-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)?
-            .as_nanos()
+    let destination = root.join(format!(
+        "packages/{folder}/{}/content",
+        staged.package.version
     ));
+    if destination.exists() {
+        let installed = PackageStager::inspect(&destination, &StagingLimits::default())?;
+        if installed.package.package_id.as_str() != package_id
+            || installed.package.version != staged.package.version
+        {
+            return Err("bundled package identity mismatch".into());
+        }
+        // Same-version development rebuilds must never overwrite pinned bytes or grants.
+        return Ok(());
+    }
+    fs::create_dir_all(root)?;
+    let staging = tempfile::Builder::new()
+        .prefix(&format!(".{folder}-staging-"))
+        .tempdir_in(root)?;
+    let temporary = staging.path().join("content");
     copy_tree(source, &temporary)?;
     let copied = PackageStager::inspect(&temporary, &StagingLimits::default())?;
     if copied.package.manifest_sha256 != staged.package.manifest_sha256 {
