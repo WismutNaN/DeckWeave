@@ -1,6 +1,32 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use super::*;
 
+impl ActiveWorker {
+    pub(crate) fn shutdown(mut self, timeout: Duration) -> Result<(), HostRuntimeError> {
+        let (done, receiver) = mpsc::sync_channel(1);
+        match self.sender.try_send(WorkerCommand::Shutdown(done)) {
+            Ok(()) => receiver
+                .recv_timeout(timeout)
+                .map_err(|error| HostRuntimeError::Shutdown(error.to_string()))??,
+            Err(mpsc::TrySendError::Disconnected(_)) => {}
+            Err(error) => return Err(HostRuntimeError::Shutdown(error.to_string())),
+        }
+        if let Some(join) = self.join.take() {
+            join.join()
+                .map_err(|_| HostRuntimeError::Shutdown("runtime monitor panicked".into()))?;
+        }
+        if self
+            .failed_release
+            .load(std::sync::atomic::Ordering::SeqCst)
+        {
+            return Err(HostRuntimeError::Shutdown(
+                "runtime release was not confirmed".into(),
+            ));
+        }
+        Ok(())
+    }
+}
+
 pub(super) fn release_queued(
     commands: &mpsc::Receiver<WorkerCommand>,
     mut release: impl FnMut(&RuntimeCommand),

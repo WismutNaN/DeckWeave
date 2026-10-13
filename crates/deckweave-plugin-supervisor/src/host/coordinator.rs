@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Ownership and lifecycle of prepared and active runtime generations.
 
+mod cleanup;
 mod locale;
+mod reuse;
 mod virtual_control;
 use super::{
     config::{HostRuntimeConfig, HostRuntimeError},
@@ -36,9 +38,16 @@ pub(super) struct PreparedRuntime {
     instances: Vec<RuntimeInstance>,
     bound_graph: Option<BoundExecutionGraph>,
     executable_graph: Option<ExecutableGraph>,
+    compiled: CompiledExecutionPlan,
+    grant_revision: deckweave_domain::ids::GrantRevision,
+    reuse_active: bool,
 }
 
 impl PreparedRuntime {
+    pub(super) fn reuses_active(&self) -> bool {
+        self.reuse_active
+    }
+
     pub(super) fn matches(&self, operation_id: &OperationId, plan_hash: &str) -> bool {
         self.operation_id == *operation_id && self.plan_hash == plan_hash
     }
@@ -53,6 +62,8 @@ pub(super) struct RuntimeState {
     pub(super) next_generation: u64,
     pub(super) prepared: Option<PreparedRuntime>,
     pub(super) active: Vec<ActiveWorker>,
+    active_plan: Option<CompiledExecutionPlan>,
+    active_grant_revision: Option<deckweave_domain::ids::GrantRevision>,
     pub(super) active_binding: Option<BoundExecutionGraph>,
     pub(super) dispatcher_closed: bool,
 }
@@ -139,6 +150,8 @@ impl ProductionRuntimeCoordinator {
             let mut state = self.lock_state()?;
             state.dispatcher_closed = true;
             state.active_binding = None;
+            state.active_plan = None;
+            state.active_grant_revision = None;
             (state.prepared.take(), std::mem::take(&mut state.active))
         };
         let prepared_result = prepared.map_or(Ok(()), |prepared| self.stop_prepared(prepared));
@@ -178,6 +191,13 @@ impl ProductionRuntimeCoordinator {
     ) -> Result<PreparedRuntime, HostRuntimeError> {
         let requirements = plan.runtime_requirements();
         validate_distinct_runtime_groups(requirements)?;
+        let grant_revision = self.authorization.revision()?;
+        for requirement in requirements {
+            self.resolve_requirement(requirement)?;
+        }
+        if let Some(prepared) = self.prepare_reuse(operation_id, plan_hash, plan, grant_revision)? {
+            return Ok(prepared);
+        }
         let mut instances: Vec<RuntimeInstance> = Vec::with_capacity(requirements.len());
         for requirement in requirements {
             if let Err(error) = self.resolve_requirement(requirement) {
@@ -219,6 +239,9 @@ impl ProductionRuntimeCoordinator {
             instances,
             bound_graph,
             executable_graph: plan.executable_graph().cloned(),
+            compiled: plan.clone(),
+            grant_revision,
+            reuse_active: false,
         })
     }
 
@@ -230,9 +253,14 @@ impl ProductionRuntimeCoordinator {
         &self,
         prepared: PreparedRuntime,
     ) -> Result<RuntimeCommitOutcome, HostRuntimeError> {
+        if prepared.reuse_active {
+            return self.activate_reuse(prepared);
+        }
         let active = {
             let mut state = self.lock_state()?;
             state.active_binding = None;
+            state.active_plan = None;
+            state.active_grant_revision = None;
             std::mem::take(&mut state.active)
         };
         self.shutdown_workers(active)?;
@@ -294,41 +322,11 @@ impl ProductionRuntimeCoordinator {
         }
         let mut state = self.lock_state()?;
         state.active = workers;
+        state.active_plan = Some(prepared.compiled);
+        state.active_grant_revision = Some(prepared.grant_revision);
         state.active_binding = bound_graph;
         state.dispatcher_closed = false;
         Ok(RuntimeCommitOutcome::Applied)
-    }
-
-    fn stop_instances(&self, instances: Vec<RuntimeInstance>) -> Result<(), HostRuntimeError> {
-        let mut first_error = None;
-        for instance in instances {
-            let result = self
-                .registry
-                .lock()
-                .map_err(|_| HostRuntimeError::State("registry lock is poisoned".into()))
-                .and_then(|mut registry| {
-                    instance.stop(
-                        &mut registry,
-                        self.config.stop_timeout,
-                        elapsed_millis(self.clock),
-                    )
-                });
-            if first_error.is_none() {
-                first_error = result.err();
-            }
-        }
-        first_error.map_or(Ok(()), Err)
-    }
-
-    fn shutdown_workers(&self, workers: Vec<ActiveWorker>) -> Result<(), HostRuntimeError> {
-        let mut first_error = None;
-        for worker in workers {
-            let result = worker.shutdown(self.config.shutdown_timeout);
-            if first_error.is_none() {
-                first_error = result.err();
-            }
-        }
-        first_error.map_or(Ok(()), Err)
     }
 
     pub(super) fn recover_plan(
@@ -358,6 +356,16 @@ impl ProductionRuntimeCoordinator {
             .ok_or_else(|| {
                 HostRuntimeError::State("prepared runtime does not match operation".into())
             })?;
+        if prepared.reuse_active {
+            let grant_revision = prepared.grant_revision;
+            return if self.can_reuse(&state, plan, grant_revision)? {
+                Ok(())
+            } else {
+                Err(HostRuntimeError::State(
+                    "active runtime changed before reuse".into(),
+                ))
+            };
+        }
         for instance in &mut prepared.instances {
             instance.ensure_alive()?;
         }

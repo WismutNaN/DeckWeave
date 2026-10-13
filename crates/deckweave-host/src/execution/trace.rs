@@ -31,6 +31,9 @@ impl Default for TraceBuffer {
 }
 
 impl TraceBuffer {
+    pub(super) fn retain_execution(&mut self, plan_hash: &str) {
+        self.plan_hash = Some(plan_hash.into());
+    }
     pub(super) fn cleanup_receipt(
         &mut self,
         epoch: ActivationEpoch,

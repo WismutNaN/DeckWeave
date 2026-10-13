@@ -115,6 +115,30 @@ fn idle_live_job_expires_after_long_host_uptime_without_input_events() -> Result
             .deadline_ticks,
         600_100
     );
+    let before = owner.snapshot()?.ok_or("scheduler")?;
+    assert!(owner.can_retain_execution(Some(&graph), Some(&binding))?);
+    owner.retain_execution("layout-revision", Some(&graph), Some(&binding))?;
+    let after = owner.snapshot()?.ok_or("scheduler")?;
+    assert_eq!(after.activation_epoch, epoch);
+    assert_eq!(after.pending, before.pending);
+    assert_eq!(after.active_runs, before.active_runs);
+    assert_eq!(
+        after.next_invocation_sequence,
+        before.next_invocation_sequence
+    );
+    let mut changed = graph.clone();
+    changed.endpoint_contracts[1]
+        .operation
+        .as_mut()
+        .ok_or("operation")?
+        .limits
+        .deadline_ms = 200;
+    assert!(!owner.can_retain_execution(Some(&changed), Some(&binding))?);
+    assert!(
+        owner
+            .retain_execution("changed", Some(&changed), Some(&binding))
+            .is_err()
+    );
     let _pump = ExecutionTimerPump::start(&owner, Duration::from_millis(2));
     clock.0.store(600_101, Ordering::SeqCst);
     let deadline = Instant::now() + Duration::from_secs(2);
@@ -122,6 +146,13 @@ fn idle_live_job_expires_after_long_host_uptime_without_input_events() -> Result
         std::thread::sleep(Duration::from_millis(2));
     }
     assert!(owner.snapshot()?.ok_or("scheduler")?.pending.is_empty());
+    owner.close_barrier(600_102)?;
+    assert!(!owner.can_retain_execution(Some(&graph), Some(&binding))?);
+    assert!(
+        owner
+            .retain_execution("closed", Some(&graph), Some(&binding))
+            .is_err()
+    );
     assert!(
         dispatcher
             .0

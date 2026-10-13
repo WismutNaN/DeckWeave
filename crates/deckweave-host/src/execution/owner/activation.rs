@@ -1,6 +1,46 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use super::*;
 impl LiveExecutionOwner {
+    /// Whether a new durable revision describes this exact, still-open owner.
+    pub fn can_retain_execution(
+        &self,
+        graph: Option<&ExecutableGraph>,
+        binding: Option<&BoundExecutionGraph>,
+    ) -> Result<bool, LiveExecutionError> {
+        let state = self
+            .state
+            .lock()
+            .map_err(|_| LiveExecutionError::Poisoned)?;
+        Ok(matches_execution(&state, graph, binding))
+    }
+
+    /// Publish the revision's trace identity without resetting runs or timers.
+    pub fn retain_execution(
+        &self,
+        plan_hash: &str,
+        graph: Option<&ExecutableGraph>,
+        binding: Option<&BoundExecutionGraph>,
+    ) -> Result<(), LiveExecutionError> {
+        let _order = self
+            .transition_order
+            .lock()
+            .map_err(|_| LiveExecutionError::Poisoned)?;
+        let state = self
+            .state
+            .lock()
+            .map_err(|_| LiveExecutionError::Poisoned)?;
+        if !matches_execution(&state, graph, binding) {
+            return Err(LiveExecutionError::Scheduler(
+                "cannot retain a changed or closed execution".into(),
+            ));
+        }
+        self.trace
+            .lock()
+            .map_err(|_| LiveExecutionError::Poisoned)?
+            .retain_execution(plan_hash);
+        Ok(())
+    }
+
     pub fn activate(
         &self,
         plan_hash: &str,
@@ -60,4 +100,21 @@ impl LiveExecutionOwner {
         });
         Ok(epoch)
     }
+}
+
+fn matches_execution(
+    state: &OwnerState,
+    graph: Option<&ExecutableGraph>,
+    binding: Option<&BoundExecutionGraph>,
+) -> bool {
+    let (Some(active), Some(graph), Some(binding)) = (&state.active, graph, binding) else {
+        return false;
+    };
+    !active.scheduler.state().closed
+        && active.graph == *graph
+        && binding.endpoints.len() == active.bindings.len()
+        && binding
+            .endpoints
+            .iter()
+            .all(|bound| active.bindings.get(&bound.node_id) == Some(&bound.endpoint))
 }

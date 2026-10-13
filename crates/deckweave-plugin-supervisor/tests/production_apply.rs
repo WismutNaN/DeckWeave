@@ -61,6 +61,8 @@ mod credentials;
 mod grouped_contributions;
 #[path = "support/held_outputs.rs"]
 mod held_outputs;
+#[path = "support/live_revisions.rs"]
+mod live_revisions;
 #[path = "support/m1_fixture.rs"]
 mod m1_fixture;
 #[path = "support/production_apply_crash.rs"]

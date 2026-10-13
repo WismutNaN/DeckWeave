@@ -167,6 +167,38 @@ fn live_held_owners_release_independently_and_apply_revoke_crash_have_explicit_o
             }
             "apply" => {
                 apply_current(&gateway, &context, &repository, &draft, "held-second")?;
+                assert_eq!(report(&old_report), Some(remaining.clone()));
+                let mut changed = draft.clone();
+                let mut graph: GraphDocument = serde_json::from_value(changed.document.clone())?;
+                graph
+                    .graph
+                    .nodes
+                    .iter_mut()
+                    .find(|node| node.id.as_str() == "condition")
+                    .ok_or("condition")?
+                    .kind = GraphNodeKind::Condition {
+                    operator: deckweave_automation::ConditionOperator::Equals,
+                    operand: Some(serde_json::json!(true)),
+                };
+                changed.document = serde_json::to_value(graph)?;
+                gateway.command(
+                    &context,
+                    CommandEnvelope {
+                        request_id: "change-held-graph".into(),
+                        idempotency_key: IdempotencyKey::try_new("change-held-graph")?,
+                        dedup_epoch: gateway.open_mutation_window(&context)?.dedup_epoch,
+                        dry_run: false,
+                        command: AppCommand::PatchDraft {
+                            draft_id: draft.draft_id.clone(),
+                            expected_version: draft.version,
+                            edit: deckweave_workspace::DraftCommand::ReplaceDocument {
+                                document: changed.document.clone(),
+                            },
+                        },
+                    },
+                )?;
+                changed.version = DraftVersion::try_new(2)?;
+                apply_current(&gateway, &context, &repository, &changed, "held-changed")?;
                 assert_eq!(report(&old_report), Some(vec![]));
                 wait_until(|| {
                     reports(&bin)

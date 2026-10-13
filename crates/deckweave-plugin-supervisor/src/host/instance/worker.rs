@@ -28,10 +28,10 @@ use std::{
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct WorkerKey {
-    pub(super) package_id: PackageId,
-    pub(super) runtime_group_id: RuntimeGroupId,
+    pub(in crate::host) package_id: PackageId,
+    pub(in crate::host) runtime_group_id: RuntimeGroupId,
     pub(super) plugin_session_id: PluginSessionId,
-    pub(super) generation: SessionGeneration,
+    pub(in crate::host) generation: SessionGeneration,
 }
 
 impl WorkerKey {
@@ -105,32 +105,14 @@ impl ActiveWorker {
         })
     }
 
-    pub(crate) fn shutdown(mut self, timeout: Duration) -> Result<(), HostRuntimeError> {
-        let (done, receiver) = mpsc::sync_channel(1);
-        match self.sender.try_send(WorkerCommand::Shutdown(done)) {
-            Ok(()) => receiver
-                .recv_timeout(timeout)
-                .map_err(|error| HostRuntimeError::Shutdown(error.to_string()))??,
-            Err(mpsc::TrySendError::Disconnected(_)) => {}
-            Err(error) => return Err(HostRuntimeError::Shutdown(error.to_string())),
-        }
-        if let Some(join) = self.join.take() {
-            join.join()
-                .map_err(|_| HostRuntimeError::Shutdown("runtime monitor panicked".into()))?;
-        }
-        if self
-            .failed_release
-            .load(std::sync::atomic::Ordering::SeqCst)
-        {
-            return Err(HostRuntimeError::Shutdown(
-                "runtime release was not confirmed".into(),
-            ));
-        }
-        Ok(())
-    }
-
     pub(crate) fn sender(&self) -> mpsc::SyncSender<WorkerCommand> {
         self.sender.clone()
+    }
+    pub(crate) fn is_alive(&self) -> bool {
+        self.join.as_ref().is_some_and(|join| !join.is_finished())
+            && !self
+                .failed_release
+                .load(std::sync::atomic::Ordering::SeqCst)
     }
     pub(crate) fn failed_release(&self) -> Arc<std::sync::atomic::AtomicBool> {
         self.failed_release.clone()

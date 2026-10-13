@@ -101,6 +101,14 @@ impl RuntimeCutover for ProductionRuntimeCoordinator {
         }
         self.revalidate_prepared(operation_id, plan.compiled())
             .map_err(runtime_barrier)?;
+        if self
+            .prepared_reuses_active(operation_id)
+            .map_err(runtime_barrier)?
+        {
+            // A durable editor revision can retain the exact live execution.
+            // Closing its barrier would cancel unrelated in-flight actions.
+            return Ok(());
+        }
         self.execution
             .close_barrier(elapsed_millis(self.clock))
             .map_err(|error| RuntimeCutoverError::Barrier(error.to_string()))?;
@@ -114,7 +122,12 @@ impl RuntimeCutover for ProductionRuntimeCoordinator {
         let prepared = {
             let mut state = self.lock_state().map_err(runtime_abort)?;
             let prepared = state.prepared.take();
-            state.dispatcher_closed = false;
+            if !prepared
+                .as_ref()
+                .is_some_and(|prepared| prepared.reuses_active())
+            {
+                state.dispatcher_closed = false;
+            }
             prepared
         };
         if let Some(prepared) = prepared {
@@ -123,7 +136,11 @@ impl RuntimeCutover for ProductionRuntimeCoordinator {
                     "prepared runtime belongs to another operation".into(),
                 ));
             }
+            let reused = prepared.reuses_active();
             self.stop_prepared(prepared).map_err(runtime_abort)?;
+            if reused {
+                return Ok(());
+            }
         }
         self.execution
             .resume_after_aborted_barrier()
