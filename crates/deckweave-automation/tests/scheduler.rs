@@ -696,83 +696,125 @@ fn state_updates_route_feedback_and_false_condition_stops_the_run() -> Result<()
 }
 
 #[test]
-fn faults_cleanup_pending_work_and_barrier_closes_the_activation() -> Result<(), Box<dyn Error>> {
-    let plan = plan()?;
-    let source = endpoint("button", "pressed")?;
-    let started = transition(
-        &plan,
-        state()?,
-        signal(1, source.clone(), json!(true), IngressReliability::Reliable)?,
-        0,
-        &GraphLimits::default(),
-    )?;
-    let topology = transition(
-        &plan,
-        started.state,
-        IngressItem {
+fn faults_invalidate_activation_and_cleanup_only_once() -> Result<(), Box<dyn Error>> {
+    for fault in [
+        IngressKind::GrantFault,
+        IngressKind::TopologyFault {
+            endpoint: endpoint("button", "pressed")?,
+        },
+    ] {
+        let mut scheduler = WorkspaceScheduler::new(
+            plan()?,
+            HostBootId::try_new("boot")?,
+            ActivationEpoch::try_new(1)?,
+            GraphLimits::default(),
+        )?;
+        scheduler.admit(signal(
+            1,
+            endpoint("button", "pressed")?,
+            json!(true),
+            IngressReliability::Reliable,
+        )?)?;
+        assert!(
+            scheduler
+                .step(0)?
+                .ok_or("start")?
+                .intents
+                .iter()
+                .any(|v| matches!(v, SchedulerIntent::Invoke { .. }))
+        );
+        scheduler.admit(IngressItem {
             context: context(2)?,
-            kind: IngressKind::TopologyFault {
-                endpoint: source.clone(),
-            },
-        },
-        1,
-        &GraphLimits::default(),
-    )?;
-    assert!(topology.faults.contains(&SchedulerFault::TopologyChanged));
-    assert!(topology.state.pending.is_empty());
-    assert!(
-        topology
-            .intents
-            .iter()
-            .any(|intent| matches!(intent, SchedulerIntent::CleanupAll { .. }))
-    );
+            kind: fault.clone(),
+        })?;
+        let stopped = scheduler.step(1)?.ok_or("fault")?;
+        assert!(
+            stopped
+                .intents
+                .iter()
+                .any(|v| matches!(v, SchedulerIntent::CancelInvocation { .. }))
+        );
+        assert_eq!(
+            stopped
+                .intents
+                .iter()
+                .filter(|v| matches!(v, SchedulerIntent::CleanupAll { .. }))
+                .count(),
+            1
+        );
+        assert!(scheduler.state().pending.is_empty());
+        assert!(scheduler.state().invalidated);
+        // A pre-commit apply abort cannot revive invalid runtime bindings/grants.
+        scheduler.reopen_after_barrier();
+        assert!(scheduler.state().closed);
+        for (ordinal, kind) in [
+            (3, fault),
+            (4, IngressKind::Barrier),
+            (5, IngressKind::Barrier),
+        ] {
+            scheduler.admit(IngressItem {
+                context: context(ordinal)?,
+                kind,
+            })?;
+            assert!(
+                scheduler
+                    .step(ordinal)?
+                    .ok_or("duplicate close")?
+                    .intents
+                    .is_empty()
+            );
+        }
+        scheduler.admit(signal(
+            6,
+            endpoint("button", "pressed")?,
+            json!(true),
+            IngressReliability::Reliable,
+        )?)?;
+        let after = scheduler.step(6)?.ok_or("late signal")?;
+        assert!(after.intents.is_empty());
+        assert_eq!(after.faults, vec![SchedulerFault::BarrierClosed]);
+    }
+    Ok(())
+}
 
-    let restarted = transition(
-        &plan,
-        topology.state,
-        signal(3, source.clone(), json!(true), IngressReliability::Reliable)?,
-        2,
-        &GraphLimits::default(),
-    )?;
-    let revoked = transition(
-        &plan,
-        restarted.state,
-        IngressItem {
-            context: context(4)?,
-            kind: IngressKind::GrantFault,
-        },
-        3,
-        &GraphLimits::default(),
-    )?;
-    assert!(revoked.faults.contains(&SchedulerFault::GrantRevoked));
-    let restarted = transition(
-        &plan,
-        revoked.state,
-        signal(5, source.clone(), json!(true), IngressReliability::Reliable)?,
-        4,
-        &GraphLimits::default(),
-    )?;
-    let barrier = transition(
-        &plan,
-        restarted.state,
-        IngressItem {
-            context: context(6)?,
+#[test]
+fn barrier_can_reopen_unless_a_fault_arrives_while_closed() -> Result<(), Box<dyn Error>> {
+    for fault in [
+        None,
+        Some(IngressKind::GrantFault),
+        Some(IngressKind::TopologyFault {
+            endpoint: endpoint("button", "pressed")?,
+        }),
+    ] {
+        let mut scheduler = WorkspaceScheduler::new(
+            plan()?,
+            HostBootId::try_new("boot")?,
+            ActivationEpoch::try_new(1)?,
+            GraphLimits::default(),
+        )?;
+        scheduler.admit(IngressItem {
+            context: context(1)?,
             kind: IngressKind::Barrier,
-        },
-        5,
-        &GraphLimits::default(),
-    )?;
-    assert!(barrier.state.closed);
-    assert!(barrier.state.pending.is_empty());
-    let after = transition(
-        &plan,
-        barrier.state,
-        signal(7, source, json!(true), IngressReliability::Reliable)?,
-        6,
-        &GraphLimits::default(),
-    )?;
-    assert_eq!(after.faults, vec![SchedulerFault::BarrierClosed]);
-    assert!(after.state.pending.is_empty());
+        })?;
+        assert!(
+            scheduler
+                .step(0)?
+                .ok_or("barrier")?
+                .intents
+                .iter()
+                .any(|v| matches!(v, SchedulerIntent::CleanupAll { .. }))
+        );
+        let invalidated = fault.is_some();
+        if let Some(kind) = fault {
+            scheduler.admit(IngressItem {
+                context: context(2)?,
+                kind,
+            })?;
+            assert!(scheduler.step(1)?.ok_or("fault")?.intents.is_empty());
+        }
+        scheduler.reopen_after_barrier();
+        assert_eq!(scheduler.state().closed, invalidated);
+    }
     Ok(())
 }
 

@@ -88,6 +88,8 @@ impl WorkspaceScheduler {
     /// Reopens the same plan after a pre-commit apply abort. Pending effects
     /// have already been cancelled by the barrier and are never replayed.
     pub fn reopen_after_barrier(&mut self) {
-        self.state.closed = false;
+        if !self.state.invalidated {
+            self.state.closed = false;
+        }
     }
 }

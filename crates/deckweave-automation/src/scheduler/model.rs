@@ -81,6 +81,8 @@ pub struct SchedulerState {
     pub activation_epoch: ActivationEpoch,
     pub last_ordinal: Option<IngressOrdinal>,
     pub closed: bool,
+    /// A grant/topology fault requires a new activation, even if an apply aborts.
+    pub invalidated: bool,
     pub values: BTreeMap<GraphNodeId, Value>,
     pub source_ticks: BTreeMap<StableEndpointRef, u64>,
     pub pending: BTreeMap<InvocationId, PendingInvocation>,
@@ -100,6 +102,7 @@ impl SchedulerState {
             activation_epoch,
             last_ordinal: None,
             closed: false,
+            invalidated: false,
             values: BTreeMap::new(),
             source_ticks: BTreeMap::new(),
             pending: BTreeMap::new(),

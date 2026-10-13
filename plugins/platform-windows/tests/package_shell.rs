@@ -113,6 +113,7 @@ fn support() -> HostProtocolSupport {
             maximum: Some(ProtocolVersion { major: 1, minor: 1 }),
         },
         features: BTreeMap::from([
+            (deckweave_protocol::FEATURE_OWNER_CLEANUP.into(), 1),
             (FEATURE_ACTIVATION_COMMIT.into(), 1),
             (FEATURE_INVOCATION_ENDPOINT_PATH.into(), 1),
         ]),

@@ -82,6 +82,7 @@ fn support() -> HostProtocolSupport {
             maximum: Some(ProtocolVersion { major: 1, minor: 1 }),
         },
         features: BTreeMap::from([
+            (deckweave_protocol::FEATURE_OWNER_CLEANUP.into(), 1),
             (deckweave_protocol::FEATURE_ACTIVATION_COMMIT.into(), 1),
             (
                 deckweave_protocol::FEATURE_INVOCATION_ENDPOINT_PATH.into(),
@@ -305,8 +306,33 @@ fn standalone_packages_start_only_their_adapters_and_reject_other_families()
                 break;
             }
         }
+        for (message_id, epoch, released) in [(5, 2, false), (6, 1, true)] {
+            process.send(&envelope(
+                message_id,
+                protocol_envelope::Body::OwnerCleanup(deckweave_protocol::v1::OwnerCleanup {
+                    cleanup_id: format!("cleanup-{epoch}"),
+                    activation_epoch: epoch,
+                    run_id: None,
+                    reason: "test".into(),
+                }),
+            ))?;
+            let deadline = Instant::now() + Duration::from_secs(5);
+            loop {
+                let frame = process.receive(
+                    deadline
+                        .checked_duration_since(Instant::now())
+                        .ok_or("cleanup deadline")?,
+                )?;
+                if let Some(protocol_envelope::Body::OwnerCleanupReceipt(receipt)) = frame.body {
+                    assert_eq!(receipt.cleanup_id, format!("cleanup-{epoch}"));
+                    assert_eq!(receipt.activation_epoch, epoch);
+                    assert_eq!(receipt.released, released);
+                    break;
+                }
+            }
+        }
         process.send(&envelope(
-            5,
+            7,
             protocol_envelope::Body::Deactivate(DeactivationRequest {
                 runtime_lease_id: "lease".into(),
                 reason: "test".into(),

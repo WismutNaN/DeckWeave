@@ -55,12 +55,20 @@ fn hello(
     token: Vec<u8>,
     maximum_message_bytes: usize,
 ) -> Hello {
-    let mut features = vec![FeatureRequirement {
-        id: FEATURE_ACTIVATION_COMMIT.into(),
-        minimum_version: 1,
-        maximum_version: 1,
-        required: true,
-    }];
+    let mut features = vec![
+        FeatureRequirement {
+            id: FEATURE_ACTIVATION_COMMIT.into(),
+            minimum_version: 1,
+            maximum_version: 1,
+            required: true,
+        },
+        FeatureRequirement {
+            id: deckweave_protocol::FEATURE_OWNER_CLEANUP.into(),
+            minimum_version: 1,
+            maximum_version: 1,
+            required: true,
+        },
+    ];
     if group.broker() {
         features.push(FeatureRequirement {
             id: deckweave_protocol::FEATURE_HOST_PROCESS_BROKER.into(),
@@ -225,6 +233,24 @@ fn serve(
                 if !(expected_group.broker() && broker.invoke(wire, &request)?) {
                     invoke(wire, audio.as_ref(), window.as_ref(), request)?;
                 }
+            }
+            Some(protocol_envelope::Body::OwnerCleanup(request)) => {
+                let released = epoch == Some(request.activation_epoch);
+                if released {
+                    broker.cleanup(request.activation_epoch, request.run_id.as_deref());
+                }
+                // Native audio/window commands finish on this reader before cleanup;
+                // this baseline owns no held synthetic input or per-run OS resources.
+                wire.send(protocol_envelope::Body::OwnerCleanupReceipt(
+                    deckweave_protocol::v1::OwnerCleanupReceipt {
+                        cleanup_id: request.cleanup_id,
+                        activation_epoch: request.activation_epoch,
+                        released,
+                    },
+                ))?;
+            }
+            Some(protocol_envelope::Body::Cancel(request)) => {
+                broker.cancel(wire, request.invocation_id)?
             }
             Some(protocol_envelope::Body::HostProcessReply(reply)) => broker.reply(wire, reply)?,
             Some(protocol_envelope::Body::Deactivate(_)) => return Ok(()),

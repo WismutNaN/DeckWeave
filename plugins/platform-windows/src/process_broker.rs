@@ -11,10 +11,15 @@ use std::{
     time::{Duration, Instant},
 };
 
+struct Pending {
+    deadline: Instant,
+    epoch: u64,
+    run_id: String,
+}
 #[derive(Default)]
 pub(crate) struct Broker {
     pub enabled: bool,
-    pending: BTreeMap<String, Instant>,
+    pending: BTreeMap<String, Pending>,
 }
 impl Broker {
     pub fn invoke(
@@ -65,8 +70,12 @@ impl Broker {
         } else {
             self.pending.insert(
                 request.invocation_id.clone(),
-                Instant::now()
-                    + Duration::from_millis(request.remaining_budget_ms.unwrap_or(0).min(5000)),
+                Pending {
+                    deadline: Instant::now()
+                        + Duration::from_millis(request.remaining_budget_ms.unwrap_or(0).min(5000)),
+                    epoch: request.activation_epoch,
+                    run_id: request.run_id.clone(),
+                },
             );
             wire.send(protocol_envelope::Body::HostProcessRequest(
                 HostProcessRequest {
@@ -112,11 +121,29 @@ impl Broker {
         terminal(wire, reply.invocation_id, result)
     }
 
+    pub fn cleanup(&mut self, epoch: u64, run: Option<&str>) {
+        // User-launched applications belong to the user, not this runtime. Only
+        // release pending reply ownership; a late receipt cannot revive the run.
+        self.pending
+            .retain(|_, p| p.epoch != epoch || run.is_some_and(|run| run != p.run_id));
+    }
+    pub fn cancel(&mut self, wire: &WireSender, invocation: String) -> Result<(), String> {
+        if self.pending.remove(&invocation).is_some() {
+            terminal(
+                wire,
+                invocation,
+                terminal_outcome::Result::UnknownOutcome(
+                    PlatformFailure::OsApiUnavailable.structured(),
+                ),
+            )?;
+        }
+        Ok(())
+    }
     pub fn expire(&mut self, wire: &WireSender) -> Result<(), String> {
         let expired: Vec<_> = self
             .pending
             .iter()
-            .filter(|(_, d)| Instant::now() >= **d)
+            .filter(|(_, d)| Instant::now() >= d.deadline)
             .map(|(id, _)| id.clone())
             .collect();
         for id in expired {
@@ -140,4 +167,33 @@ fn terminal(wire: &WireSender, id: String, result: terminal_outcome::Result) -> 
             result: Some(result),
         })),
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn owner_cleanup_cannot_remove_another_run_or_epoch() {
+        let mut broker = Broker::default();
+        for (id, epoch, run) in [("a", 1, "first"), ("b", 1, "second"), ("c", 2, "first")] {
+            broker.pending.insert(
+                id.into(),
+                Pending {
+                    deadline: Instant::now(),
+                    epoch,
+                    run_id: run.into(),
+                },
+            );
+        }
+        broker.cleanup(1, Some("first"));
+        assert_eq!(
+            broker.pending.keys().cloned().collect::<Vec<_>>(),
+            vec!["b", "c"]
+        );
+        broker.cleanup(1, None);
+        assert_eq!(
+            broker.pending.keys().cloned().collect::<Vec<_>>(),
+            vec!["c"]
+        );
+    }
 }

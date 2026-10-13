@@ -46,8 +46,23 @@ pub fn transition(
                 .or_insert_with(|| initial_value.clone());
         }
     }
-    if state.closed && !matches!(item.kind, IngressKind::Barrier) {
-        faults.push(SchedulerFault::BarrierClosed);
+    // Faults invalidate the compiled activation even when they arrive while an
+    // apply barrier is already closed. Neither a second worker's fault nor a
+    // later shutdown may reissue cleanup to processes that have already stopped.
+    let invalidation = match &item.kind {
+        IngressKind::TopologyFault { .. } => Some(SchedulerFault::TopologyChanged),
+        IngressKind::GrantFault => Some(SchedulerFault::GrantRevoked),
+        _ => None,
+    };
+    if invalidation.is_some() {
+        state.invalidated = true;
+    }
+    if state.closed {
+        if let Some(fault) = invalidation {
+            faults.push(fault);
+        } else if !matches!(item.kind, IngressKind::Barrier) {
+            faults.push(SchedulerFault::BarrierClosed);
+        }
         return Ok(SchedulerTransition {
             state,
             intents,
@@ -134,10 +149,12 @@ pub fn transition(
             &mut faults,
         )?,
         IngressKind::TopologyFault { .. } => {
+            state.closed = true;
             faults.push(SchedulerFault::TopologyChanged);
             cleanup_all(&mut state, "runtime topology changed", &mut intents);
         }
         IngressKind::GrantFault => {
+            state.closed = true;
             faults.push(SchedulerFault::GrantRevoked);
             cleanup_all(&mut state, "runtime grant revoked", &mut intents);
         }
