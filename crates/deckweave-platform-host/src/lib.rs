@@ -3,6 +3,7 @@
 
 mod launch;
 mod native;
+mod permission_preferences;
 mod preferences;
 mod process;
 mod storage;
@@ -18,6 +19,7 @@ mod windows_storage;
 
 pub use launch::{LaunchOptions, installed_root};
 pub use native::{FileLease, NativePlatform};
+pub use permission_preferences::JsonPermissionPreferenceStore;
 pub use preferences::JsonLocalePreferenceStore;
 pub use process::NativeChildProcessPolicy;
 pub use storage::NativeAtomicFileStore;

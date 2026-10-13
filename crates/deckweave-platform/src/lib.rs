@@ -7,7 +7,11 @@ use std::{
     process::{Child, Command},
 };
 use thiserror::Error;
+mod permission_preferences;
 mod preferences;
+pub use permission_preferences::{
+    PermissionPreferenceStore, PermissionPreferences, PermissionSelection,
+};
 mod user_process;
 pub use preferences::{LocalePreferenceStore, PreferenceError};
 pub use user_process::{

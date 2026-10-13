@@ -21,6 +21,7 @@
   import InstanceManager from "./components/InstanceManager.svelte";
   import ApplyReview from "./components/ApplyReview.svelte";
   import ThemeSettings from "./components/ThemeSettings.svelte";
+  import PermissionSettings from "./components/PermissionSettings.svelte";
   import Icon from "./components/Icon.svelte";
   import RuntimeStatus from "./components/RuntimeStatus.svelte";
   let session = $state(new EditorSession(desktopClient));
@@ -30,6 +31,7 @@
     adding = $state(false),
     settings = $state(false),
     connections = $state(false),
+    permissions = $state(false),
     startup = $state(false);
   const t = (ru: string, en: string) => session.t(ru, en);
   async function connect() {
@@ -299,6 +301,13 @@
         >
       </div>
       <ThemeSettings lang={session.lang} />
+      {#if native && !session.preview}<button
+          class="secondary full-width"
+          onclick={() => {
+            settings = false;
+            permissions = true;
+          }}>{t("Разрешения плагинов", "Plugin permissions")}</button
+        >{/if}
       <div class="section-divider"></div>
       <label class="check-row"
         ><input
@@ -349,3 +358,15 @@
   onclose={() => (connections = false)}
 />
 <ApplyReview {session} />
+<PermissionSettings
+  open={permissions}
+  lang={session.lang}
+  onclose={() => (permissions = false)}
+  onchanged={() => {
+    session.notice = t(
+      "Разрешения сохранены. Примените действия заново.",
+      "Permissions saved. Apply your actions again.",
+    );
+    void session.run(() => session.refresh());
+  }}
+/>

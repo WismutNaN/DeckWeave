@@ -24,6 +24,7 @@ pub use gateway::{ApplicationGateway, HostStatusSource, InMemoryApiAuthorizer};
 mod diagnostics;
 pub mod editor;
 pub mod locale;
+pub mod permissions;
 pub mod plugin_catalog;
 pub mod plugin_data;
 pub mod plugin_services;

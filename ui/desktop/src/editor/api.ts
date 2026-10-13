@@ -31,6 +31,18 @@ export function message(cause: unknown, lang: string): string {
     messageKey?: string;
   };
   const keys: Record<string, [string, string]> = {
+    "api.error.permissions_conflict": [
+      "Разрешения изменились. Загружен текущий выбор; проверьте его перед сохранением.",
+      "Permissions changed. Review the refreshed selection before saving.",
+    ],
+    "api.error.invalid_permissions": [
+      "Выбор разрешений или сохранённый файл повреждён. Доступ не предоставлен.",
+      "The permission selection or stored file is invalid. Access was not granted.",
+    ],
+    "api.error.permissions_unavailable": [
+      "Не удалось прочитать или сохранить разрешения. Проверьте доступ к каталогу данных.",
+      "Unable to read or save permissions. Check access to the data directory.",
+    ],
     "api.error.document_too_large": [
       "Черновик превышает лимит размера хранилища. Уменьшите объём конфигурации; предыдущая версия сохранена.",
       "The draft exceeds the storage size limit. Reduce the configuration size; the previous version is preserved.",

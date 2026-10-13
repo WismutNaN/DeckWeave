@@ -129,3 +129,24 @@ pub async fn locale_reconcile(
     })
     .await
 }
+
+#[tauri::command]
+pub async fn permissions_get(
+    window: WebviewWindow,
+    service: State<'_, Arc<permissions::PluginPermissionService>>,
+) -> Result<permissions::PermissionSnapshot, ApiError> {
+    let request = context(&window)?;
+    let service = service.inner().clone();
+    blocking(move || service.get(&request)).await
+}
+#[tauri::command]
+pub async fn permissions_change(
+    window: WebviewWindow,
+    service: State<'_, Arc<permissions::PluginPermissionService>>,
+    expected: u64,
+    selected: Vec<PermissionSelection>,
+) -> Result<permissions::PermissionSnapshot, ApiError> {
+    let request = context(&window)?;
+    let service = service.inner().clone();
+    blocking(move || service.change(&request, expected, selected)).await
+}

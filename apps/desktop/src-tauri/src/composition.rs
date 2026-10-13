@@ -25,6 +25,7 @@ use std::{
 };
 
 pub(crate) struct ProductionServices {
+    pub(crate) permissions: Arc<deckweave_application::permissions::PluginPermissionService>,
     pub(crate) gateway: Arc<ApplicationGateway>,
     pub(crate) runtime: Arc<ProductionRuntimeCoordinator>,
     pub(crate) locale: Arc<LocalePreferencesService>,
@@ -60,16 +61,44 @@ pub(crate) fn compose(
     };
     let compiler = PackageGraphCompiler::new(Arc::clone(&packages))
         .with_authorization(authorization.clone(), principal.clone());
-    let runtime = Arc::new(ProductionRuntimeCoordinator::new(
-        packages.clone(),
-        Arc::clone(&profiles) as Arc<dyn ApplyOperationRepository>,
-        authorization,
-        registry,
-        Arc::new(NativeChildProcessPolicy),
+    let runtime = Arc::new(
+        ProductionRuntimeCoordinator::new(
+            packages.clone(),
+            Arc::clone(&profiles) as Arc<dyn ApplyOperationRepository>,
+            authorization.clone(),
+            registry,
+            Arc::new(NativeChildProcessPolicy),
+            principal.clone(),
+            host_boot_id()?,
+            runtime_config,
+        )
+        .with_user_process_launcher(Arc::new(deckweave_platform_host::NativeUserProcessLauncher)),
+    );
+    // Restore explicit grants before recovery can plan or activate a runtime.
+    let authorizer = Arc::new(InMemoryApiAuthorizer::new());
+    authorizer.grant(
         principal.clone(),
-        host_boot_id()?,
-        runtime_config,
-    ));
+        [
+            ApiAuthScope::Read,
+            ApiAuthScope::Draft,
+            ApiAuthScope::Simulation,
+            ApiAuthScope::Apply,
+            ApiAuthScope::Preferences,
+        ],
+    );
+    let permissions = Arc::new(
+        deckweave_application::permissions::PluginPermissionService::new(
+            Arc::new(deckweave_platform_host::JsonPermissionPreferenceStore::new(
+                root.join("host/permissions.json"),
+                Arc::new(NativeAtomicFileStore),
+            )),
+            packages.as_ref(),
+            principal,
+            authorization,
+            authorizer.clone(),
+        )
+        .map_err(std::io::Error::other)?,
+    );
     let planning = ApplyPlanningService::new(
         Arc::clone(&profiles) as Arc<dyn DraftRepository>,
         Arc::new(compiler),
@@ -89,17 +118,6 @@ pub(crate) fn compose(
     profiles.archive_terminal_operations()?;
     profiles.compact_command_claims()?;
 
-    let authorizer = Arc::new(InMemoryApiAuthorizer::new());
-    authorizer.grant(
-        principal,
-        [
-            ApiAuthScope::Read,
-            ApiAuthScope::Draft,
-            ApiAuthScope::Simulation,
-            ApiAuthScope::Apply,
-            ApiAuthScope::Preferences,
-        ],
-    );
     let locale = LocalePreferencesService::new(locale_store, runtime.clone(), authorizer.clone());
     let editor = Arc::new(deckweave_application::editor::EditorWorkspaceService::new(
         profiles.clone(),
@@ -123,6 +141,7 @@ pub(crate) fn compose(
     .with_plugin_catalog(packages)
     .with_editor_source(editor_source);
     Ok(ProductionServices {
+        permissions,
         gateway: Arc::new(gateway),
         runtime,
         locale: Arc::new(locale),

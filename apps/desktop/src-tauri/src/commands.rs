@@ -15,7 +15,9 @@ pub(crate) fn handler() -> fn(tauri::ipc::Invoke<tauri::Wry>) -> bool {
         ipc::open_workspace,
         ipc::locale_get,
         ipc::locale_change,
-        ipc::locale_reconcile
+        ipc::locale_reconcile,
+        ipc::permissions_get,
+        ipc::permissions_change
     ];
     #[cfg(feature = "smoke-test")]
     let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool = tauri::generate_handler![
@@ -30,6 +32,8 @@ pub(crate) fn handler() -> fn(tauri::ipc::Invoke<tauri::Wry>) -> bool {
         ipc::locale_get,
         ipc::locale_change,
         ipc::locale_reconcile,
+        ipc::permissions_get,
+        ipc::permissions_change,
         smoke::ready
     ];
     handler

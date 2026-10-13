@@ -4,9 +4,9 @@
 
 ## Состояние
 
-Фаза начата. Срезы 7.0 и 7.1 завершены; в 7.2 реализован автоматизированный Core Audio path. В 7.3A готовы active-window state, bounded catalog и focus/activate actions. Ручные Windows 10/11 проверки ещё открыты. Exact launch/open остаются `unavailable`: [ADR-0021](../decisions/0021-brokered-user-process-launch.md) запрещает ослаблять plugin Job Object и требует узкий Host broker. Каждый следующий срез должен оставлять `npm run check` и workspace tests зелёными и не объявлять fake/manual result production capability.
+Фаза в работе. Реализованы Core Audio, active-window state/catalog/focus, media transport и aggregate keyboard observe. Exact launch/open подключаются через Host broker по [ADR-0021](../decisions/0021-brokered-user-process-launch.md); без negotiated broker feature эти endpoints остаются `unavailable`. Готово явное управление разрешениями в desktop. Bundled Windows package, icon query, production composition E2E и ручная Windows 10/11 матрица ещё не закрыты. Автоматические проверки отдельных срезов не заменяют эту приёмку.
 
-Phase 6 может сохранять отдельные открытые UI/E2E acceptance items: они не разрешают Windows package обходить Application Gateway или plugin lifecycle. Phase 7 использует существующий production composition и добавляет capabilities через общий package/runtime contract.
+Phase 6 закрыта. Phase 7 использует существующий production composition и добавляет capabilities через общий package/runtime contract, без обхода Application Gateway или plugin lifecycle.
 
 ## Принятые границы
 
@@ -79,7 +79,7 @@ Acceptance:
 
 ## 7.3 — Active window, catalog, focus и launch
 
-**Статус:** [~] 7.3A window state/catalog/focus реализован и автоматически проверен; manual focus/elevated matrix, icons и brokered launch/open остаются открыты.
+**Статус:** [~] Window state/catalog/focus и brokered launch/open реализованы. Проверена передача Unicode/argv/cwd в настоящий дочерний процесс; production E2E, manual focus/elevated matrix и icons остаются открыты.
 
 - [x] Dedicated message thread устанавливает out-of-context foreground hook; callback только coalesces событие в bounded channel, Win32 metadata читает worker.
 - [x] Worker строит `ActiveWindowState`: session-scoped hashed WindowRef, PID/session/process-start evidence, executable selector, bounded title metadata и freshness. Raw HWND не проходит wire/profile boundary.
@@ -137,6 +137,19 @@ Acceptance:
 - close/revoke снимает registration/message loop за bounded deadline.
 
 ## 7.6 — Production composition и release evidence
+
+Промежуточная точка перед обсуждением пользовательского поведения:
+
+- [x] Настройки → «Разрешения плагинов»: явная выдача и отзыв доступа, RU/EN объяснения и область каждого разрешения. Установка и импорт не выдают доступ автоматически.
+- [x] Выбор хранится атомарно в `host/permissions.json` и привязан к package ID, SHA-256 manifest и индексу permission. Несовпавший manifest не наследует разрешения. Восстановление grants предшествует Apply recovery.
+- [x] CAS-конфликт не повторяет устаревший выбор автоматически; UI перечитывает актуальные разрешения. Повреждённое хранилище закрывает доступ, сохраняя возможность открыть редактор.
+- [x] Host process broker подключён в desktop composition; grants revalidation остаётся в production supervisor.
+- [x] Тесты: первоначальный отказ, выдача, повтор запроса без смены grant revision, восстановление, отзыв, конфликт, смена manifest, повреждённый и чрезмерно большой файл.
+- [ ] Native UI acceptance нового диалога и запуск Windows-функций из штатного bundled package.
+
+Текущая runtime group `control` требует все свои permissions, даже если используется одно действие; `input-observe` разрешается отдельно. Это ограничение объясняется в диалоге. Более мелкие пользовательские разрешения потребуют пересмотра состава groups или optional-capability negotiation, а не изменения одной подписи в UI.
+
+Перед итоговой приёмкой проверить также ранний запуск процесса до назначения Job Object, устойчивость WindowRef при смене заголовка/reuse HWND и восстановление audio endpoint после отказа. Эти пункты требуют анализа/проверки и пока не считаются закрытыми.
 
 - Установить package как bundled immutable artifact с проверяемым manifest/hash, без install script.
 - Подключить lazy leases: неиспользуемая runtime group не запускается и не занимает постоянную память.
