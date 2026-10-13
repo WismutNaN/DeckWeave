@@ -90,9 +90,10 @@ impl PackageIndex {
             for schema in catalog.schemas {
                 if let Some(existing) = schemas.iter().find(|s| s.schema == schema.schema) {
                     if existing != &schema {
-                        return Err(PackageError::InvalidManifest(
-                            "conflicting shared schema".into(),
-                        ));
+                        return Err(PackageError::InvalidManifest(format!(
+                            "conflicting shared schema {:?}",
+                            schema.schema
+                        )));
                     }
                 } else {
                     schemas.push(schema);
