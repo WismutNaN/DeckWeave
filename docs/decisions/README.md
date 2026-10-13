@@ -25,3 +25,5 @@ ADR фиксирует причину и последствия выбора, а
 | [0019](0019-plugin-composition.md) | Configured instances, explicit service bindings и владение plugin data |
 | [0020](0020-windows-provider-runtime-groups.md) | Windows first-party package с раздельными control и input-observe runtime groups |
 | [0021](0021-brokered-user-process-launch.md) | Host-brokered user process launch без ослабления plugin Job Object |
+| [0022](0022-live-editing-and-interaction.md) | Live editing, явный adaptive mode, modifier gestures и ошибки без автоматического повтора |
+| [0023](0023-composable-windows-plugins.md) | Windows-набор самостоятельных plugins с переиспользуемыми services |

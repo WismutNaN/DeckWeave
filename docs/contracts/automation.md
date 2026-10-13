@@ -67,7 +67,7 @@ Semantic compiler использует immutable catalog schemas, static/cached 
 | Parallel / join-all | Branch-local immutable results; join выдаёт record по стабильным branch IDs после terminal outcomes всех ветвей |
 | Fail-fast | Останавливает дальнейший dispatch, запрашивает cancel остальных; уже совершённые effects остаются в report |
 | First-success | Выбор победителя по записанному ingress order; проигравшие отменяются; применимость к side effects требует явной политики |
-| Retry | Только явно выбранные категории, bounded attempts/backoff/jitter; неизвестный effect повторяется лишь с действующей provider idempotency guarantee |
+| Retry | Не входит в текущую пользовательскую модель: ошибка не запускает action автоматически повторно. Provider idempotency поддерживает reconciliation исходного вызова, а не включает retry policy |
 | For-each | Snapshot входной коллекции, item scope, limit элементов и concurrency; результаты упорядочены по input index |
 | Reentrancy | У binding явно `reject`, bounded `queue`, `restart` или bounded `parallel`; default — reject while running |
 | Variables | Run-local default; shared workspace state меняется scheduler command с revision/merge policy, не конкурентной записью из plugin |
@@ -135,6 +135,10 @@ Cursor непрозрачен и scoped к account/filter/provider generation; �
 Remote read/ack, local dismissed и presentation viewed — независимые состояния. Render/autorotation не выполняют read-through. Query/aggregate не выдаёт внешнему consumer больше private preview fields, чем разрешено grants; для badge-only режима preview можно вообще не запрашивать. Time series/personal metrics аналогично несут unit, interval, source и aggregation provenance; исправленные/перекрывающиеся measurements не суммируются дважды. Прогноз является derived value с указанными assumptions, не исходным измерением.
 
 ## Слои и удерживаемые outputs
+
+Назначаемый пользователем modifier — gesture role, а не Windows virtual-key flag. На down фиксируются owner и binding revision. Если до release не было другого key press, solo action выполняется один раз на release. Использование сочетания помечает modifier consumed и исключает solo; repeated не создаёт новый solo/chord. Cancel, disconnect, grant revoke и нейтральный rearm освобождают состояние без solo action. Несколько modifiers разрешаются по явно скомпилированным bindings; неоднозначные одинаковые chords являются ошибкой конфигурации, а не зависят от порядка IPC.
+
+Это правило различает жесты внутри DeckWeave. Suppression исходного события ОС требует отдельного input.intercept capability/grant и не следует автоматически из назначения modifier. В observe-only режиме редактор объясняет, что обычное системное сочетание продолжает работать. [UX и основание](../decisions/0022-live-editing-and-interaction.md).
 
 Для каждого input gesture scheduler фиксирует выбранный binding, layer stack и owner на press. Release доставляется этому owner даже после смены слоя. Temporary layer возвращает token; pop освобождает именно token, а не «верхний слой». При совпадении priority порядок задаётся стабильным binding order; transparent mapping явно пропускает событие к следующему слою, отсутствие mapping не считается suppress.
 

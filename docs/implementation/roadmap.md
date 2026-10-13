@@ -427,10 +427,10 @@ B2 добавил checkpoint/compaction, автоматический maintenanc
 **Цель:** обеспечить полезные системные actions/states без N4-specific logic.
 **Результат:** virtual controls меняют volume/mute/media и active window; штатная клавиатура создаёт triggers через bundled observe/pass-through provider.
 **Трудоёмкость:** M
-**Статус:** [~] Срез 7.1 завершён. В 7.2 реализован Core Audio path; в 7.3A — active-window hook/state, bounded catalog и focus/activate actions. Автоматические gates зелёные, ручная Windows 10/11 матрица остаётся открыта. Direct launch из plugin job отклонён; brokered launch/open проектируется по ADR-0021.
+**Статус:** [~] Реализованы Core Audio, windows, media, aggregate keyboard observe, Host launch/open broker и desktop grants. Bundling, icon query, production E2E и ручная матрица ещё открыты. После уточнения UX добавлены migration к самостоятельным plugins и live editing (→ [ADR-0022](../decisions/0022-live-editing-and-interaction.md), [ADR-0023](../decisions/0023-composable-windows-plugins.md)).
 
 ### Контекст для агента
-> Native plugin lifecycle и UI binding готовы. Windows functionality реализуется отдельным first-party control package.
+> Native plugin lifecycle и UI binding готовы. Текущая Windows реализация объединена в package с двумя groups; целевой состав — набор самостоятельных first-party plugins с общими service contracts.
 
 ### Задачи
 
@@ -438,7 +438,9 @@ B2 добавил checkpoint/compaction, автоматический maintenanc
 - [x] Реализовать и проверить package shell: два artifacts/runtime groups, нейтральные schemas/input observations, scoped permissions/revoke, полный `EndpointPath` и stable unavailable/error vocabulary. Реальные OS effects остаются недоступными до соответствующего vertical slice (→ [7.1](phase-7-windows.md#71--contracts-schemas-и-package-shell)).
 - [x] Реализовать Core Audio application/worker/FFI path, bounded callbacks, confirmed state и четыре catalog actions; ручную Windows 10/11 матрицу хранить открытой до отдельного evidence (→ [7.2](phase-7-windows.md#72--core-audio-vertical-slice)).
 - [x] Реализовать 7.3A: bounded foreground hook, active-window state, каталог с ephemeral refs, persistent executable selector и подтверждаемую активацию (→ [7.3](phase-7-windows.md#73--active-window-catalog-focus-и-launch)).
-- [ ] Добавить Host process/Shell broker без `BREAKAWAY_OK`, затем включить exact launch/open endpoints (→ [ADR-0021](../decisions/0021-brokered-user-process-launch.md)).
+- [x] Добавить Host process/Shell broker без `BREAKAWAY_OK`, затем включить exact launch/open endpoints (→ [ADR-0021](../decisions/0021-brokered-user-process-launch.md)).
+- [ ] Разделить самостоятельные Windows plugins, мигрировать references без автоматической выдачи новых grants и проверить reusable services (→ [ADR-0023](../decisions/0023-composable-windows-plugins.md)).
+- [ ] Включить live editing через существующий atomic apply: invalid draft, coalescing, undo, no startup-trigger replay и отсутствие provider restart на layout-only edit (→ [ADR-0022](../decisions/0022-live-editing-and-interaction.md)).
 - [ ] Реализовать Windows ActionProvider: volume/mute/media/app launch/focus (→ [Модуль: Platform Adapters](../architecture/modules/platform-adapters.md)).
 - [ ] Реализовать StateProvider active application/window и audio endpoint state (→ [Capabilities — State](../contracts/capabilities.md#state)).
 - [ ] Разделить platform contributions и scopes для window catalog/icons/activate, input emission и scripts; новые metrics/HTTP providers оценивать отдельными срезами после базового Windows path, не включать все integrations в один package (→ [platform catalog](../plugins/platform.md), [композиция](../contracts/plugin-composition.md)).
@@ -577,7 +579,7 @@ B2 добавил checkpoint/compaction, автоматический maintenanc
 ### Задачи
 
 - [ ] Добавить layers, variables, tap/hold/chord и active-window conditions (→ [Модуль: Automation Engine](../architecture/modules/automation-engine.md)).
-- [ ] Добавить sequence/parallel/join и stop/continue/retry/fallback policies (→ [Режимы — Режимы ошибок automation](../product/modes.md#режимы-ошибок-automation)).
+- [ ] Добавить sequence/parallel/join и stop/continue/fallback policies; default error popup без автоматического retry (→ [Режимы — Режимы ошибок automation](../product/modes.md#режимы-ошибок-automation)).
 - [ ] Добавить monotonic timers, schedules с timezone/DST и bounded cycles (→ [Capabilities — Временная семантика](../contracts/capabilities.md#временная-семантика)).
 - [ ] Реализовать Graph editor, collapsed groups и execution timeline (→ [UI — Graph editor](../product/ux.md#graph-editor)).
 - [ ] Реализовать conflict/priority diagnostics (→ [Требования DW-AU-008](../product/requirements.md#назначения-и-автоматизация)).

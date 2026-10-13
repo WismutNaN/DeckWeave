@@ -44,7 +44,9 @@ Unread badges/counts/list, часы, countdown, health gauges и новости 
 
 ## Scene selection и временные режимы
 
-Выбор уже скомпилированной scene/binding group — runtime operation с device-group scope и owner token. Он не переписывает draft, package lock и active workspace revision. Новые nodes/settings/packages требуют обычного apply. Приоритеты manual/context/temporary policies и возврат задаются явно; temporary pop снимает свой token, не произвольный верхний слой.
+Выбор уже скомпилированной scene/binding group — runtime operation с device-group scope и owner token. Он не переписывает draft, package lock и active workspace revision. Новые nodes/settings/packages требуют apply, в live editor инициируемого автоматически после validation.
+
+Manual и adaptive являются взаимоисключающими режимами выбора базовой панели в одном scope. Команда mode.set/toggle может быть назначена кнопке. В manual foreground не влияет на selection. В adaptive учитывается текущее active window, включая snapshot при включении режима: первое совпавшее по явному порядку правило выбирает панель, отсутствие совпадения — стандартную панель. Unavailable/stale foreground не выдаётся за живое совпадение: используется стандартная панель с диагностикой. Temporary overlay/layer имеет отдельного owner; pop снимает только его token и не включает adaptive mode неявно. Local slot cycling остаётся независимым от выбора базовой панели. [Основание](../decisions/0022-live-editing-and-interaction.md).
 
 Scene selection атомарно меняет согласованную presentation/input revision на стороне host. Физический экран может обновиться позже; hit event содержит доступную presented revision/owner evidence либо обрабатывается по явно объявленной conservative policy. Для игры нельзя приписывать старому пикселю нового target. Frame ACK означает ровно объявленную transport/device guarantee, не автоматически доказанный photon-visible момент. [Frames](lifecycle.md#frames-и-preview), [layers](automation.md#слои-и-удерживаемые-outputs).
 

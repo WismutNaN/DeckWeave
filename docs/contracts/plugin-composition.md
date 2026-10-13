@@ -4,6 +4,8 @@
 
 ## Способы переиспользования
 
+Windows-набор по [ADR-0023](../decisions/0023-composable-windows-plugins.md) состоит из самостоятельных низкоуровневых plugins. Каждый provider доступен пользователю напрямую и может обслуживать зависимый plugin через этот контракт. Коллекция для установки не является runtime dependency; выдача доступа к одному plugin не выдаёт доступ ко всему набору. Реализация объединённого `control` пока не мигрирована.
+
 | Способ | Когда применять | Владелец исполнения |
 |---|---|---|
 | SDK library | Stateless HTTP/JSON/process helpers, converters, protocol encoding | Каждый package; без дополнительного runtime dependency |

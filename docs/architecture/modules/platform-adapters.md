@@ -5,6 +5,8 @@
 
 ## Публичный интерфейс
 
+Целевой Windows-набор разделён по самостоятельным возможностям: Audio, Media, Windows, Applications и Keyboard observation ([ADR-0023](../../decisions/0023-composable-windows-plugins.md)). Текущий двухгрупповой package ещё требует миграции. Reusable live data/commands предоставляются через [service bindings](../../contracts/plugin-composition.md), общие stateless adapters — через SDK/library; установка набора не запускает все его процессы.
+
 | Символ | Тип | Описание |
 |---|---|---|
 | `PlatformProvider` | plugin contribution | OS capability collection |

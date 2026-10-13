@@ -75,4 +75,6 @@
 <a id="plg-025"></a>
 ## PLG-025 — Windows media и запуск приложений
 
+Это тематическая карточка, а не требование одного package: Audio, Media и Applications разделяются на самостоятельные plugins; Windows и Keyboard observation также независимы ([ADR-0023](../decisions/0023-composable-windows-plugins.md)). Готовое действие «перейти или запустить» использует window provider, если приложение открыто; при отсутствии запускает его через Host broker. Exact launch остаётся отдельным низкоуровневым действием. Отказ активации найденного окна не запускает дубликат приложения.
+
 Ранее запланированные first-party contributions: volume/mute, media transport, audio endpoint state, app launch/open URL. Launch возвращает факт запуска и доступную app reference; готовность окна/документа — отдельный predicate. Window enumeration принадлежит PLG-001. Приёмка: endpoint hotplug, unsupported media session, launch failure и смена default device. Общие OS adapters не обязаны иметь один package/process или одинаковые permissions. [Фаза 7](../implementation/roadmap.md#фаза-7--windows-base-provider-и-platform-input).

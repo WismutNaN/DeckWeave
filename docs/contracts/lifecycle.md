@@ -43,6 +43,10 @@ Storage adapter различает ошибку до публикации и н�
 
 ### Порядок apply
 
+Desktop может инициировать этот протокол автоматически после валидной пользовательской правки ([ADR-0022](../decisions/0022-live-editing-and-interaction.md)); ручная кнопка не является инвариантом. Для одного draft одновременно выполняется не более одного prepare/commit, свежие правки объединяются в следующую актуальную версию. Заведомо устаревший prepare отменяется до barrier либо завершается с последующим применением свежей версии; поздний ответ не помечает новый draft применённым. Потеря ответа разрешается по прежнему operation ID, а не новым запуском business actions.
+
+Hardware preview для перемещения объектов ограничен по частоте/памяти и latest-wins. Он не создаёт durable revision на каждый кадр. UI layout-only правка не должна перезапускать неизменные providers. Invalid или несохранённая revision не становится active; ошибка live apply видна при продолжающей работу последней valid revision. Первый state snapshot/rearm не воспроизводит старое нажатие как новый trigger.
+
 1. Host фиксирует `DraftVersion`, base revision, package lock и разрешённую политику degraded/downtime. Validate/plan не запускают plugin code и не меняют hardware. Plan содержит hash, expiry, версии topology/grants и список затронутых routes/resources.
 2. Store сохраняет immutable candidate revision, связанные assets и operation intent. Файлы пишутся во временное место на том же filesystem, проверяются и сбрасываются на носитель до публикации ссылок. Нехватка места или ошибка записи не переключает runtime.
 3. Prepare запускает требуемые runtime groups, валидирует session descriptors и резервирует доступные resources. Активация не исполняет пользовательские actions, не отправляет frames/haptics и не применяет новые settings к работающему instance. Если provider не умеет prepare без изменения текущего instance, plan заранее объявляет disruptive handoff.

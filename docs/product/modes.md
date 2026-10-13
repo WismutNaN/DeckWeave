@@ -96,15 +96,14 @@ Host light frames и volatile hardware presets являются разными �
 
 | Политика | Поведение |
 |---|---|
-| Stop branch | Остановить текущую ветвь |
+| Stop branch | По умолчанию остановить зависимую цепочку и показать краткое сообщение |
 | Continue | Записать failure и продолжить независимые шаги |
-| Retry | Повторить с bounded attempts/backoff/deadline |
 | Fallback | Выполнить явно заданную резервную ветвь |
 | Compensate | Выполнить обратные actions, если они определены |
 
 Global «игнорировать все ошибки» отсутствует. Policy задаётся на group/node и видна в graph.
 
-Accepted/running/succeeded/failed/cancelled/unknown — состояния invocation, а не режима UI. DataEdges передают typed results внутри run; long jobs и artifacts не превращаются в shared global state. Retry неизвестного эффекта разрешён только при provider idempotency guarantee. Полные правила: [automation contract](../contracts/automation.md).
+Accepted/running/succeeded/failed/cancelled/unknown — состояния invocation, а не режима UI. DataEdges передают typed results внутри run; long jobs и artifacts не превращаются в shared global state. Автоматический повтор business action не входит в текущие требования, даже при наличии idempotency; повторное чтение receipt/recovery того же command ID не является новым исполнением. Полные правила: [automation contract](../contracts/automation.md).
 
 ## Режимы remote и media
 

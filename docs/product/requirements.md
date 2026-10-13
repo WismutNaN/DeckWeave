@@ -31,7 +31,7 @@
 | DW-AU-001 | P0 | Простая связь source → action создаётся через drag-and-drop или форму | Частый сценарий занимает не более трёх пользовательских действий |
 | DW-AU-002 | P0 | Один event может запускать несколько actions последовательно или параллельно | Порядок и join policy воспроизводимы в simulation |
 | DW-AU-003 | P0 | Conditions, state, variables, timers и temporary layers являются штатными nodes | Удержание клавиши временно меняет назначение N4 Pro и возвращает его после release |
-| DW-AU-004 | P0 | Ошибки имеют настраиваемые stop/continue/retry/fallback policies | Ошибка подсвечивает node и не скрывается успешной соседней ветвью |
+| DW-AU-004 | P0 | По умолчанию ошибка останавливает зависимую цепочку и показывает краткое уведомление; автоматического retry нет, continue/fallback задаются явно | Ошибка видна в уведомлении и diagnostics; успешная соседняя ветвь её не скрывает |
 | DW-AU-005 | P1 | Поддерживаются schedules, cycles с положительным delay/ожиданием нового внешнего события и Pomodoro-like timers | Цикл без временной границы не компилируется; execution/rate budgets ограничены |
 | DW-AU-006 | P1 | Active application/window может участвовать в condition и layer selection | Один control имеет разные bindings в Word и VS Code |
 | DW-AU-007 | P1 | Events записываются и воспроизводятся с monotonic timestamps и fake clock | Один fixture даёт одинаковый итоговый state в повторных тестах |

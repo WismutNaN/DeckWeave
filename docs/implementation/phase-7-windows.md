@@ -10,6 +10,8 @@ Phase 6 закрыта. Phase 7 использует существующий pr
 
 ## Принятые границы
 
+Ниже описан существующий срез ADR-0020. Пользовательское уточнение 2026-10-13 изменяет целевую упаковку: [ADR-0023](../decisions/0023-composable-windows-plugins.md) требует самостоятельные Audio, Media, Windows, Applications и Keyboard plugins. Объединённая `control` group сохраняется лишь до явной миграции. Правила UI и взаимодействия уточнены [ADR-0022](../decisions/0022-live-editing-and-interaction.md); они не считаются реализованными по факту обновления документации.
+
 - Package ID: `org.deckweave.platform.windows`.
 - Runtime group `control`: audio, media, active-window/catalog/focus, exact process launch и file/URI activation.
 - Runtime group `input-observe`: Raw Input keyboard source. Отдельный process нужен не «на каждую функцию», а для независимых permissions, message-loop lifetime и отказов.
@@ -138,6 +140,18 @@ Acceptance:
 
 ## 7.6 — Production composition и release evidence
 
+### Уточнение плана после обсуждения UX
+
+Порядок оставшейся реализации:
+
+1. Разделить packages и permissions, подготовить migration старых package/endpoint references; проверить standalone использование каждого provider. Подключить production service binding для первого реального consumer, сохраняя независимые leases/отмену.
+2. Добавить готовое действие «перейти в приложение или запустить», построенное из window service и launch broker. Найденное окно с отказом focus не считается отсутствующим приложением. Existing exact launch остаётся доступен напрямую.
+3. Добавить coordinator live editing над durable draft/apply: validation завершённой правки, coalescing, защита от stale prepare/ответа, видимый pending/failure. Layout-only edit не перезапускает Windows runtime. Не запускать действие автоматически при редактировании его параметров.
+4. Убрать обязательный ручной Apply из обычного UX после проверок invalid input, held key, running action, undo, missing permissions и reconnect. Failure action показывает краткое уведомление без автоматического retry; не путать с recovery того же API command.
+5. Поставить нужные plugins bundled, закрыть icon query и production E2E, зафиксировать оставшуюся ручную матрицу.
+
+Pixel-accurate hardware preview и произвольная widget composition реализуются в Surface-срезе Фазы 9. Полная modifier/chord-модель, adaptive scene switch и сложные layers — в Фазе 11. Их подтверждённые правила уже закреплены в UX/Presentation/Automation; текущая фаза не должна зашивать обязательный ручной Apply, неизменяемую картинку готового widget или обязательный монолитный Windows plugin.
+
 Промежуточная точка перед обсуждением пользовательского поведения:
 
 - [x] Настройки → «Разрешения плагинов»: явная выдача и отзыв доступа, RU/EN объяснения и область каждого разрешения. Установка и импорт не выдают доступ автоматически.
@@ -147,7 +161,7 @@ Acceptance:
 - [x] Тесты: первоначальный отказ, выдача, повтор запроса без смены grant revision, восстановление, отзыв, конфликт, смена manifest, повреждённый и чрезмерно большой файл.
 - [ ] Native UI acceptance нового диалога и запуск Windows-функций из штатного bundled package.
 
-Текущая runtime group `control` требует все свои permissions, даже если используется одно действие; `input-observe` разрешается отдельно. Это ограничение объясняется в диалоге. Более мелкие пользовательские разрешения потребуют пересмотра состава groups или optional-capability negotiation, а не изменения одной подписи в UI.
+Текущая runtime group `control` требует все свои permissions, даже если используется одно действие; `input-observe` разрешается отдельно. Это ограничение объясняется в диалоге и подлежит устранению разделением plugins по ADR-0023, а не изменением одной подписи в UI.
 
 Перед итоговой приёмкой проверить также ранний запуск процесса до назначения Job Object, устойчивость WindowRef при смене заголовка/reuse HWND и восстановление audio endpoint после отказа. Эти пункты требуют анализа/проверки и пока не считаются закрытыми.
 
