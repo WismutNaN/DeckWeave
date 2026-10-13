@@ -116,13 +116,40 @@ fn serve(
     audio: Option<ControlAudio>,
     window: Option<ControlWindow>,
 ) -> Result<(), Box<dyn Error>> {
-    let mut stdin = io::stdin().lock();
+    let (incoming, receiver) = std::sync::mpsc::sync_channel(16);
+    let reader_limit = wire.read_limit();
+    // The process-owned reader may block on the host pipe; the runtime loop remains
+    // able to stop a failed adapter without waiting for another host command.
+    std::thread::spawn(move || {
+        let mut stdin = io::stdin().lock();
+        loop {
+            let next = read_envelope(
+                &mut stdin,
+                reader_limit.load(std::sync::atomic::Ordering::Acquire),
+            )
+            .map_err(|error| error.to_string());
+            let terminal = !matches!(&next, Ok(Some(_)));
+            if incoming.send(next).is_err() || terminal {
+                return;
+            }
+        }
+    });
     let mut acknowledged = false;
     let mut activated = false;
     let mut epoch = None;
     let mut last_message = 0;
     let mut heartbeat = None;
-    while let Some(envelope) = read_envelope(&mut stdin, wire.maximum_message_bytes())? {
+    let mut input = None;
+    loop {
+        if wire.failed() {
+            return Err("runtime adapter or transport fault".into());
+        }
+        let envelope = match receiver.recv_timeout(std::time::Duration::from_millis(50)) {
+            Ok(Ok(Some(envelope))) => envelope,
+            Ok(Ok(None)) | Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
+            Ok(Err(error)) => return Err(error.into()),
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => continue,
+        };
         if envelope.session_generation != generation || envelope.message_id <= last_message {
             return Err("stale or replayed host message".into());
         }
@@ -175,6 +202,9 @@ fn serve(
                     return Err("invalid activation commit".into());
                 }
                 epoch = Some(commit.activation_epoch);
+                if expected_group == RuntimeGroup::InputObserve && cfg!(windows) {
+                    input = Some(crate::input::InputWorker::start(wire.clone(), generation)?);
+                }
                 if let Some(audio) = &audio {
                     audio.activation_committed(wire, generation)?;
                 }
@@ -202,6 +232,7 @@ fn serve(
         }
     }
     drop(heartbeat);
+    drop(input);
     Ok(())
 }
 

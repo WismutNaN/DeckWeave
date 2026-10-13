@@ -7,14 +7,17 @@ impl PackageIndex {
     pub fn editor_packages(&self) -> Result<Vec<InstalledPluginView>, PackageError> {
         let mut result = Vec::new();
         for package in self.packages() {
-            let mut hashes = std::collections::BTreeSet::new();
-            for artifact in package.artifacts.values().filter(|a| {
-                a.operating_system == std::env::consts::OS
-                    && a.architecture == std::env::consts::ARCH
-            }) {
-                if !hashes.insert(artifact.sha256.clone()) {
-                    continue;
-                }
+            // One immutable package can contain several runtime artifacts. The hash
+            // selects that package revision; its catalogue resolves each group's artifact.
+            for artifact in package
+                .artifacts
+                .values()
+                .filter(|a| {
+                    a.operating_system == std::env::consts::OS
+                        && a.architecture == std::env::consts::ARCH
+                })
+                .take(1)
+            {
                 if result.len() >= 64 {
                     return Err(PackageError::InvalidManifest(
                         "editor package limit exceeded".into(),

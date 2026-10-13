@@ -11,6 +11,18 @@ pub struct NormalizedKeyIdentity {
     pub location: KeyLocation,
 }
 
+impl NormalizedKeyIdentity {
+    pub fn try_new(
+        key: impl Into<String>,
+        location: KeyLocation,
+    ) -> Result<Self, deckweave_domain::ids::IdError> {
+        Ok(Self {
+            key: NamespacedKind::try_new(key)?,
+            location,
+        })
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum KeyLocation {

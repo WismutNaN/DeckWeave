@@ -100,7 +100,7 @@
     },
     "deckweave-platform-windows": {
       "context": "Windows Platform Adapter",
-      "allowedDependencies": ["deckweave-protocol"]
+      "allowedDependencies": ["deckweave-protocol", "deckweave-platform-input"]
     },
     "deckweave-interaction": {
       "context": "Interaction Runtime",

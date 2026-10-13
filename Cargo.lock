@@ -888,6 +888,7 @@ dependencies = [
  "deckweave-application",
  "deckweave-domain",
  "deckweave-platform-host",
+ "deckweave-platform-input",
  "deckweave-plugin-supervisor",
  "deckweave-protocol",
  "deckweave-registry",

@@ -7,7 +7,7 @@ use std::{
     io,
     sync::{
         Arc,
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
         mpsc::{self, SyncSender},
     },
     thread::{self, JoinHandle},
@@ -19,6 +19,7 @@ const OUTBOUND_CAPACITY: usize = 64;
 pub(crate) struct WireSender {
     messages: SyncSender<protocol_envelope::Body>,
     maximum_message_bytes: Arc<AtomicUsize>,
+    failed: Arc<AtomicBool>,
 }
 
 impl WireSender {
@@ -57,15 +58,27 @@ impl WireSender {
             Self {
                 messages,
                 maximum_message_bytes: maximum,
+                failed: Arc::new(AtomicBool::new(false)),
             },
             join,
         ))
     }
 
     pub fn send(&self, body: protocol_envelope::Body) -> Result<(), String> {
-        self.messages
-            .try_send(body)
-            .map_err(|_| "wire writer stopped or overloaded".into())
+        if self.failed() {
+            return Err("runtime transport fault".into());
+        }
+        self.messages.try_send(body).map_err(|_| {
+            self.fail();
+            "wire writer stopped or overloaded".into()
+        })
+    }
+
+    pub fn fail(&self) {
+        self.failed.store(true, Ordering::Release);
+    }
+    pub fn failed(&self) -> bool {
+        self.failed.load(Ordering::Acquire)
     }
 
     pub fn set_maximum_message_bytes(&self, maximum: usize) {
@@ -75,5 +88,9 @@ impl WireSender {
     #[must_use]
     pub fn maximum_message_bytes(&self) -> usize {
         self.maximum_message_bytes.load(Ordering::Acquire)
+    }
+
+    pub fn read_limit(&self) -> Arc<AtomicUsize> {
+        self.maximum_message_bytes.clone()
     }
 }

@@ -118,6 +118,10 @@ Acceptance:
 
 ## 7.5 — Raw Input keyboard observe
 
+**Статус:** реализован production message-only Raw Input source, bounded bridge и нормализатор. Статический каталог обычных scan-code клавиш позволяет назначать действия в редакторе; E1/Pause, consumer/media и неизвестные vendor scan codes пока не объявлены. Layout отражает эталонные позиции ANSI-клавиатуры, а не обещание физической геометрии конкретного устройства.
+
+Проверены: down/repeat/up, aggregate refcount двух источников, отключение с единственным release, neutral rearm удержанных при старте клавиш, фильтрация media emission, запуск и остановка настоящего message loop через process lifecycle. Разрыв очереди и keyboard overrun завершают runtime с fault, не оставляют частично достоверный поток. Физический pass-through и reconnect двух клавиатур остаются в ручной матрице.
+
 - `input-observe` создаёт message-only window и регистрирует keyboard TLC с `RIDEV_INPUTSINK | RIDEV_DEVNOTIFY`, без `RIDEV_NOLEGACY`.
 - Message thread считывает `WM_INPUT`/device change и передаёт bounded raw record normalizer-у. Никакой plugin IPC/automation work внутри window proc.
 - Normalizer выдаёт pressed/released/repeat с scan-code semantics и отдельным logical display label. Layout-dependent text не подменяет physical key identity.

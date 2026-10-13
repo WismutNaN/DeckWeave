@@ -78,11 +78,17 @@ fn stage(root: &Path) -> Result<IndexedPackage, Box<dyn Error>> {
         manifest["artifacts"][index]["sha256"] = Value::String(digest(&bytes));
     }
     let control_hash = manifest["artifacts"][0]["sha256"].clone();
+    let input_hash = manifest["artifacts"][1]["sha256"].clone();
     for endpoint in manifest["org.deckweave.automationCatalog"]["endpoints"]
         .as_array_mut()
         .ok_or("catalog endpoints are not an array")?
     {
-        endpoint["runtimeRequirement"]["artifactSha256"] = control_hash.clone();
+        endpoint["runtimeRequirement"]["artifactSha256"] =
+            if endpoint["runtimeRequirement"]["runtimeGroupId"] == "input-observe" {
+                input_hash.clone()
+            } else {
+                control_hash.clone()
+            };
     }
     let schemas = manifest["schemas"]
         .as_array_mut()
@@ -112,7 +118,7 @@ fn support() -> HostProtocolSupport {
         ]),
         schemas: BTreeMap::new(),
         limits: ProtocolLimits {
-            maximum_message_bytes: 64 * 1024,
+            maximum_message_bytes: 256 * 1024,
             maximum_chunk_bytes: 64 * 1024,
             maximum_concurrent_jobs: 8,
             maximum_artifact_bytes: 1024 * 1024,
@@ -447,6 +453,13 @@ fn package_indexes_two_permission_scoped_runtime_groups() -> Result<(), Box<dyn 
     assert!(!by_group["control"].contains("input.observe"));
     let mut index = PackageIndex::default();
     index.insert(package);
+    let editor = index.editor_packages()?;
+    assert_eq!(
+        editor.len(),
+        1,
+        "runtime artifacts must not duplicate library entries"
+    );
+    assert_eq!(editor[0].templates[0].devices.len(), 1);
     let catalog = index.descriptor_catalog()?;
     assert_eq!(
         catalog

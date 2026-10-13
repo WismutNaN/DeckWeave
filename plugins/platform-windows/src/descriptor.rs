@@ -8,7 +8,23 @@ const INPUT_DESCRIPTOR: &[u8] = include_bytes!("../assets/input-observe-descript
 
 pub(crate) fn runtime_descriptor(group: RuntimeGroup) -> Result<Vec<u8>, Box<dyn Error>> {
     if group == RuntimeGroup::InputObserve {
-        return Ok(INPUT_DESCRIPTOR.to_vec());
+        let mut descriptor: Value = serde_json::from_slice(INPUT_DESCRIPTOR)?;
+        if !cfg!(windows) {
+            for element in descriptor[0]["devices"][0]["elements"]
+                .as_array_mut()
+                .ok_or("keyboard elements")?
+            {
+                for capability in element["capabilities"]
+                    .as_array_mut()
+                    .ok_or("keyboard capabilities")?
+                {
+                    for port in capability["ports"].as_array_mut().ok_or("keyboard ports")? {
+                        port["availability"] = json!({"status":"unavailable","reason":"org.deckweave.windows.unsupported_operating_system"});
+                    }
+                }
+            }
+        }
+        return Ok(serde_json::to_vec(&descriptor)?);
     }
     let mut descriptor: Value = serde_json::from_slice(CONTROL_DESCRIPTOR)?;
     if cfg!(windows) {

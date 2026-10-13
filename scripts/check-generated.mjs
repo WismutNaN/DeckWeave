@@ -5,6 +5,31 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { descriptors } from "../plugins/virtual-device/metadata.mjs";
+import {
+  keyboardDescriptor,
+  addKeyboardCatalog,
+} from "../plugins/platform-windows/keyboard-metadata.mjs";
+const keyboardRoot = "plugins/platform-windows/";
+const windowsManifest = JSON.parse(
+  fs.readFileSync(
+    keyboardRoot + "package/deckweave-plugin.template.json",
+    "utf8",
+  ),
+);
+const updatedManifest = structuredClone(windowsManifest);
+addKeyboardCatalog(updatedManifest);
+if (
+  JSON.stringify(updatedManifest) !== JSON.stringify(windowsManifest) ||
+  JSON.stringify(
+    JSON.parse(
+      fs.readFileSync(
+        keyboardRoot + "assets/input-observe-descriptors.json",
+        "utf8",
+      ),
+    ),
+  ) !== JSON.stringify(keyboardDescriptor)
+)
+  throw new Error("Windows keyboard metadata is stale");
 const root = process.cwd();
 if (
   JSON.stringify(
