@@ -363,10 +363,6 @@
   lang={session.lang}
   onclose={() => (permissions = false)}
   onchanged={() => {
-    session.notice = t(
-      "Разрешения сохранены. Примените действия заново.",
-      "Permissions saved. Apply your actions again.",
-    );
-    void session.run(() => session.refresh());
+    void session.liveEditing.permissionsChanged();
   }}
 />

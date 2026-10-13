@@ -302,3 +302,63 @@ test("failed recovery storage prevents dispatch and does not silently retry", as
   assert.match(s.error, /disk full/);
   assert.equal(s.liveStatus, "error");
 });
+
+test("permission changes replan an unchanged document in live mode but respect pause", async (t) => {
+  const { client, calls } = record();
+  const s = await editor(client);
+  t.after(() => s.liveEditing.dispose());
+  assert.equal(s.dirty, false);
+  await s.liveEditing.permissionsChanged();
+  await s.liveEditing.flush();
+  assert.deepEqual(
+    calls.map((c) => c.command.type),
+    ["apply_draft"],
+  );
+  s.liveEditing.pause();
+  await s.liveEditing.permissionsChanged();
+  await s.liveEditing.flush();
+  assert.equal(calls.length, 1);
+  s.liveEditing.resume();
+  await s.liveEditing.flush();
+  assert.equal(calls.length, 2);
+});
+
+test("a permission change waits for an in-flight apply and never repeats an uncertain mutation", async (t) => {
+  for (const uncertain of [false, true]) {
+    const base = previewClient(),
+      entered = latch(),
+      released = latch();
+    let first = true;
+    const { client, calls } = record({
+      ...base,
+      async command<T>(e) {
+        const result = await base.command<T>(e);
+        if (first && e.command.type === "apply_draft") {
+          first = false;
+          entered.release();
+          await released.promise;
+          if (uncertain) throw new Error("reply lost");
+        }
+        return result;
+      },
+    });
+    const s = await editor(client);
+    t.after(() => s.liveEditing.dispose());
+    s.updateDevice((d) => (d.x = 12));
+    const applying = s.liveEditing.flush();
+    await entered.promise;
+    const changed = s.liveEditing.permissionsChanged();
+    released.release();
+    await Promise.all([applying, changed]);
+    await s.liveEditing.flush();
+    assert.equal(
+      calls.filter((c) => c.command.type === "apply_draft").length,
+      uncertain ? 1 : 2,
+    );
+    assert.equal(Boolean(s.pending), uncertain);
+    if (uncertain) {
+      assert.equal(s.liveStatus, "error");
+      assert.match(s.error, /reply lost/);
+    }
+  }
+});

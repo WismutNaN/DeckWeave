@@ -161,7 +161,7 @@ Pixel-accurate hardware preview и произвольная widget composition �
 
 - [x] Настройки → «Разрешения плагинов»: явная выдача и отзыв доступа, RU/EN объяснения и область каждого разрешения. Установка и импорт не выдают доступ автоматически.
 - [x] Выбор хранится атомарно в `host/permissions.json` и привязан к package ID, SHA-256 manifest и индексу permission. Несовпавший manifest не наследует разрешения. Восстановление grants предшествует Apply recovery.
-- [x] CAS-конфликт не повторяет устаревший выбор автоматически; UI перечитывает актуальные разрешения. Повреждённое хранилище закрывает доступ, сохраняя возможность открыть редактор.
+- [x] CAS-конфликт не повторяет устаревший выбор автоматически; UI перечитывает актуальные разрешения. После успешной смены grants live mode заново планирует текущие назначения даже без изменения документа; pause остаётся pause. Идущий Apply сначала завершается, неопределённый pending request не повторяется и его ошибка не скрывается. Повреждённое хранилище закрывает доступ, сохраняя возможность открыть редактор.
 - [x] Host process broker подключён в desktop composition; grants revalidation остаётся в production supervisor.
 - [x] Тесты: первоначальный отказ, выдача, повтор запроса без смены grant revision, восстановление, отзыв, конфликт, смена manifest, повреждённый и чрезмерно большой файл.
 - [ ] Native UI acceptance нового диалога и запуск Windows-функций из штатного bundled package.
@@ -179,12 +179,34 @@ Out-of-context WinEvents асинхронны ([контракт Microsoft](http
 - Зафиксировать Windows 10/11 manual matrix, crash/restart/revoke, suspend/resume, default endpoint switch и foreground denial.
 - Обновить `THIRD_PARTY.md` только для реально добавленных dependencies/заимствований; source references без copied code туда не выдаются за bundled component.
 
-Автоматическая проверка `npm run test:windows-integration` собирает настоящие binaries, проверяет manifests/hashes и запускает production `PackageGraphCompiler`, Application Gateway, authorization, supervisor, scheduler и три независимых процесса. Два virtual button events читают bounded Windows catalog и передают результат в feedback; без grants план отклоняется, после revoke registry очищается, новые результаты не появляются и shutdown завершается. Тест включён в Windows CI; он не меняет громкость, фокус или системный ввод. Физические эффекты и UI этим тестом не проверяются.
+Автоматическая проверка `npm run test:windows-integration` собирает настоящие binaries, проверяет manifests/hashes и запускает production `PackageGraphCompiler`, Application Gateway, authorization, supervisor, scheduler и три независимых процесса. Два virtual button events читают bounded Windows catalog и передают результат в feedback; без grants план отклоняется, после revoke registry очищается, новые результаты не появляются и shutdown завершается. Дополнительные fixtures проверяют native audio state и foreground state → типизированный virtual feedback, включая доступное и unavailable состояние. State endpoints теперь входят и в статический compiler catalog; audio record имеет проверяемые поля вместо opaque JSON. Все три сценария включены в Windows CI; они не меняют громкость, фокус или системный ввод. Физические эффекты и UI этим тестом не проверяются.
 
-В этом сценарии устранены две межмодульные ошибки: numeric schema bounds сохраняются без изменения после JSON round-trip; grant/topology fault закрывает текущую activation до нового Apply, не отправляя повторную очистку остановленным процессам. Fault во время barrier запрещает возобновление старого плана после abort. Windows runtimes подтверждают owner cleanup с проверкой epoch; очистка launch receipt не завершает принадлежащее пользователю приложение. Проверка пяти процессов включает stale-epoch refusal и valid cleanup receipt; это не замена будущим output leases для удерживаемых клавиш.
+В этом сценарии устранены две межмодульные ошибки: numeric schema bounds сохраняются без изменения после JSON round-trip; grant/topology fault закрывает текущую activation до нового Apply, не отправляя повторную очистку остановленным процессам. Fault во время barrier запрещает возобновление старого плана после abort. Windows runtimes подтверждают owner cleanup с проверкой epoch; supervisor использует terminal result monitor-а при гонке shutdown/revoke, сохраняя настоящую ошибку stop; очистка launch receipt не завершает принадлежащее пользователю приложение. Проверка пяти процессов включает stale-epoch refusal и valid cleanup receipt; это не замена будущим output leases для удерживаемых клавиш.
 
 Gate Фазы 7 закрывается, когда volume/mute/media/window/launch и aggregate keyboard observe работают через production package lifecycle, а не через in-process shortcut. GSMTC metadata, intercept, scripts и generic held input могут остаться последующими явно отмеченными срезами и не блокируют baseline, если UI/manifest честно показывает их отсутствие.
+
+## Ручная приёмка Windows 10/11
+
+Эта матрица остаётся открытой. Заполняется отдельно для каждой ОС с build number, типом запуска, устройством/приложением, временем и результатом; автоматические fixtures не отмечают эти строки выполненными. Проверять на обычном пользовательском запуске DeckWeave, без выдачи всех прав по умолчанию.
+
+| Сценарий | Ожидаемое поведение | Windows 10 | Windows 11 |
+|---|---|---|---|
+| Virtual button → volume/mute | Действие применяется один раз, состояние подтверждается; внешнее изменение тоже отображается | [ ] | [ ] |
+| Отключить default audio endpoint, подключить другой | Unavailable/rebind виден; восстановление не повторяет команду и не переносит старое значение на новое устройство | [ ] | [ ] |
+| Отзыв audio/window grant во время работы | Новые actions не запускаются; owner cleanup и stop ограничены по времени, сохранённые назначения остаются | [ ] | [ ] |
+| Focus: обычное, свёрнутое, elevated окно | Подтверждённое переключение либо понятный отказ; новый экземпляр при отказе focus не запускается | [ ] | [ ] |
+| Смена title и закрытие окна между list и click | Title меняется без смены identity; старая ссылка после закрытия не активирует чужое окно | [ ] | [ ] |
+| Exact launch/open с Unicode, argv, cwd, file/URI | Открывается заданная цель; закрытие plugin/DeckWeave не закрывает пользовательское приложение | [ ] | [ ] |
+| Media: плеер открыт/закрыт, быстрые нажатия | Нет скрытого retry; success означает SendInput admission, а не подтверждение состояния плеера | [ ] | [ ] |
+| Клавиша в редакторе текста и virtual feedback | Обрабатывается binding, штатный ввод проходит в приложение; удержание/повтор не дублируют down/up | [ ] | [ ] |
+| Две клавиатуры, удержание одной клавиши, disconnect/reconnect | Aggregate refcount не освобождает удержание другого источника; stale input не переигрывается | [ ] | [ ] |
+| Suspend/resume и restart observer | Новый session fence, recovery без replay и без постоянно зависшего состояния | [ ] | [ ] |
+| UI grants, миграция legacy, scalar/enum/record forms | Понятны разрешения и типы; invalid values не активируются, undo и live apply сохраняют пользовательские правки | [ ] | [ ] |
+
+Составное focus-or-launch и icons ещё требуют реализации service/artifact brokers, поэтому не выдаются за доступные функции в этой матрице. Widget composition, adaptive scene modes и modifier/chord UX проверяются в своих фазах 9/11.
 
 ## Rollback
 
 Каждый срез — отдельный commit. Package artifacts и manifest добавляются вместе, но active workspace lock не обновляется автоматически. При отказе нового Windows adapter удаляется только соответствующий bundled package/version; core contracts остаются backward-compatible. Нельзя откатывать runtime crash удалением пользовательского workspace или grant store.
+
+Bundled installer использует SemVer из проверенного manifest и размещает новые версии рядом со старыми. Содержимое уже установленной версии сохраняется, включая rebuild с тем же SemVer: выпуск изменённых bytes должен иметь новую версию. Установка не меняет active/draft lock и grants. Выбор обновления существующего package ID с полным impact/rollback остаётся задачей package manager Фазы 12; перенос из legacy Windows в пять новых IDs уже доступен. Ошибка копирования/публикации очищает только собственный временный staging-каталог; повреждённый source не публикуется.

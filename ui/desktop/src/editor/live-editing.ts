@@ -29,6 +29,33 @@ export class LiveEditing {
   dispose() {
     this.pause();
   }
+  async permissionsChanged() {
+    const s = this.session;
+    s.plan = null;
+    s.review = null;
+    // Let an admitted mutation settle under its original identity before
+    // planning against the new grants. Uncertain pending work stays blocked.
+    await this.flush();
+    if (s.pending || s.conflict) {
+      s.notice = s.t(
+        "Разрешения сохранены. Сначала завершите незавершённый запрос или разрешите конфликт.",
+        "Permissions saved. Resolve the pending request or conflict first.",
+      );
+      this.changed();
+      return;
+    }
+    await s.run(() => s.refresh());
+    s.notice = s.liveEnabled
+      ? s.t(
+          "Разрешения сохранены. Проверяем назначения…",
+          "Permissions saved. Checking assignments…",
+        )
+      : s.t(
+          "Разрешения сохранены. Примените действия заново.",
+          "Permissions saved. Apply your actions again.",
+        );
+    this.changed();
+  }
   changed() {
     this.revision++;
     this.wake();
