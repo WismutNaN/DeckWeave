@@ -5,15 +5,20 @@ impl ActiveWorker {
     pub(crate) fn shutdown(mut self, timeout: Duration) -> Result<(), HostRuntimeError> {
         let (done, receiver) = mpsc::sync_channel(1);
         match self.sender.try_send(WorkerCommand::Shutdown(done)) {
-            Ok(()) => receiver
-                .recv_timeout(timeout)
-                .map_err(|error| HostRuntimeError::Shutdown(error.to_string()))??,
+            Ok(()) => match receiver.recv_timeout(timeout) {
+                Ok(result) => result?,
+                // A concurrent revoke may finish its drain before receiving this
+                // Shutdown command. The joined monitor result is authoritative;
+                // disconnect alone proves neither success nor failed release.
+                Err(mpsc::RecvTimeoutError::Disconnected) => {}
+                Err(error) => return Err(HostRuntimeError::Shutdown(error.to_string())),
+            },
             Err(mpsc::TrySendError::Disconnected(_)) => {}
             Err(error) => return Err(HostRuntimeError::Shutdown(error.to_string())),
         }
         if let Some(join) = self.join.take() {
             join.join()
-                .map_err(|_| HostRuntimeError::Shutdown("runtime monitor panicked".into()))?;
+                .map_err(|_| HostRuntimeError::Shutdown("runtime monitor panicked".into()))??;
         }
         if self
             .failed_release
@@ -102,6 +107,46 @@ pub(super) fn drain_and_stop(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn shutdown_queued_during_revoke_uses_monitor_result() -> Result<(), Box<dyn std::error::Error>>
+    {
+        for failed in [false, true] {
+            let (sender, receiver) = mpsc::sync_channel(1);
+            let join = thread::spawn(move || {
+                // Revoke has drained its snapshot of commands. A concurrent shutdown
+                // arrives while the worker is completing the already-started stop.
+                let queued = receiver
+                    .recv()
+                    .map_err(|e| HostRuntimeError::Shutdown(e.to_string()))?;
+                drop(queued); // its receipt sender closes without a reply
+                if failed {
+                    Err(HostRuntimeError::Shutdown("stop failed".into()))
+                } else {
+                    Ok(())
+                }
+            });
+            let worker = ActiveWorker {
+                failed_release: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+                sender,
+                key: WorkerKey {
+                    package_id: PackageId::try_new("org.deckweave.fixture")?,
+                    runtime_group_id: RuntimeGroupId::try_new("control")?,
+                    plugin_session_id: PluginSessionId::try_new("session")?,
+                    generation: SessionGeneration::try_new(1)?,
+                },
+                grant_revision: GrantRevision::try_new(1)?,
+                features: BTreeMap::new(),
+                join: Some(join),
+            };
+            let result = worker.shutdown(Duration::from_secs(2));
+            assert_eq!(result.is_err(), failed);
+            if let Err(error) = result {
+                assert!(error.to_string().contains("stop failed"));
+            }
+        }
+        Ok(())
+    }
 
     #[test]
     fn fault_drain_keeps_releases_after_locale_and_shutdown()

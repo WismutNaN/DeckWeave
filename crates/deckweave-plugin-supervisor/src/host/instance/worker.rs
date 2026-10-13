@@ -64,7 +64,7 @@ pub(crate) struct ActiveWorker {
     key: WorkerKey,
     grant_revision: GrantRevision,
     features: BTreeMap<String, u32>,
-    join: Option<thread::JoinHandle<()>>,
+    join: Option<thread::JoinHandle<Result<(), HostRuntimeError>>>,
 }
 
 impl ActiveWorker {
@@ -93,7 +93,7 @@ impl ActiveWorker {
                 sink,
                 health,
                 receiver,
-            );
+            )
         });
         Ok(Self {
             failed_release,
@@ -145,7 +145,7 @@ fn monitor(
     sink: Arc<dyn RuntimeEventSink>,
     health: RuntimeHealthStore,
     commands: mpsc::Receiver<WorkerCommand>,
-) {
+) -> Result<(), HostRuntimeError> {
     let mut started = false;
     loop {
         while let Ok(command) = commands.try_recv() {
@@ -172,7 +172,7 @@ fn monitor(
                                 RuntimeHealthStatus::Unavailable,
                                 Some(error.to_string()),
                             ));
-                            return;
+                            return Err(error);
                         }
                     }
                     started = true;
@@ -208,8 +208,13 @@ fn monitor(
                         &config,
                         clock,
                     );
-                    let _ignored = done.try_send(result);
-                    return;
+                    let _ignored = done.try_send(
+                        result
+                            .as_ref()
+                            .map(|_| ())
+                            .map_err(|error| HostRuntimeError::Shutdown(error.to_string())),
+                    );
+                    return result;
                 }
                 WorkerCommand::Dispatch(command) => dispatch(
                     &mut instance,
@@ -234,7 +239,9 @@ fn monitor(
             &config,
             clock,
         ) {
-            return;
+            return Err(HostRuntimeError::Shutdown(
+                "runtime transport failed".into(),
+            ));
         }
         let expired = instance
             .cleanups
@@ -297,7 +304,7 @@ fn monitor(
                         .map_err(|e| HostRuntimeError::Shutdown(e.to_string())),
                 );
             }
-            return;
+            return result;
         }
     }
 }
