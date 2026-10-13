@@ -167,7 +167,7 @@ Pixel-accurate hardware preview и произвольная widget composition �
 
 Текущая runtime group `control` требует все свои permissions, даже если используется одно действие; `input-observe` разрешается отдельно. Это ограничение объясняется в диалоге и подлежит устранению разделением plugins по ADR-0023, а не изменением одной подписи в UI.
 
-Перед итоговой приёмкой проверить также ранний запуск процесса до назначения Job Object, устойчивость WindowRef при смене заголовка/reuse HWND и восстановление audio endpoint после отказа. Эти пункты требуют анализа/проверки и пока не считаются закрытыми.
+Ранний запуск plugin до назначения Job Object исправлен: процесс создаётся suspended, основной thread возобновляется только после назначения cleanup job; ошибка назначения/возобновления завершает процесс. Native test подтверждает отсутствие исполнения до attach и остановку после освобождения job, supervisor tests — cleanup descendants. Перед итоговой приёмкой остаются устойчивость WindowRef при смене заголовка/reuse HWND и восстановление audio endpoint после отказа.
 
 - Установить package как bundled immutable artifact с проверяемым manifest/hash, без install script.
 - Подключить lazy leases: неиспользуемая runtime group не запускается и не занимает постоянную память.

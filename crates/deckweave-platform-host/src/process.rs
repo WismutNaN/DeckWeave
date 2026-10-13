@@ -51,7 +51,10 @@ impl ChildProcessPolicy for NativeChildProcessPolicy {
     fn configure(&self, command: &mut Command) -> Result<(), PlatformError> {
         #[cfg(windows)]
         {
-            let _ = command;
+            use std::os::windows::process::CommandExt;
+            use windows_sys::Win32::System::Threading::{CREATE_NO_WINDOW, CREATE_SUSPENDED};
+            // No plugin instruction runs before its process belongs to the cleanup job.
+            command.creation_flags(CREATE_SUSPENDED | CREATE_NO_WINDOW);
             Ok(())
         }
         #[cfg(not(windows))]
