@@ -67,6 +67,9 @@ mod live_revisions;
 mod m1_fixture;
 #[path = "support/production_apply_crash.rs"]
 mod production_apply_crash;
+#[cfg(windows)]
+#[path = "support/windows_e2e.rs"]
+mod windows_e2e;
 
 struct Status(PathBuf);
 

@@ -399,11 +399,23 @@ fn descriptors(contribution: &str) -> Result<Vec<u8>, Box<dyn Error>> {
             "value",
             "ValueIn",
             "value",
-            "org.deckweave.schema.text",
+            &feedback_schema()?,
         )],
         _ => return Ok(format!("[{DESCRIPTOR}]").into_bytes()),
     };
     Ok(serde_json::to_vec(&descriptors)?)
+}
+
+fn feedback_schema() -> Result<String, Box<dyn Error>> {
+    let path = std::env::current_exe()?.with_file_name("feedback-schema");
+    if !path.exists() {
+        return Ok("org.deckweave.schema.text".into());
+    }
+    let bytes = std::fs::read(path)?;
+    if bytes.len() > 256 {
+        return Err("fixture schema limit".into());
+    }
+    Ok(String::from_utf8(bytes)?)
 }
 
 fn m1_source_descriptor() -> serde_json::Value {

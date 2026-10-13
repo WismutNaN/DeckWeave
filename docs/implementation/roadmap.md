@@ -427,10 +427,10 @@ B2 добавил checkpoint/compaction, автоматический maintenanc
 **Цель:** обеспечить полезные системные actions/states без N4-specific logic.
 **Результат:** virtual controls меняют volume/mute/media и active window; штатная клавиатура создаёт triggers через bundled observe/pass-through provider.
 **Трудоёмкость:** M
-**Статус:** [~] Реализованы Core Audio, windows, media, aggregate keyboard observe, Host launch/open broker и desktop grants. Bundling, icon query, production E2E и ручная матрица ещё открыты. После уточнения UX добавлены migration к самостоятельным plugins и live editing (→ [ADR-0022](../decisions/0022-live-editing-and-interaction.md), [ADR-0023](../decisions/0023-composable-windows-plugins.md)).
+**Статус:** [~] Реализованы Core Audio, windows, media, aggregate keyboard observe, Host launch/open broker и desktop grants. Пять самостоятельных packages, bundling, перенос назначений, live editing и headless Windows E2E готовы. Live service broker, focus-or-launch, icon query и ручная матрица остаются открыты. После уточнения UX добавлены migration к самостоятельным plugins и live editing (→ [ADR-0022](../decisions/0022-live-editing-and-interaction.md), [ADR-0023](../decisions/0023-composable-windows-plugins.md)).
 
 ### Контекст для агента
-> Native plugin lifecycle и UI binding готовы. Текущая Windows реализация объединена в package с двумя groups; целевой состав — набор самостоятельных first-party plugins с общими service contracts.
+> Native plugin lifecycle и UI binding готовы. Windows реализация разделена на пять самостоятельных first-party plugins. Legacy package сохраняется для pinned workspaces; первый production consumer общего service contract ещё требует broker.
 
 ### Задачи
 
@@ -439,20 +439,22 @@ B2 добавил checkpoint/compaction, автоматический maintenanc
 - [x] Реализовать Core Audio application/worker/FFI path, bounded callbacks, confirmed state и четыре catalog actions; ручную Windows 10/11 матрицу хранить открытой до отдельного evidence (→ [7.2](phase-7-windows.md#72--core-audio-vertical-slice)).
 - [x] Реализовать 7.3A: bounded foreground hook, active-window state, каталог с ephemeral refs, persistent executable selector и подтверждаемую активацию (→ [7.3](phase-7-windows.md#73--active-window-catalog-focus-и-launch)).
 - [x] Добавить Host process/Shell broker без `BREAKAWAY_OK`, затем включить exact launch/open endpoints (→ [ADR-0021](../decisions/0021-brokered-user-process-launch.md)).
-- [ ] Разделить самостоятельные Windows plugins, мигрировать references без автоматической выдачи новых grants и проверить reusable services (→ [ADR-0023](../decisions/0023-composable-windows-plugins.md)).
-- [ ] Включить live editing через существующий atomic apply: invalid draft, coalescing, undo, no startup-trigger replay и отсутствие provider restart на layout-only edit (→ [ADR-0022](../decisions/0022-live-editing-and-interaction.md)).
+- [x] Разделить самостоятельные Windows plugins и мигрировать совместимые references без автоматической выдачи новых grants (→ [ADR-0023](../decisions/0023-composable-windows-plugins.md)).
+- [ ] Подключить production service broker и reusable Windows service: два consumers, независимая отмена, restart/revoke и действие «перейти или запустить» (→ [ADR-0023](../decisions/0023-composable-windows-plugins.md)).
+- [x] Включить live editing через существующий atomic apply: invalid draft, coalescing, undo, no startup-trigger replay и отсутствие provider restart на layout-only edit (→ [ADR-0022](../decisions/0022-live-editing-and-interaction.md)).
 - [ ] Реализовать Windows ActionProvider: volume/mute/media/app launch/focus (→ [Модуль: Platform Adapters](../architecture/modules/platform-adapters.md)).
-- [ ] Реализовать StateProvider active application/window и audio endpoint state (→ [Capabilities — State](../contracts/capabilities.md#state)).
+- [x] Реализовать StateProvider active application/window и audio endpoint state (→ [Capabilities — State](../contracts/capabilities.md#state)).
 - [ ] Разделить platform contributions и scopes для window catalog/icons/activate, input emission и scripts; новые metrics/HTTP providers оценивать отдельными срезами после базового Windows path, не включать все integrations в один package (→ [platform catalog](../plugins/platform.md), [композиция](../contracts/plugin-composition.md)).
-- [ ] Реализовать bundled Platform Input keyboard source с безопасным observe/pass-through default (→ [Модуль: Platform Input](../architecture/modules/platform-input.md), [ADR-0017](../decisions/0017-bundled-platform-input.md)).
-- [ ] Объявлять `physical_device` только при подтверждённой identity, иначе `system_aggregate`; intercept/emit не включать вместе с observe неявно (→ [Capabilities](../contracts/capabilities.md#системная-клавиатура-и-granularity)).
-- [ ] Добавить permission descriptors и unavailable reasons (→ [Безопасность — Permission model](../contracts/security.md#permission-model)).
+- [x] Реализовать bundled Platform Input keyboard source с безопасным observe/pass-through default (→ [Модуль: Platform Input](../architecture/modules/platform-input.md), [ADR-0017](../decisions/0017-bundled-platform-input.md)).
+- [x] Объявлять `physical_device` только при подтверждённой identity, иначе `system_aggregate`; intercept/emit не включать вместе с observe неявно (→ [Capabilities](../contracts/capabilities.md#системная-клавиатура-и-granularity)).
+- [x] Добавить permission descriptors и unavailable reasons (→ [Безопасность — Permission model](../contracts/security.md#permission-model)).
 - [ ] Добавить origin handling для emitted media/input commands (→ [Модуль: Automation Engine](../architecture/modules/automation-engine.md)).
 - [ ] До первого held input emission реализовать host-owned output lease: owner/refcount, expiry, revoke и crash recovery; два owners одной клавиши и неподтверждённый OS release получают отдельные tests. Cleanup ACK control plugin не доказывает освобождение физического output (→ [pre-6 limits](pre-phase-6.md#границы-готовности-и-следующие-обязательства)).
 
 ### Тесты
 
-- [ ] Unit: OS result → domain outcome mapping.
+- [x] Unit: OS result → domain outcome mapping; uncertainty, audio rebind, window lifetime и cleanup fencing.
+- [x] Headless Windows integration: virtual signal → реальный window plugin → typed feedback; отказ без grants, revoke и штатный shutdown (`npm run test:windows-integration`).
 - [ ] Integration: volume/mute state round-trip на Windows 10/11 CI/manual matrix.
 - [ ] Manual: active-window condition переключает virtual feedback.
 - [ ] Scenario: штатная клавиша вызывает virtual action и продолжает обычное действие ОС; reconnect/повтор не создаёт duplicate edge.

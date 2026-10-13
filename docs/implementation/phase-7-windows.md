@@ -4,17 +4,17 @@
 
 ## Состояние
 
-Фаза в работе. Реализованы Core Audio, active-window state/catalog/focus, media transport и aggregate keyboard observe. Exact launch/open подключаются через Host broker по [ADR-0021](../decisions/0021-brokered-user-process-launch.md); без negotiated broker feature эти endpoints остаются `unavailable`. Готово явное управление разрешениями в desktop. Пять самостоятельных Windows packages включены в стандартную Windows-сборку; legacy package сохранён для pinned workspaces. Live editing включён в desktop; layout-only revisions сохраняют работающий execution. Migration UI, icon query, production Windows composition E2E и ручная Windows 10/11 матрица ещё не закрыты. Автоматические проверки отдельных срезов не заменяют эту приёмку.
+Фаза в работе. Реализованы Core Audio, active-window state/catalog/focus, media transport и aggregate keyboard observe. Exact launch/open подключаются через Host broker по [ADR-0021](../decisions/0021-brokered-user-process-launch.md); без negotiated broker feature эти endpoints остаются `unavailable`. Готово явное управление разрешениями в desktop. Пять самостоятельных Windows packages включены в стандартную Windows-сборку; legacy package сохранён для pinned workspaces. Live editing включён в desktop; layout-only revisions сохраняют работающий execution. Явный перенос назначений между совместимыми пакетами и headless production E2E готовы. Live service broker, составное focus-or-launch, icon query и ручная Windows 10/11 матрица ещё не закрыты. Автоматические проверки отдельных срезов не заменяют эту приёмку.
 
 Phase 6 закрыта. Phase 7 использует существующий production composition и добавляет capabilities через общий package/runtime contract, без обхода Application Gateway или plugin lifecycle.
 
 ## Принятые границы
 
-Ниже описан существующий срез ADR-0020. Пользовательское уточнение 2026-10-13 изменяет целевую упаковку: [ADR-0023](../decisions/0023-composable-windows-plugins.md) требует самостоятельные Audio, Media, Windows, Applications и Keyboard plugins. Объединённая `control` group сохраняется лишь до явной миграции. Правила UI и взаимодействия уточнены [ADR-0022](../decisions/0022-live-editing-and-interaction.md); они не считаются реализованными по факту обновления документации.
+[ADR-0023](../decisions/0023-composable-windows-plugins.md) реализован в упаковке и явном переносе назначений. Правила UI и взаимодействия уточнены [ADR-0022](../decisions/0022-live-editing-and-interaction.md).
 
-- Package ID: `org.deckweave.platform.windows`.
-- Runtime group `control`: audio, media, active-window/catalog/focus, exact process launch и file/URI activation.
-- Runtime group `input-observe`: Raw Input keyboard source. Отдельный process нужен не «на каждую функцию», а для независимых permissions, message-loop lifetime и отказов.
+- Пять package IDs: `org.deckweave.platform.windows.{audio,media,window,applications,keyboard}`; каждый имеет собственные grants и process lifetime.
+- Запускаются только runtime groups, необходимые активному графу. Общий код adapters переиспользуется без запуска соседних plugins.
+- Legacy `org.deckweave.platform.windows` с groups `control` и `input-observe` сохраняется для старых locks; переход выполняется явно через Settings. Разрешения новым IDs выдаются отдельно.
 - `input.intercept`, generic `input.emit` и scripts не входят в эти groups. Их появление потребует отдельного grant/runtime group и acceptance gate.
 - Windows-specific DTO остаются внутри package. Статический manifest публикует только namespaced JSON schemas и общие endpoint descriptors.
 - Начальный keyboard descriptor — `system_aggregate`, `canObserve=true`, `canIntercept=false`. Observe policy всегда `passThrough=true`, `failOpen=true`.
@@ -82,7 +82,7 @@ Acceptance:
 
 ## 7.3 — Active window, catalog, focus и launch
 
-**Статус:** [~] Window state/catalog/focus и brokered launch/open реализованы. Проверена передача Unicode/argv/cwd в настоящий дочерний процесс; production E2E, manual focus/elevated matrix и icons остаются открыты.
+**Статус:** [~] Window state/catalog/focus и brokered launch/open реализованы. Проверена передача Unicode/argv/cwd в настоящий дочерний процесс; headless production E2E чтения каталога готов; manual focus/elevated matrix, составное focus-or-launch и icons остаются открыты.
 
 - [x] Dedicated message thread устанавливает out-of-context foreground hook; callback только coalesces событие в bounded channel, Win32 metadata читает worker.
 - [x] Worker строит `ActiveWindowState`: session-scoped hashed WindowRef, PID/session/process-start evidence, executable selector, bounded title metadata и freshness. Raw HWND не проходит wire/profile boundary.
@@ -153,7 +153,7 @@ Acceptance:
 2. Добавить готовое действие «перейти в приложение или запустить», построенное из window service и launch broker. Найденное окно с отказом focus не считается отсутствующим приложением. Existing exact launch остаётся доступен напрямую.
 3. **Выполнено:** coordinator live editing над durable draft/apply: validation, coalescing, защита от stale plan/ответа, видимый pending/failure. Layout-only edit сохраняет execution epoch, процессы, runs и deadlines; изменение executable graph проходит прежний cutover. Instances с credentials требуют cutover до появления versioned credential evidence. Редактирование не вызывает action.
 4. **Выполнено для текущего editor:** обязательный ручной Apply убран; пауза возвращает review. Проверены invalid input, задержанные save/plan/apply, undo, потерянный ответ, durable journal failure, held runs и grant changes. Native WebView подтверждает live revision без рестарта и action replay, последующий virtual click и 4096-element draft. Физический held-key/reconnect остаётся частью ручной Windows matrix. Failure action показывает краткое уведомление без автоматического retry; не путать с recovery того же API command.
-5. Поставить нужные plugins bundled, закрыть icon query и production E2E, зафиксировать оставшуюся ручную матрицу.
+5. **Bundling и headless E2E выполнены:** virtual signal → настоящий Windows window process → типизированный result/state → virtual feedback. Icon query и ручная матрица остаются открыты.
 
 Pixel-accurate hardware preview и произвольная widget composition реализуются в Surface-срезе Фазы 9. Полная modifier/chord-модель, adaptive scene switch и сложные layers — в Фазе 11. Их подтверждённые правила уже закреплены в UX/Presentation/Automation; текущая фаза не должна зашивать обязательный ручной Apply, неизменяемую картинку готового widget или обязательный монолитный Windows plugin.
 
@@ -178,6 +178,10 @@ Out-of-context WinEvents асинхронны ([контракт Microsoft](http
 - Выполнить end-to-end: virtual/keyboard signal → compiled automation → Windows action → callback state → feedback.
 - Зафиксировать Windows 10/11 manual matrix, crash/restart/revoke, suspend/resume, default endpoint switch и foreground denial.
 - Обновить `THIRD_PARTY.md` только для реально добавленных dependencies/заимствований; source references без copied code туда не выдаются за bundled component.
+
+Автоматическая проверка `npm run test:windows-integration` собирает настоящие binaries, проверяет manifests/hashes и запускает production `PackageGraphCompiler`, Application Gateway, authorization, supervisor, scheduler и три независимых процесса. Два virtual button events читают bounded Windows catalog и передают результат в feedback; без grants план отклоняется, после revoke registry очищается, новые результаты не появляются и shutdown завершается. Тест включён в Windows CI; он не меняет громкость, фокус или системный ввод. Физические эффекты и UI этим тестом не проверяются.
+
+В этом сценарии устранены две межмодульные ошибки: numeric schema bounds сохраняются без изменения после JSON round-trip; grant/topology fault закрывает текущую activation до нового Apply, не отправляя повторную очистку остановленным процессам. Fault во время barrier запрещает возобновление старого плана после abort. Windows runtimes подтверждают owner cleanup с проверкой epoch; очистка launch receipt не завершает принадлежащее пользователю приложение. Проверка пяти процессов включает stale-epoch refusal и valid cleanup receipt; это не замена будущим output leases для удерживаемых клавиш.
 
 Gate Фазы 7 закрывается, когда volume/mute/media/window/launch и aggregate keyboard observe работают через production package lifecycle, а не через in-process shortcut. GSMTC metadata, intercept, scripts и generic held input могут остаться последующими явно отмеченными срезами и не блокируют baseline, если UI/manifest честно показывает их отсутствие.
 
