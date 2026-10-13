@@ -1,6 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use super::*;
 impl ProductionRuntimeCoordinator {
+    pub fn with_user_process_launcher(
+        mut self,
+        launcher: Arc<dyn deckweave_platform::UserProcessLauncher>,
+    ) -> Self {
+        self.config.user_process_launcher = Some(launcher);
+        self.config
+            .protocol_support
+            .features
+            .insert(deckweave_protocol::FEATURE_HOST_PROCESS_BROKER.into(), 1);
+        self
+    }
     pub fn with_credential_broker(
         mut self,
         broker: Arc<dyn deckweave_application::CredentialBroker>,

@@ -83,6 +83,12 @@ fn hello(
     }];
     if group == RuntimeGroup::Control {
         features.push(FeatureRequirement {
+            id: deckweave_protocol::FEATURE_HOST_PROCESS_BROKER.into(),
+            minimum_version: 1,
+            maximum_version: 1,
+            required: false,
+        });
+        features.push(FeatureRequirement {
             id: FEATURE_INVOCATION_ENDPOINT_PATH.into(),
             minimum_version: 1,
             maximum_version: 1,
@@ -140,7 +146,9 @@ fn serve(
     let mut last_message = 0;
     let mut heartbeat = None;
     let mut input = None;
+    let mut broker = crate::process_broker::Broker::default();
     loop {
+        broker.expire(wire)?;
         if wire.failed() {
             return Err("runtime adapter or transport fault".into());
         }
@@ -156,6 +164,9 @@ fn serve(
         last_message = envelope.message_id;
         match envelope.body {
             Some(protocol_envelope::Body::HelloAck(ack)) => {
+                broker.enabled = ack.features.iter().any(|f| {
+                    f.id == deckweave_protocol::FEATURE_HOST_PROCESS_BROKER && f.version == 1
+                });
                 if acknowledged {
                     return Err("duplicate HelloAck".into());
                 }
@@ -187,7 +198,7 @@ fn serve(
                             major: 1,
                             minor: 0,
                         }),
-                        value: runtime_descriptor(expected_group)?,
+                        value: runtime_descriptor(expected_group, broker.enabled)?,
                     }),
                 }))?;
                 wire.send(protocol_envelope::Body::Heartbeat(Heartbeat {
@@ -225,8 +236,11 @@ fn serve(
                     }))?;
                     continue;
                 }
-                invoke(wire, audio.as_ref(), window.as_ref(), request)?;
+                if !broker.invoke(wire, &request)? {
+                    invoke(wire, audio.as_ref(), window.as_ref(), request)?;
+                }
             }
+            Some(protocol_envelope::Body::HostProcessReply(reply)) => broker.reply(wire, reply)?,
             Some(protocol_envelope::Body::Deactivate(_)) => return Ok(()),
             _ => {}
         }

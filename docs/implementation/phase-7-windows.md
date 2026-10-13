@@ -86,15 +86,15 @@ Acceptance:
 - [x] Bounded catalog различает app identity и конкретные windows, возвращает generation/revision и страницы до 10 из максимум 256 окон, поэтому укладывается в negotiated message limit. Недоступный/elevated executable остаётся `null`, но окно не исчезает из списка.
 - [x] `activate_window` повторно перечисляет окна, проверяет generation/ref и фактический foreground. `focus_application` использует переносимый executable + optional title selector. Foreground denial является typed terminal failure, не success.
 - [ ] Добавить paged/icon query; icon loading остаётся bounded optional cache и не задерживает foreground callback.
-- [ ] Реализовать Host broker из [ADR-0021](../decisions/0021-brokered-user-process-launch.md), затем включить `launch_process` с exact executable + argv + cwd policy.
-- [ ] Реализовать отдельный `open_target` на STA Shell adapter через тот же broker lifecycle. Готовность окна остаётся отдельным predicate, не частью launch receipt.
+- [x] Реализовать Host broker из [ADR-0021](../decisions/0021-brokered-user-process-launch.md), затем включить `launch_process` с exact executable + argv + cwd policy.
+- [x] Реализовать отдельный `open_target` на STA Shell adapter через тот же broker lifecycle. Готовность окна остаётся отдельным predicate, не частью launch receipt.
 
 Acceptance:
 
 - [x] unit: два окна одного executable, close/reuse invalidates old ref, missing executable evidence и activation denial;
 - [x] production process: committed runtime публикует active-window state и возвращает schema-validated window catalog без focus side effect;
 - [ ] manual: close между list/click, реальный handle reuse, elevated target, empty title, external foreground switch и focus denial;
-- [ ] broker: Unicode executable/argv/cwd и пробелы никогда не проходят через shell concatenation;
+- [x] broker: Unicode executable/argv/cwd и пробелы никогда не проходят через shell concatenation;
 - [~] app/window state идёт через существующий automation signal path; virtual feedback E2E остаётся в production composition 7.6.
 
 ## 7.4 — Media transport и origin

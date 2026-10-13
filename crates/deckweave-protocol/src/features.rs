@@ -7,3 +7,4 @@ pub const FEATURE_FRAME_ENDPOINT_PATH: &str = "org.deckweave.frame.endpoint_path
 pub const FEATURE_CONFIGURED_INSTANCES: &str = "org.deckweave.configured_instances";
 pub const FEATURE_CONFIGURED_DISPATCH: &str = "org.deckweave.configured_dispatch";
 pub const FEATURE_ACTIVATION_COMMIT: &str = "org.deckweave.activation_commit";
+pub const FEATURE_HOST_PROCESS_BROKER: &str = "org.deckweave.host_process_broker";

@@ -14,6 +14,7 @@ use thiserror::Error;
 
 #[derive(Debug, Clone)]
 pub struct HostRuntimeConfig {
+    pub user_process_launcher: Option<std::sync::Arc<dyn deckweave_platform::UserProcessLauncher>>,
     pub locale: deckweave_domain::localization::LocaleContext,
     pub process: crate::process::ProcessConfig,
     pub restart_policy: crate::supervisor::RestartPolicy,
@@ -27,6 +28,7 @@ pub struct HostRuntimeConfig {
 impl Default for HostRuntimeConfig {
     fn default() -> Self {
         Self {
+            user_process_launcher: None,
             locale: Default::default(),
             process: crate::process::ProcessConfig::default(),
             restart_policy: crate::supervisor::RestartPolicy::default(),

@@ -8,7 +8,12 @@ use std::{
 };
 use thiserror::Error;
 mod preferences;
+mod user_process;
 pub use preferences::{LocalePreferenceStore, PreferenceError};
+pub use user_process::{
+    ExactLaunch, ShellTarget, UserProcessFailure, UserProcessLauncher, UserProcessReceipt,
+    UserProcessRequest,
+};
 
 #[derive(Debug, Error)]
 pub enum PlatformError {

@@ -316,5 +316,29 @@ message ProtocolEnvelope {
     OwnerCleanupReceipt owner_cleanup_receipt = 29;
     LocaleContext locale_context = 30;
     ActivationCommitted activation_committed = 31;
+    HostProcessRequest host_process_request = 32;
+    HostProcessReply host_process_reply = 33;
+  }
+}
+
+// Optional host_process_broker feature. The caller is the authenticated runtime;
+// the host admits one effect only for an identical, still-pending host invocation.
+message HostProcessRequest {
+  string invocation_id = 1;
+  uint64 activation_epoch = 2;
+  string operation_id = 3;
+  OpaquePayload input = 4;
+}
+
+message UserProcessReceipt {
+  optional uint32 process_id = 1;
+}
+
+message HostProcessReply {
+  string invocation_id = 1;
+  oneof result {
+    UserProcessReceipt succeeded = 2;
+    StructuredError rejected = 3;
+    StructuredError unknown_outcome = 4;
   }
 }

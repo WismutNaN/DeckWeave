@@ -35,6 +35,7 @@ pub(super) fn drain_and_stop(
     config: &HostRuntimeConfig,
     clock: Instant,
 ) -> Result<(), HostRuntimeError> {
+    instance.broker_tickets.revoke_all();
     let deadline = Instant::now() + config.stop_timeout;
     while !instance.cleanups.is_empty() && Instant::now() < deadline {
         if receive(&mut instance, registry, epoch, sink, health, config, clock) {

@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use super::*;
 impl RuntimeController {
+    pub(crate) fn granted_request(&self, scope: &str) -> Option<&PermissionRequest> {
+        self.grants
+            .iter()
+            .map(|grant| &grant.request)
+            .find(|request| request.scope.as_str() == scope)
+    }
     pub fn accept_envelope(
         &mut self,
         envelope: &ProtocolEnvelope,

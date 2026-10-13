@@ -32,3 +32,11 @@ Broker является узким Host Platform Service, а не вторым a
 
 Связанные документы: [Фаза 7](../implementation/phase-7-windows.md), [границы Host services](0013-dependency-and-host-service-boundaries.md), [Windows runtime groups](0020-windows-provider-runtime-groups.md).
 
+
+## Реализация и границы baseline
+
+Feature `org.deckweave.host_process_broker` v1 согласуется отдельно. `HostProcessRequest` привязан к invocation ID, epoch, operation/schema и точному input ранее отправленной Host команды. Одноразовый ticket расходуется до OS effect; повтор, изменение аргументов, cancel, shutdown, неизвестный invocation и истёкший deadline не допускаются. Перед effect Host повторно проверяет актуальный grant и resource mode.
+
+`UserProcessLauncher` — порт Host Platform; native adapter использует отдельную bounded очередь (16), постоянный STA apartment с message pump и абсолютный `.exe` + argv + optional cwd. Параметры не склеиваются в shell source; batch-файлы и PATH lookup не принимаются. Open baseline допускает абсолютный путь и URI схем `http`, `https`, `mailto`; дополнительные protocol handlers требуют отдельного расширения policy. Receipt содержит nullable PID и не обещает готовности окна. Timeout после передачи worker возвращает unknown outcome; зависший Shell handler не создаёт неограниченные потоки или очередь.
+
+Автоматические проверки: native Unicode/пробелы/кавычки/пустой аргумент/cwd round-trip; expired/relative/batch отказ; одноразовый ticket, чужие operation/epoch/input. End-to-end с production coordinator и независимость запуска от остановки runtime входят в 7.6.

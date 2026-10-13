@@ -6,7 +6,10 @@ use std::error::Error;
 const CONTROL_DESCRIPTOR: &[u8] = include_bytes!("../assets/control-descriptors.json");
 const INPUT_DESCRIPTOR: &[u8] = include_bytes!("../assets/input-observe-descriptors.json");
 
-pub(crate) fn runtime_descriptor(group: RuntimeGroup) -> Result<Vec<u8>, Box<dyn Error>> {
+pub(crate) fn runtime_descriptor(
+    group: RuntimeGroup,
+    broker: bool,
+) -> Result<Vec<u8>, Box<dyn Error>> {
     if group == RuntimeGroup::InputObserve {
         let mut descriptor: Value = serde_json::from_slice(INPUT_DESCRIPTOR)?;
         if !cfg!(windows) {
@@ -28,12 +31,12 @@ pub(crate) fn runtime_descriptor(group: RuntimeGroup) -> Result<Vec<u8>, Box<dyn
     }
     let mut descriptor: Value = serde_json::from_slice(CONTROL_DESCRIPTOR)?;
     if cfg!(windows) {
-        set_platform_availability(&mut descriptor)?;
+        set_platform_availability(&mut descriptor, broker)?;
     }
     Ok(serde_json::to_vec(&descriptor)?)
 }
 
-fn set_platform_availability(descriptor: &mut Value) -> Result<(), Box<dyn Error>> {
+fn set_platform_availability(descriptor: &mut Value, broker: bool) -> Result<(), Box<dyn Error>> {
     let nodes = descriptor
         .as_array_mut()
         .ok_or("descriptor is not an array")?;
@@ -60,7 +63,11 @@ fn set_platform_availability(descriptor: &mut Value) -> Result<(), Box<dyn Error
                     .ok_or("audio capabilities are absent")?;
                 for capability in capabilities {
                     if element_id == "applications"
-                        && capability.get("capabilityId").and_then(Value::as_str) == Some("launch")
+                        && matches!(
+                            capability.get("capabilityId").and_then(Value::as_str),
+                            Some("launch" | "shell-open")
+                        )
+                        && !broker
                     {
                         continue;
                     }
@@ -85,7 +92,7 @@ mod tests {
     #[test]
     fn only_implemented_windows_ports_become_available() -> Result<(), Box<dyn Error>> {
         let descriptor: Value =
-            serde_json::from_slice(&runtime_descriptor(RuntimeGroup::Control)?)?;
+            serde_json::from_slice(&runtime_descriptor(RuntimeGroup::Control, false)?)?;
         let mut ports = Vec::new();
         for element in descriptor[0]["services"][0]["elements"]
             .as_array()

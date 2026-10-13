@@ -386,6 +386,7 @@ fn dispatch_command(
         );
     }
     let request = envelope(instance.generation, &mut instance.next_message_id, body)?;
+    instance.broker_tickets.track(command, now)?;
     instance.replies.track(command)?;
     if let Err(error) = instance.process.send(&request) {
         if let RuntimeCommand::Invoke { request, .. } = command {

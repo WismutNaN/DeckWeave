@@ -467,7 +467,7 @@ fn package_indexes_two_permission_scoped_runtime_groups() -> Result<(), Box<dyn 
             .iter()
             .filter(|endpoint| endpoint.operation.is_some())
             .count(),
-        8
+        10
     );
     Ok(())
 }
@@ -566,7 +566,7 @@ fn descriptor_paths_scope_repeated_local_port_ids() -> Result<(), Box<dyn Error>
             }
         }
     }
-    assert_eq!(repeated, 2);
+    assert_eq!(repeated, 3);
     Ok(())
 }
 

@@ -318,6 +318,24 @@
       },
       "path": "schemas/boolean.schema.json",
       "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "id": "org.deckweave.windows.shell_target",
+      "version": {
+        "major": 1,
+        "minor": 0
+      },
+      "path": "schemas/shell-target.schema.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "id": "org.deckweave.windows.launch_receipt",
+      "version": {
+        "major": 1,
+        "minor": 0
+      },
+      "path": "schemas/launch-receipt.schema.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
     }
   ],
   "org.deckweave.automationCatalog": {
@@ -630,6 +648,110 @@
               "previous",
               "stop"
             ]
+          }
+        },
+        "unit": null,
+        "range": null
+      },
+      {
+        "schema": {
+          "id": "org.deckweave.windows.app_target",
+          "version": {
+            "major": 1,
+            "minor": 0
+          }
+        },
+        "valueKind": {
+          "structured": {
+            "type": "record",
+            "fields": {
+              "executable": {
+                "schema": {
+                  "type": "string",
+                  "maximumBytes": 32768,
+                  "choices": []
+                },
+                "optional": false
+              },
+              "arguments": {
+                "schema": {
+                  "type": "array",
+                  "maximumItems": 128,
+                  "items": {
+                    "type": "string",
+                    "maximumBytes": 32768,
+                    "choices": []
+                  }
+                },
+                "optional": false
+              },
+              "workingDirectory": {
+                "schema": {
+                  "type": "nullable",
+                  "inner": {
+                    "type": "string",
+                    "maximumBytes": 32768,
+                    "choices": []
+                  }
+                },
+                "optional": true
+              }
+            }
+          }
+        },
+        "unit": null,
+        "range": null
+      },
+      {
+        "schema": {
+          "id": "org.deckweave.windows.shell_target",
+          "version": {
+            "major": 1,
+            "minor": 0
+          }
+        },
+        "valueKind": {
+          "structured": {
+            "type": "record",
+            "fields": {
+              "target": {
+                "schema": {
+                  "type": "string",
+                  "maximumBytes": 32768,
+                  "choices": []
+                },
+                "optional": false
+              }
+            }
+          }
+        },
+        "unit": null,
+        "range": null
+      },
+      {
+        "schema": {
+          "id": "org.deckweave.windows.launch_receipt",
+          "version": {
+            "major": 1,
+            "minor": 0
+          }
+        },
+        "valueKind": {
+          "structured": {
+            "type": "record",
+            "fields": {
+              "processId": {
+                "schema": {
+                  "type": "nullable",
+                  "inner": {
+                    "type": "number",
+                    "minimum": 1,
+                    "maximum": 4294967295
+                  }
+                },
+                "optional": false
+              }
+            }
           }
         },
         "unit": null,
@@ -1555,6 +1677,234 @@
             "externalRecipients": [],
             "traceAllowed": true,
             "retentionSeconds": 60
+          }
+        }
+      },
+      {
+        "endpoint": {
+          "packageId": "org.deckweave.platform.windows",
+          "nodeId": "windows-control-node",
+          "target": {
+            "kind": "service",
+            "providerId": "org.deckweave.platform.windows.control",
+            "serviceId": "windows-platform"
+          },
+          "port": {
+            "elementId": "applications",
+            "capabilityId": "launch",
+            "portId": "invoke"
+          }
+        },
+        "runtimeRequirement": {
+          "packageId": "org.deckweave.platform.windows",
+          "packageVersion": "0.1.0",
+          "artifactSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "runtimeGroupId": "control",
+          "contributionId": "windows-control"
+        },
+        "port": {
+          "portId": "invoke",
+          "kind": "CommandIn",
+          "direction": "input",
+          "semantics": "command",
+          "schema": {
+            "id": "org.deckweave.windows.app_target",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "compatibleVersions": {
+            "minimum": {
+              "major": 1,
+              "minor": 0
+            },
+            "maximum": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "requiredPermissions": [
+            "windows.process.launch"
+          ],
+          "availability": {
+            "status": "available",
+            "reason": null
+          },
+          "lifetime": "requestable",
+          "descriptorRevision": 1,
+          "tags": [
+            "windows",
+            "application",
+            "action"
+          ]
+        },
+        "operation": {
+          "operationId": "launch-process",
+          "version": 1,
+          "inputSchema": {
+            "id": "org.deckweave.windows.app_target",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "resultSchema": {
+            "id": "org.deckweave.windows.launch_receipt",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "errorSchema": {
+            "id": "org.deckweave.windows.error",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "execution": {
+            "kind": "short",
+            "progress": false,
+            "cancellation": false,
+            "reconciliation": false
+          },
+          "effects": [
+            "windows.process.launch"
+          ],
+          "limits": {
+            "deadlineMs": 5000,
+            "maximumInputBytes": 65536,
+            "maximumOutputBytes": 1024,
+            "maximumConcurrentInvocations": 4,
+            "maximumQueueDepth": 16,
+            "maximumPerMinute": 60
+          },
+          "resources": [],
+          "dataPolicy": {
+            "sensitiveFields": [
+              "/executable",
+              "/arguments",
+              "/workingDirectory",
+              "/target"
+            ],
+            "externalRecipients": [],
+            "traceAllowed": false,
+            "retentionSeconds": 0
+          }
+        }
+      },
+      {
+        "endpoint": {
+          "packageId": "org.deckweave.platform.windows",
+          "nodeId": "windows-control-node",
+          "target": {
+            "kind": "service",
+            "providerId": "org.deckweave.platform.windows.control",
+            "serviceId": "windows-platform"
+          },
+          "port": {
+            "elementId": "applications",
+            "capabilityId": "shell-open",
+            "portId": "invoke"
+          }
+        },
+        "runtimeRequirement": {
+          "packageId": "org.deckweave.platform.windows",
+          "packageVersion": "0.1.0",
+          "artifactSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "runtimeGroupId": "control",
+          "contributionId": "windows-control"
+        },
+        "port": {
+          "portId": "invoke",
+          "kind": "CommandIn",
+          "direction": "input",
+          "semantics": "command",
+          "schema": {
+            "id": "org.deckweave.windows.shell_target",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "compatibleVersions": {
+            "minimum": {
+              "major": 1,
+              "minor": 0
+            },
+            "maximum": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "requiredPermissions": [
+            "windows.shell.open"
+          ],
+          "availability": {
+            "status": "available",
+            "reason": null
+          },
+          "lifetime": "requestable",
+          "descriptorRevision": 1,
+          "tags": [
+            "windows",
+            "application",
+            "action"
+          ]
+        },
+        "operation": {
+          "operationId": "open-target",
+          "version": 1,
+          "inputSchema": {
+            "id": "org.deckweave.windows.shell_target",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "resultSchema": {
+            "id": "org.deckweave.windows.launch_receipt",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "errorSchema": {
+            "id": "org.deckweave.windows.error",
+            "version": {
+              "major": 1,
+              "minor": 0
+            }
+          },
+          "execution": {
+            "kind": "short",
+            "progress": false,
+            "cancellation": false,
+            "reconciliation": false
+          },
+          "effects": [
+            "windows.shell.open"
+          ],
+          "limits": {
+            "deadlineMs": 5000,
+            "maximumInputBytes": 65536,
+            "maximumOutputBytes": 1024,
+            "maximumConcurrentInvocations": 4,
+            "maximumQueueDepth": 16,
+            "maximumPerMinute": 60
+          },
+          "resources": [],
+          "dataPolicy": {
+            "sensitiveFields": [
+              "/executable",
+              "/arguments",
+              "/workingDirectory",
+              "/target"
+            ],
+            "externalRecipients": [],
+            "traceAllowed": false,
+            "retentionSeconds": 0
           }
         }
       },
@@ -7895,7 +8245,9 @@
         "focus-application": "Focus application",
         "activate-window": "Activate window",
         "list-windows": "List windows",
-        "media-transport": "Media transport"
+        "media-transport": "Media transport",
+        "launch-process": "Launch application",
+        "open-target": "Open file or link"
       },
       "ru": {
         "set-volume": "Задать громкость",
@@ -7905,7 +8257,9 @@
         "focus-application": "Перейти к приложению",
         "activate-window": "Активировать окно",
         "list-windows": "Список окон",
-        "media-transport": "Управление проигрывателем"
+        "media-transport": "Управление проигрывателем",
+        "launch-process": "Запустить приложение",
+        "open-target": "Открыть файл или ссылку"
       }
     }
   },

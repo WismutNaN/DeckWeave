@@ -30,6 +30,7 @@ use std::{
 
 mod activation;
 mod binding;
+mod broker;
 mod endpoints;
 mod merge;
 mod wire;
@@ -37,6 +38,7 @@ mod worker;
 pub(super) use worker::{ActiveWorker, WorkerCommand, WorkerKey};
 
 pub(super) struct RuntimeInstance {
+    broker_tickets: broker::Tickets,
     replies: wire::ReplyContracts,
     cleanups: BTreeMap<String, Instant>,
     cleanup_failed: bool,
@@ -173,6 +175,7 @@ impl RuntimeInstance {
             cleanups: BTreeMap::new(),
             cleanup_failed: false,
             failed_release: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            broker_tickets: broker::Tickets::default(),
             activation_nodes: vec![(
                 contribution.clone(),
                 configuration.map(|c| c.instance_id.clone()),

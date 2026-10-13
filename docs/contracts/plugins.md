@@ -335,3 +335,7 @@ Human message локализуется UI/package, но category и machine deta
 - custom editor с privileged Tauri bridge;
 - compatibility claim без versioned fixture;
 - автоматическое переписывание исходников legacy plugin.
+
+## Broker пользовательских процессов
+
+Опциональная feature `org.deckweave.host_process_broker` v1 добавляет `HostProcessRequest` и `HostProcessReply`. Запрос обязан точно соответствовать уже активной invocation: epoch, operation, schema, input и deadline проверяет Host. Один invocation разрешает максимум один OS effect. Reply различает receipt, rejected и unknown outcome; последний нельзя автоматически повторять. Этот broker не исполняет произвольный plugin RPC и не ослабляет isolation. Подробности и текущие ограничения: [ADR-0021](../decisions/0021-brokered-user-process-launch.md).

@@ -12,7 +12,7 @@ JavaScript-зависимостей — в [package-lock.json](package-lock.json
 | auto-launch | [auto-launch](https://github.com/zzzgydi/auto-launch) | Non-Windows adapter автозапуска; desktop acceptance этих ОС отложен |
 | directories | [directories-rs](https://github.com/dirs-dev/directories-rs) | Пользовательский каталог данных |
 | fs2 | [fs2](https://github.com/danburkert/fs2-rs) | OS-backed файловые блокировки; не PID-файлы |
-| windows, windows-core, windows-sys, windows-registry | [windows-rs](https://github.com/microsoft/windows-rs) | Core Audio COM adapter, Windows session и строго HKCU-регистрация автозапуска |
+| windows, windows-core, windows-sys, windows-registry | [windows-rs](https://github.com/microsoft/windows-rs) | Core Audio, Raw Input, media/window APIs, Host STA Shell broker, Windows session и HKCU-регистрация автозапуска |
 | serde, thiserror | [serde](https://github.com/serde-rs/serde), [thiserror](https://github.com/dtolnay/thiserror) | Application snapshot и типизированные ошибки |
 | Prost, protoc-bin-vendored | [tokio-rs/prost](https://github.com/tokio-rs/prost), [protobuf-src/protoc-bin-vendored](https://github.com/protobuf-src/protoc-bin-vendored) | Rust Protobuf types и воспроизводимый protoc для control protocol |
 | Buf CLI, Protobuf-ES | [bufbuild/buf](https://github.com/bufbuild/buf), [bufbuild/protobuf-es](https://github.com/bufbuild/protobuf-es) | Lint `.proto` и TypeScript wire types; install scripts разрешены только для закреплённых версий |

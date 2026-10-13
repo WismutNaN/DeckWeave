@@ -38,6 +38,21 @@ pub(super) fn receive(
             let Some((session, body)) = session.zip(envelope.body.as_ref()) else {
                 return false;
             };
+            if let protocol_envelope::Body::HostProcessRequest(request) = body {
+                if let Err(error) =
+                    super::super::broker::serve(instance, request, activation_epoch, config, clock)
+                {
+                    health.update(
+                        instance.health_entry(
+                            RuntimeHealthStatus::Unavailable,
+                            Some(error.to_string()),
+                        ),
+                    );
+                    topology_faults(instance, activation_epoch, sink);
+                    return true;
+                }
+                return false;
+            }
             if let protocol_envelope::Body::OwnerCleanupReceipt(receipt) = body {
                 if receipt.activation_epoch == activation_epoch.get()
                     && instance.cleanups.remove(&receipt.cleanup_id).is_some()

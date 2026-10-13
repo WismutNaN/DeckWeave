@@ -11,6 +11,7 @@ mod heartbeat;
 mod input;
 mod invocation;
 mod media;
+mod process_broker;
 mod runtime;
 mod state_gate;
 mod window;

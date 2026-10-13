@@ -9,6 +9,7 @@ publish.workspace = true
 [dependencies]
 deckweave-domain.workspace = true
 thiserror.workspace = true
+serde.workspace = true
 
 [lints]
 workspace = true
