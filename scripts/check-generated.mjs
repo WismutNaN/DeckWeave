@@ -3,6 +3,18 @@ import { spawnSync } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { packageTemplates } from "../plugins/platform-windows/package-set.mjs";
+
+for (const { name, manifest } of packageTemplates()) {
+  const actual = JSON.parse(
+    fs.readFileSync(
+      `plugins/platform-windows/package/${name}.template.json`,
+      "utf8",
+    ),
+  );
+  if (JSON.stringify(actual) !== JSON.stringify(manifest))
+    throw new Error(`Windows ${name} package template is stale`);
+}
 
 import { descriptors } from "../plugins/virtual-device/metadata.mjs";
 import {

@@ -37,3 +37,23 @@ path = "src/bin/control.rs"
 [[bin]]
 name = "deckweave-platform-windows-input-observe"
 path = "src/bin/input_observe.rs"
+
+[[bin]]
+name = "deckweave-windows-audio"
+path = "src/bin/audio.rs"
+
+[[bin]]
+name = "deckweave-windows-media"
+path = "src/bin/media.rs"
+
+[[bin]]
+name = "deckweave-windows-window"
+path = "src/bin/window.rs"
+
+[[bin]]
+name = "deckweave-windows-applications"
+path = "src/bin/applications.rs"
+
+[[bin]]
+name = "deckweave-windows-keyboard"
+path = "src/bin/keyboard.rs"

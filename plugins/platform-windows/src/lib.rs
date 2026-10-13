@@ -13,9 +13,11 @@ mod invocation;
 mod media;
 mod process_broker;
 mod runtime;
+mod runtime_group;
 mod state_gate;
 mod window;
 mod wire;
 
 pub use error::PlatformFailure;
-pub use runtime::{RuntimeGroup, run};
+pub use runtime::run;
+pub use runtime_group::RuntimeGroup;

@@ -10,7 +10,7 @@ pub(crate) fn runtime_descriptor(
     group: RuntimeGroup,
     broker: bool,
 ) -> Result<Vec<u8>, Box<dyn Error>> {
-    if group == RuntimeGroup::InputObserve {
+    if group.input() {
         let mut descriptor: Value = serde_json::from_slice(INPUT_DESCRIPTOR)?;
         if !cfg!(windows) {
             for element in descriptor[0]["devices"][0]["elements"]
@@ -30,6 +30,29 @@ pub(crate) fn runtime_descriptor(
         return Ok(serde_json::to_vec(&descriptor)?);
     }
     let mut descriptor: Value = serde_json::from_slice(CONTROL_DESCRIPTOR)?;
+    for service in descriptor[0]["services"].as_array_mut().ok_or("services")? {
+        let elements = service["elements"].as_array_mut().ok_or("elements")?;
+        for element in elements.iter_mut() {
+            let element_id = element["elementId"]
+                .as_str()
+                .ok_or("element id")?
+                .to_owned();
+            element["capabilities"]
+                .as_array_mut()
+                .ok_or("capabilities")?
+                .retain(|cap| {
+                    group.allows(
+                        &element_id,
+                        cap["capabilityId"].as_str().unwrap_or_default(),
+                    )
+                });
+        }
+        elements.retain(|e| {
+            e["capabilities"]
+                .as_array()
+                .is_some_and(|caps| !caps.is_empty())
+        });
+    }
     if cfg!(windows) {
         set_platform_availability(&mut descriptor, broker)?;
     }

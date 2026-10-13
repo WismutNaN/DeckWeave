@@ -4,6 +4,7 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { bundleWindows } from "./bundle-windows.mjs";
 import {
   descriptors,
   manifest,
@@ -28,6 +29,9 @@ execFileSync(
     "build",
     "-p",
     "deckweave-virtual-device",
+    ...(process.platform === "win32"
+      ? ["-p", "deckweave-platform-windows"]
+      : []),
     ...(release ? ["--release"] : []),
   ],
   { cwd: root, stdio: "inherit" },
@@ -74,3 +78,4 @@ fs.writeFileSync(
 );
 fs.copyFileSync(path.join(root, "LICENSE"), path.join(destination, "LICENSE"));
 console.log(`Bundled virtual device: ${destination}`);
+if (process.platform === "win32") bundleWindows(root, target, architecture);

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use crate::{
-    PlatformFailure, control_audio::ControlAudio, control_window::ControlWindow,
+    PlatformFailure, RuntimeGroup, control_audio::ControlAudio, control_window::ControlWindow,
     descriptor::runtime_descriptor, invocation::invoke, wire::WireSender,
 };
 use deckweave_protocol::{
@@ -14,31 +14,9 @@ use deckweave_protocol::{
 };
 use std::{error::Error, io};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RuntimeGroup {
-    Control,
-    InputObserve,
-}
-
-impl RuntimeGroup {
-    fn id(self) -> &'static str {
-        match self {
-            Self::Control => "control",
-            Self::InputObserve => "input-observe",
-        }
-    }
-
-    fn contribution(self) -> &'static str {
-        match self {
-            Self::Control => "windows-control",
-            Self::InputObserve => "keyboard-observe",
-        }
-    }
-}
-
 pub fn run(expected_group: RuntimeGroup) -> Result<(), Box<dyn Error>> {
     let package_id = std::env::var("DECKWEAVE_PACKAGE_ID")?;
-    if package_id != "org.deckweave.platform.windows" {
+    if package_id != expected_group.package() {
         return Err("unexpected package identity".into());
     }
     let runtime_group = std::env::var("DECKWEAVE_RUNTIME_GROUP")?;
@@ -55,9 +33,11 @@ pub fn run(expected_group: RuntimeGroup) -> Result<(), Box<dyn Error>> {
         token,
         maximum_message_bytes,
     )))?;
-    let audio = (expected_group == RuntimeGroup::Control)
+    let audio = expected_group
+        .audio()
         .then(|| ControlAudio::start(wire.clone(), generation));
-    let window = (expected_group == RuntimeGroup::Control)
+    let window = expected_group
+        .windows()
         .then(|| ControlWindow::start(wire.clone(), generation));
     let result = serve(expected_group, generation, &wire, audio, window);
     drop(wire);
@@ -81,13 +61,15 @@ fn hello(
         maximum_version: 1,
         required: true,
     }];
-    if group == RuntimeGroup::Control {
+    if group.broker() {
         features.push(FeatureRequirement {
             id: deckweave_protocol::FEATURE_HOST_PROCESS_BROKER.into(),
             minimum_version: 1,
             maximum_version: 1,
             required: false,
         });
+    }
+    if !group.input() {
         features.push(FeatureRequirement {
             id: FEATURE_INVOCATION_ENDPOINT_PATH.into(),
             minimum_version: 1,
@@ -213,7 +195,7 @@ fn serve(
                     return Err("invalid activation commit".into());
                 }
                 epoch = Some(commit.activation_epoch);
-                if expected_group == RuntimeGroup::InputObserve && cfg!(windows) {
+                if expected_group.input() && cfg!(windows) {
                     input = Some(crate::input::InputWorker::start(wire.clone(), generation)?);
                 }
                 if let Some(audio) = &audio {
@@ -227,6 +209,10 @@ fn serve(
                 if epoch != Some(request.activation_epoch)
                     || request.descriptor_revision != 1
                     || request.configured_instance_id.is_some()
+                    || !request
+                        .target
+                        .as_ref()
+                        .is_some_and(|p| expected_group.allows(&p.element_id, &p.capability_id))
                 {
                     wire.send(protocol_envelope::Body::InvocationReply(InvocationReply {
                         invocation_id: request.invocation_id,
@@ -236,7 +222,7 @@ fn serve(
                     }))?;
                     continue;
                 }
-                if !broker.invoke(wire, &request)? {
+                if !(expected_group.broker() && broker.invoke(wire, &request)?) {
                     invoke(wire, audio.as_ref(), window.as_ref(), request)?;
                 }
             }

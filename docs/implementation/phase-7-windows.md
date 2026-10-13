@@ -4,7 +4,7 @@
 
 ## Состояние
 
-Фаза в работе. Реализованы Core Audio, active-window state/catalog/focus, media transport и aggregate keyboard observe. Exact launch/open подключаются через Host broker по [ADR-0021](../decisions/0021-brokered-user-process-launch.md); без negotiated broker feature эти endpoints остаются `unavailable`. Готово явное управление разрешениями в desktop. Bundled Windows package, icon query, production composition E2E и ручная Windows 10/11 матрица ещё не закрыты. Автоматические проверки отдельных срезов не заменяют эту приёмку.
+Фаза в работе. Реализованы Core Audio, active-window state/catalog/focus, media transport и aggregate keyboard observe. Exact launch/open подключаются через Host broker по [ADR-0021](../decisions/0021-brokered-user-process-launch.md); без negotiated broker feature эти endpoints остаются `unavailable`. Готово явное управление разрешениями в desktop. Пять самостоятельных Windows packages включены в стандартную Windows-сборку; legacy package сохранён для pinned workspaces. Migration UI, live editing, icon query, production composition E2E и ручная Windows 10/11 матрица ещё не закрыты. Автоматические проверки отдельных срезов не заменяют эту приёмку.
 
 Phase 6 закрыта. Phase 7 использует существующий production composition и добавляет capabilities через общий package/runtime contract, без обхода Application Gateway или plugin lifecycle.
 
@@ -141,6 +141,10 @@ Acceptance:
 ## 7.6 — Production composition и release evidence
 
 ### Уточнение плана после обсуждения UX
+
+Реализован первый срез ADR-0023: packages `org.deckweave.platform.windows.{audio,media,window,applications,keyboard}` имеют отдельные manifests/artifacts, permissions и запуск только нужных adapters. `npm run prepare:desktop` собирает и упаковывает их; desktop устанавливает проверенные immutable пакеты при первом запуске. Все используют общие Rust adapters и schema IDs; адрес внутри endpoint сохранён для явной будущей миграции, полный endpoint разделён package ID. Legacy package не удаляется и grants не переносятся автоматически.
+
+`tests/modular_packages.rs` проверяет пять настоящих process sessions, выборочные descriptors, отказ чужим семействам команд, отсутствие чужих OS state streams и то, что audio grants не разрешают window/input providers. Linux-вариант legacy process test ожидает явный `unsupported_operating_system`, а не успешный Windows catalog. Проверка Windows прошла; Linux запуск оставлен CI по просьбе пользователя, WSL для проверок не используется.
 
 Порядок оставшейся реализации:
 

@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
+import { packageTemplates } from "../plugins/platform-windows/package-set.mjs";
 
 const root = process.cwd();
 const schemas = {
@@ -57,6 +58,12 @@ for (const entry of windowsManifest.schemas) {
     fs.readFileSync(path.join(windowsPackageRoot, entry.path), "utf8"),
   );
   ajv.compile(schema);
+}
+for (const { name, manifest } of packageTemplates()) {
+  if (!validateManifest(manifest))
+    throw new Error(
+      `Windows ${name}: ${ajv.errorsText(validateManifest.errors)}`,
+    );
 }
 
 const invalidManifest = { manifestVersion: 1, packageId: "not-namespaced" };
