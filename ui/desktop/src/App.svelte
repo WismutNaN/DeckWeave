@@ -20,6 +20,7 @@
   import DevicePicker from "./components/DevicePicker.svelte";
   import InstanceManager from "./components/InstanceManager.svelte";
   import ApplyReview from "./components/ApplyReview.svelte";
+  import LiveEditingControls from "./components/LiveEditingControls.svelte";
   import ThemeSettings from "./components/ThemeSettings.svelte";
   import PermissionSettings from "./components/PermissionSettings.svelte";
   import Icon from "./components/Icon.svelte";
@@ -35,9 +36,11 @@
     startup = $state(false);
   const t = (ru: string, en: string) => session.t(ru, en);
   async function connect() {
+    session.liveEditing.dispose();
     session = new EditorSession(desktopClient);
     session.journal = browserJournal(localStorage);
     await session.load();
+    session.liveEditing.start();
     try {
       host = await getSnapshot();
       if (host.mode === "installed") startup = await getAutostart();
@@ -48,8 +51,10 @@
   }
   async function example() {
     const { previewClient } = await import("./editor/preview");
+    session.liveEditing.dispose();
     session = new EditorSession(previewClient(), true);
     await session.load();
+    session.liveEditing.start();
     adding = false;
   }
   async function toggleStartup() {
@@ -71,7 +76,8 @@
     }
     if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
       e.preventDefault();
-      void session.apply();
+      if (session.liveEnabled) session.liveEditing.resume();
+      else void session.apply();
     }
     if (
       (e.ctrlKey || e.metaKey) &&
@@ -105,6 +111,7 @@
       });
     return () => {
       disposed = true;
+      session.liveEditing.dispose();
       off?.();
     };
   });
@@ -137,9 +144,19 @@
     <span class="draft-state" class:modified={session.dirty}
       ><i></i>{!session.draft
         ? t("Нет черновика", "No draft")
-        : session.dirty
-          ? t("Есть изменения", "Unsaved changes")
-          : t("Черновик сохранён", "Draft saved")}</span
+        : session.liveUpdating
+          ? t("Применение…", "Applying…")
+          : session.pending
+            ? t("Результат неизвестен", "Outcome unknown")
+            : session.liveStatus === "error"
+              ? t("Не применено", "Not applied")
+              : session.dirty || session.liveStatus === "queued"
+                ? t("Есть изменения", "Changes pending")
+                : session.liveEnabled &&
+                    session.operation?.state === "succeeded" &&
+                    session.operation.runtimeHealth === "applied"
+                  ? t("Применено", "Applied")
+                  : t("Черновик сохранён", "Draft saved")}</span
     >
     <div class="header-tools">
       <button
@@ -152,36 +169,17 @@
         class="icon-button"
         title={t("Отменить · Ctrl+Z", "Undo · Ctrl+Z")}
         aria-label={t("Отменить", "Undo")}
-        disabled={!session.undoStack.length ||
-          session.busy ||
-          Boolean(session.pending)}
+        disabled={!session.undoStack.length || session.editLocked}
         onclick={() => session.history("undo")}><Icon name="undo" /></button
       >
       <button
         class="icon-button"
         title={t("Повторить · Ctrl+Shift+Z", "Redo · Ctrl+Shift+Z")}
         aria-label={t("Повторить", "Redo")}
-        disabled={!session.redoStack.length ||
-          session.busy ||
-          Boolean(session.pending)}
+        disabled={!session.redoStack.length || session.editLocked}
         onclick={() => session.history("redo")}><Icon name="redo" /></button
       >
-      <button
-        class="secondary save-button"
-        disabled={!session.dirty || session.busy || Boolean(session.pending)}
-        onclick={() => session.run(() => session.save())}
-        >{t("Сохранить", "Save")}</button
-      >
-      <button
-        class="primary"
-        disabled={!session.document || session.busy || Boolean(session.pending)}
-        onclick={() => session.apply()}
-        ><Icon name="play" size={14} />{session.busy
-          ? t("Подождите…", "Working…")
-          : session.preview
-            ? t("Сохранить пример", "Save example")
-            : t("Применить действия", "Apply actions")}</button
-      >
+      <LiveEditingControls {session} />
       <button
         class="icon-button"
         aria-label={t("Настройки приложения", "Application settings")}

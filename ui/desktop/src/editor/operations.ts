@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Mutation workflow; EditorSession owns reactive selection and draft state.
 import { copy } from "./api";
+import { equal } from "./bindings";
 import type { EditorSession } from "./session.svelte";
 import type {
   Draft,
@@ -56,9 +57,12 @@ export async function saveDraft(s: EditorSession) {
       package_lock: locks,
     },
   });
+  const submitted = copy(
+    (s.pending.command.edit as { document: GraphDocument }).document,
+  );
   const result = await s.sendPending<{ draft: Draft }>();
   s.draft = result.draft;
-  s.document = copy(result.draft.document);
+  if (equal(s.document, submitted)) s.document = copy(result.draft.document);
   s.pending = null;
   s.attempted = false;
   s.conflict = false;

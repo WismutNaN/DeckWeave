@@ -2,7 +2,9 @@
 // Runs only in a smoke-test WebView: actual components and HTML drag/drop events.
 window.deckweaveSmokeUi = async () => {
   const invoke = (name, args = {}) =>
-    window.__TAURI_INTERNALS__.invoke(name, args);
+    window.__TAURI_INTERNALS__.invoke(name, args).catch(error => {
+      throw Object.assign(new Error(`UI smoke: ${name} ${args.query?.type ?? args.envelope?.command?.type ?? ""}: ${error.messageKey ?? error}`), error);
+    });
   const assert = (value, message) => {
     if (!value) throw new Error(message);
   };
@@ -65,6 +67,9 @@ window.deckweaveSmokeUi = async () => {
     );
     await sleep();
   };
+  assert(button("Применять сразу")?.getAttribute("aria-pressed") === "true", "live editing defaults on");
+  // Keep coverage of explicit review while a user assembles an unfinished flow.
+  await click("Применять сразу");
   await click("Настройки приложения");
   await set(field("Тема"), "dark");
   await click("Акцент #8661c5");
@@ -97,6 +102,8 @@ window.deckweaveSmokeUi = async () => {
     document.activeElement.dataset.controlId === "key-2",
     "spatial keyboard navigation",
   );
+  // Bundled Windows packages also expose actions; select this fixture explicitly.
+  await set(document.querySelector("#action-search"), "org.deckweave.virtual", "input");
   await drag(document.querySelector(".library-action"), key("key-1"));
   assert(
     document.querySelectorAll(".action-chain li").length === 1,
@@ -290,6 +297,28 @@ window.deckweaveSmokeUi = async () => {
     "copied instance ownership persisted",
   );
   await click("Вернуться к настройке");
+  const oldTrace = await invoke("app_query", {query: {type: "runtime_trace"}});
+  await click("Применять сразу");
+  await set(field("Подпись на кнопке"), "Live label", "input");
+  await wait(async () => {
+    const value = await invoke("app_query", {query: {type: "active_document"}});
+    return value.document.extensions["org.deckweave.editor"]?.devices[0]?.controls["key-1"]?.label === "Live label";
+  }, "layout applied automatically");
+  const retained = await invoke("app_query", {query: {type: "virtual_surface"}});
+  assert(retained.activationEpoch === surface.activationEpoch, "layout retains live execution epoch");
+  const retainedTrace = await invoke("app_query", {query: {type: "runtime_trace"}});
+  assert(retainedTrace.entries.filter(e => e.kind === "intent_invoke").length === oldTrace.entries.filter(e => e.kind === "intent_invoke").length, "editing never invokes an action");
+  assert(!document.querySelector(".apply-review[open]"), "live edit has no mandatory review");
+  await click("Проверить кнопки");
+  await wait(() => !key("key-1").disabled, "live controls follow retained-epoch revision");
+  key("key-1").click();
+  await wait(async () => {
+    const current = await invoke("app_query", {query: {type: "runtime_trace"}});
+    return current.entries.filter(e => e.kind === "intent_invoke").length === retainedTrace.entries.filter(e => e.kind === "intent_invoke").length + 2;
+  }, "explicit click after live edit executes once");
+  await click("Вернуться к настройке");
+  // Subsequent stress setup mutates the repository independently of this UI.
+  await click("Применять сразу");
   // UI stays usable after real execution; theme and accent survive a component reload.
   await click("Настройки приложения");
   assert(
@@ -299,5 +328,5 @@ window.deckweaveSmokeUi = async () => {
   );
   await set(field("Тема"), "light");
   await click("Закрыть", document.querySelector(".settings-popover"));
-  return "native component DnD, two configured instances, typed result chain, review, virtual click, isolated plugin and display readback";
+  return "native component DnD, two configured instances, typed result chain, review, live editing without runtime restart or action replay, virtual click, isolated plugin and display readback";
 };

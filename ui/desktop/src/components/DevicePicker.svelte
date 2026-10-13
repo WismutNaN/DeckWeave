@@ -60,7 +60,7 @@
   <div class="picker-list">
     {#each candidates as candidate}<button
         class="picker-device"
-        disabled={session.busy || Boolean(session.pending)}
+        disabled={session.editLocked}
         onclick={() => {
           session.addDevice(
             candidate.package,
@@ -86,7 +86,7 @@
         </p>
         <button
           class="subtle-button"
-          disabled={session.busy}
+          disabled={session.editLocked}
           onclick={() => session.run(() => session.refresh())}
           ><Icon name="refresh" size={15} />{t(
             "Обновить список",

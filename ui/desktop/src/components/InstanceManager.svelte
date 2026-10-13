@@ -46,7 +46,7 @@
     instance && catalog && schemaFor(catalog, instance.settingsSchema),
   );
   let shape = $derived(schema ? valueShape(schema) : null);
-  let blocked = $derived(session.busy || Boolean(session.pending));
+  let blocked = $derived(session.editLocked);
 </script>
 
 <dialog class="device-picker instance-manager" bind:this={dialog} {onclose}>

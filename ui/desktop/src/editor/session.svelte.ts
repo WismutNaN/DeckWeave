@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { pushHistory } from "./history";
+import { LiveEditing } from "./live-editing";
 import { removeEditorFeedback, syncEditorFeedback } from "./feedback";
 import { copy, message, type EditorClient } from "./api";
 import {
@@ -41,6 +42,15 @@ export class EditorSession {
   review = $state<ApplyReview | null>(null);
   diagnostics = $state<DraftDiagnostic[]>([]);
   busy = $state(false);
+  liveEnabled = $state(false);
+  liveUpdating = $state(false);
+  liveStatus = $state<"idle" | "queued" | "updating" | "error" | "paused">(
+    "paused",
+  );
+  readonly liveEditing = new LiveEditing(this);
+  get editLocked() {
+    return !this.liveUpdating && (this.busy || Boolean(this.pending));
+  }
   error = $state("");
   notice = $state("");
   selectedDevice = $state("");
@@ -57,16 +67,23 @@ export class EditorSession {
   conflict = $state(false);
   localePending = $state(false);
   journal?: RecoveryJournal;
+  private journalWrites: Promise<void> = Promise.resolve();
   async persist() {
-    if (this.draft && this.document)
-      await this.journal?.write({
-        version: 1,
+    if (this.draft && this.document && this.journal) {
+      const journal = this.journal;
+      const value = {
+        version: 1 as const,
         base: copy(this.draft),
         document: copy(this.document),
         pending: copy(this.pending),
         attempted: this.attempted,
         operationId: this.operationId,
-      });
+      };
+      this.journalWrites = this.journalWrites
+        .catch(() => {})
+        .then(() => journal.write(value));
+      await this.journalWrites;
+    }
   }
   persistSoon() {
     void this.persist().catch((cause) => {
@@ -193,6 +210,7 @@ export class EditorSession {
       this.error = message(cause, this.lang);
     } finally {
       this.busy = false;
+      this.liveEditing.wake();
     }
   }
   async load() {
@@ -254,7 +272,7 @@ export class EditorSession {
     }
   }
   edit(change: (document: GraphDocument) => void) {
-    if (!this.document || this.busy || this.pending) return;
+    if (!this.document || this.editLocked) return;
     try {
       const before = copy(this.document),
         next = copy(this.document);
@@ -271,12 +289,13 @@ export class EditorSession {
       this.diagnostics = [];
       this.notice = "";
       this.error = "";
+      this.liveEditing.changed();
     } catch (cause) {
       this.error = message(cause, this.lang);
     }
   }
   history(direction: "undo" | "redo") {
-    if (!this.document || this.busy || this.pending) return;
+    if (!this.document || this.editLocked) return;
     const source = direction === "undo" ? this.undoStack : this.redoStack;
     const next = source.at(-1);
     if (!next) return;
@@ -294,6 +313,7 @@ export class EditorSession {
     this.review = null;
     this.diagnostics = [];
     this.notice = "";
+    this.liveEditing.changed();
   }
   select(deviceId: string, controlId = "") {
     this.selectedDevice = deviceId;

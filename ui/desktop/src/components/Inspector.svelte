@@ -70,7 +70,7 @@
             maxlength="80"
             placeholder={t("Название действия", "Action name")}
             value={device.controls[element.elementId]?.label ?? ""}
-            disabled={session.busy || Boolean(session.pending)}
+            disabled={session.editLocked}
             oninput={(e) => {
               const value = e.currentTarget.value,
                 id = element.elementId;
@@ -107,7 +107,7 @@
               value={instance.settings}
               label={instanceLabel(instance)}
               lang={session.lang}
-              disabled={session.busy || Boolean(session.pending)}
+              disabled={session.editLocked}
               onchange={(value) =>
                 session.edit((doc) => {
                   const current = doc.pluginInstances?.[instance.instanceId];

@@ -14,6 +14,7 @@ export class LiveControls {
   document = $state<GraphDocument | null>(null);
   notice = $state("");
   error = $state("");
+  private operationId: string | null = null;
   constructor(public session: EditorSession) {}
   get ready() {
     return (
@@ -31,16 +32,18 @@ export class LiveControls {
       const surface = await this.session.client.query<Surface>({
         type: "virtual_surface",
       });
-      // The active graph changes only across an activation epoch. Poll only the bounded readback.
+      // Layout-only commits retain their execution epoch but change the document.
       if (
         !this.document ||
-        surface.activationEpoch !== this.surface.activationEpoch
+        surface.activationEpoch !== this.surface.activationEpoch ||
+        this.operationId !== this.session.operationId
       ) {
         await this.session.refresh();
         const active = await this.session.client.query<{
           document: GraphDocument | null;
         }>({ type: "active_document" });
         this.document = active.document;
+        this.operationId = this.session.operationId;
       }
       this.surface = surface;
     } catch (error) {

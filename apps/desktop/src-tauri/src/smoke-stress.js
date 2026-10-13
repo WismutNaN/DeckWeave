@@ -63,6 +63,11 @@ window.deckweaveSmokeStress = async () => {
     return null;
   }
   if (sessionStorage.getItem(key) === "render") {
+    const liveToggle = document.querySelector(".live-edit-toggle");
+    if (liveToggle?.getAttribute("aria-pressed") === "true") {
+      liveToggle.click();
+      await pause();
+    }
     const started = performance.now();
     for (
       let i = 0;

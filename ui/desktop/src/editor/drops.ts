@@ -18,7 +18,7 @@ export function dropOnControl(
   if (!endpoint && !selection) return;
   event.preventDefault();
   event.stopPropagation();
-  if (session.busy || session.pending) return;
+  if (session.editLocked) return;
   session.select(deviceId, controlId);
   if (endpoint) {
     const action = session.actions.find((a) => equal(a.endpoint, endpoint));

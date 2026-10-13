@@ -346,8 +346,7 @@
                   class="device-key"
                   draggable={false}
                   use:dragSource={(data) => {
-                    if (live.enabled || session.busy || session.pending)
-                      return false;
+                    if (live.enabled || session.editLocked) return false;
                     writeSelectionDrag(data, {
                       kind: "control",
                       deviceId: device.id,

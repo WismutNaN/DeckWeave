@@ -35,7 +35,7 @@
     {#each session.devices as device}<button
         draggable={false}
         use:dragSource={(data) => {
-          if (session.busy || session.pending) return false;
+          if (session.editLocked) return false;
           writeSelectionDrag(data, {
             kind: "device",
             deviceId: device.id,
@@ -96,11 +96,11 @@
           class:dragging={dragging === action.contributionId}
           draggable={false}
           use:dragSource={(data) => {
-            if (!supported || session.busy || session.pending) return false;
+            if (!supported || session.editLocked) return false;
             writeActionDrag(data, action.endpoint);
             return true;
           }}
-          disabled={!supported || session.busy || Boolean(session.pending)}
+          disabled={!supported || session.editLocked}
           title={!supported
             ? t(
                 "Схема пока не поддерживается инспектором",

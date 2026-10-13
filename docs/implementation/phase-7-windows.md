@@ -4,7 +4,7 @@
 
 ## Состояние
 
-Фаза в работе. Реализованы Core Audio, active-window state/catalog/focus, media transport и aggregate keyboard observe. Exact launch/open подключаются через Host broker по [ADR-0021](../decisions/0021-brokered-user-process-launch.md); без negotiated broker feature эти endpoints остаются `unavailable`. Готово явное управление разрешениями в desktop. Пять самостоятельных Windows packages включены в стандартную Windows-сборку; legacy package сохранён для pinned workspaces. Migration UI, live editing, icon query, production composition E2E и ручная Windows 10/11 матрица ещё не закрыты. Автоматические проверки отдельных срезов не заменяют эту приёмку.
+Фаза в работе. Реализованы Core Audio, active-window state/catalog/focus, media transport и aggregate keyboard observe. Exact launch/open подключаются через Host broker по [ADR-0021](../decisions/0021-brokered-user-process-launch.md); без negotiated broker feature эти endpoints остаются `unavailable`. Готово явное управление разрешениями в desktop. Пять самостоятельных Windows packages включены в стандартную Windows-сборку; legacy package сохранён для pinned workspaces. Live editing включён в desktop; layout-only revisions сохраняют работающий execution. Migration UI, icon query, production Windows composition E2E и ручная Windows 10/11 матрица ещё не закрыты. Автоматические проверки отдельных срезов не заменяют эту приёмку.
 
 Phase 6 закрыта. Phase 7 использует существующий production composition и добавляет capabilities через общий package/runtime contract, без обхода Application Gateway или plugin lifecycle.
 
@@ -150,8 +150,8 @@ Acceptance:
 
 1. Разделить packages и permissions, подготовить migration старых package/endpoint references; проверить standalone использование каждого provider. Подключить production service binding для первого реального consumer, сохраняя независимые leases/отмену.
 2. Добавить готовое действие «перейти в приложение или запустить», построенное из window service и launch broker. Найденное окно с отказом focus не считается отсутствующим приложением. Existing exact launch остаётся доступен напрямую.
-3. Добавить coordinator live editing над durable draft/apply: validation завершённой правки, coalescing, защита от stale prepare/ответа, видимый pending/failure. Layout-only edit не перезапускает Windows runtime. Не запускать действие автоматически при редактировании его параметров.
-4. Убрать обязательный ручной Apply из обычного UX после проверок invalid input, held key, running action, undo, missing permissions и reconnect. Failure action показывает краткое уведомление без автоматического retry; не путать с recovery того же API command.
+3. **Выполнено:** coordinator live editing над durable draft/apply: validation, coalescing, защита от stale plan/ответа, видимый pending/failure. Layout-only edit сохраняет execution epoch, процессы, runs и deadlines; изменение executable graph проходит прежний cutover. Instances с credentials требуют cutover до появления versioned credential evidence. Редактирование не вызывает action.
+4. **Выполнено для текущего editor:** обязательный ручной Apply убран; пауза возвращает review. Проверены invalid input, задержанные save/plan/apply, undo, потерянный ответ, durable journal failure, held runs и grant changes. Native WebView подтверждает live revision без рестарта и action replay, последующий virtual click и 4096-element draft. Физический held-key/reconnect остаётся частью ручной Windows matrix. Failure action показывает краткое уведомление без автоматического retry; не путать с recovery того же API command.
 5. Поставить нужные plugins bundled, закрыть icon query и production E2E, зафиксировать оставшуюся ручную матрицу.
 
 Pixel-accurate hardware preview и произвольная widget composition реализуются в Surface-срезе Фазы 9. Полная modifier/chord-модель, adaptive scene switch и сложные layers — в Фазе 11. Их подтверждённые правила уже закреплены в UX/Presentation/Automation; текущая фаза не должна зашивать обязательный ручной Apply, неизменяемую картинку готового widget или обязательный монолитный Windows plugin.
@@ -165,7 +165,7 @@ Pixel-accurate hardware preview и произвольная widget composition �
 - [x] Тесты: первоначальный отказ, выдача, повтор запроса без смены grant revision, восстановление, отзыв, конфликт, смена manifest, повреждённый и чрезмерно большой файл.
 - [ ] Native UI acceptance нового диалога и запуск Windows-функций из штатного bundled package.
 
-Текущая runtime group `control` требует все свои permissions, даже если используется одно действие; `input-observe` разрешается отдельно. Это ограничение объясняется в диалоге и подлежит устранению разделением plugins по ADR-0023, а не изменением одной подписи в UI.
+Legacy runtime group `control` требует все свои permissions; `input-observe` разрешается отдельно. Пять новых bundled packages уже имеют независимые scopes по ADR-0023. Legacy остаётся совместимым до явной миграции workspace; новые grants не выдаются автоматически.
 
 Ранний запуск plugin до назначения Job Object исправлен: процесс создаётся suspended, основной thread возобновляется только после назначения cleanup job; ошибка назначения/возобновления завершает процесс. Native test подтверждает отсутствие исполнения до attach и остановку после освобождения job, supervisor tests — cleanup descendants. Перед итоговой приёмкой остаются устойчивость WindowRef при смене заголовка/reuse HWND и восстановление audio endpoint после отказа.
 

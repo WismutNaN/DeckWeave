@@ -11,7 +11,7 @@
     control = $derived(session.selectedControl),
     own = $derived(device?.controls[control]?.background),
     background = $derived(own ?? device?.appearance),
-    blocked = $derived(session.busy || Boolean(session.pending));
+    blocked = $derived(session.editLocked);
   function change(patch: Partial<Background>) {
     session.updateDevice((d) => {
       if (control) {

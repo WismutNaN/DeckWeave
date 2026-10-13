@@ -49,7 +49,7 @@
       ? (session.document?.graph.actionArguments?.[node.id]?.fields ?? {})
       : {},
   );
-  let blocked = $derived(session.busy || Boolean(session.pending));
+  let blocked = $derived(session.editLocked);
   let advanced = $derived(
     Boolean(
       session.document &&
