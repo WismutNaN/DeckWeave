@@ -13,7 +13,7 @@ use std::{
         mpsc::{self, Receiver, RecvTimeoutError, SyncSender, TrySendError},
     },
     thread::{self, JoinHandle},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 const COMMAND_CAPACITY: usize = 32;
@@ -22,12 +22,12 @@ const POLL_INTERVAL: Duration = Duration::from_millis(25);
 enum WorkerCommand {
     Activate {
         target: WindowReference,
-        timeout: Duration,
+        deadline: Instant,
         reply: SyncSender<Result<ActiveWindowState, WindowCommandError>>,
     },
     Focus {
         selector: WindowSelector,
-        timeout: Duration,
+        deadline: Instant,
         reply: SyncSender<Result<ActiveWindowState, WindowCommandError>>,
     },
     Catalog {
@@ -84,7 +84,7 @@ impl WindowClient {
         let (reply, result) = mpsc::sync_channel(1);
         self.admit(WorkerCommand::Activate {
             target,
-            timeout,
+            deadline: Instant::now() + timeout,
             reply,
         })?;
         result
@@ -100,7 +100,7 @@ impl WindowClient {
         let (reply, result) = mpsc::sync_channel(1);
         self.admit(WorkerCommand::Focus {
             selector,
-            timeout,
+            deadline: Instant::now() + timeout,
             reply,
         })?;
         result
@@ -186,10 +186,15 @@ fn worker_loop(generation: u64, commands: Receiver<WorkerCommand>, publisher: St
         match commands.recv_timeout(POLL_INTERVAL) {
             Ok(WorkerCommand::Activate {
                 target,
-                timeout,
+                deadline,
                 reply,
             }) => {
-                let outcome = service.activate_reference(&target, timeout);
+                let outcome = match deadline.checked_duration_since(Instant::now()) {
+                    Some(timeout) => service.activate_reference(&target, timeout),
+                    None => Err(WindowCommandError::before_effect(
+                        WindowFailure::DeadlineExceeded,
+                    )),
+                };
                 if let Ok(state) = &outcome {
                     publish_changed(&publisher, state.clone(), &mut published_revision);
                 }
@@ -197,10 +202,15 @@ fn worker_loop(generation: u64, commands: Receiver<WorkerCommand>, publisher: St
             }
             Ok(WorkerCommand::Focus {
                 selector,
-                timeout,
+                deadline,
                 reply,
             }) => {
-                let outcome = service.focus_selector(&selector, timeout);
+                let outcome = match deadline.checked_duration_since(Instant::now()) {
+                    Some(timeout) => service.focus_selector(&selector, timeout),
+                    None => Err(WindowCommandError::before_effect(
+                        WindowFailure::DeadlineExceeded,
+                    )),
+                };
                 if let Ok(state) = &outcome {
                     publish_changed(&publisher, state.clone(), &mut published_revision);
                 }
@@ -268,5 +278,31 @@ fn admission_failure<T>(error: TrySendError<T>) -> WindowFailure {
     match error {
         TrySendError::Full(_) => WindowFailure::ResourceBusy,
         TrySendError::Disconnected(_) => WindowFailure::WorkerStopped,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn expired_queue_entry_never_attempts_foreground_change()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let (worker, _feed) = WindowWorker::spawn(1);
+        let (reply, result) = mpsc::sync_channel(1);
+        worker.client.commands.send(WorkerCommand::Focus {
+            selector: WindowSelector {
+                executable: String::new(),
+                title_contains: None,
+            },
+            deadline: Instant::now() - Duration::from_secs(1),
+            reply,
+        })?;
+        let error = result
+            .recv_timeout(Duration::from_secs(2))?
+            .err()
+            .ok_or("expired command succeeded")?;
+        assert_eq!(error.failure, WindowFailure::DeadlineExceeded);
+        assert_eq!(error.effect, super::super::EffectKnowledge::NotApplied);
+        Ok(())
     }
 }

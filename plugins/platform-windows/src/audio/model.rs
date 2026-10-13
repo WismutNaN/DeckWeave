@@ -45,6 +45,7 @@ pub enum AudioFailure {
     TransientRebind,
     OsApiUnavailable,
     WorkerStopped,
+    DeadlineExceeded,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

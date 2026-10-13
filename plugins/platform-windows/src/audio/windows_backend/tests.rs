@@ -30,7 +30,7 @@ fn callback_burst_is_bounded_and_requests_one_refresh() {
         drain_events(&receiver, &overflow),
         Maintenance {
             changed: true,
-            rebind: false
+            rebind: true
         }
     );
 }
@@ -51,4 +51,18 @@ fn default_endpoint_event_requests_rebind_outside_the_callback() {
             rebind: true
         }
     );
+}
+
+#[test]
+fn a_default_switch_dropped_behind_volume_events_still_rebinds() {
+    let (sender, receiver) = mpsc::sync_channel(1);
+    let overflow = Arc::new(AtomicBool::new(false));
+    let queue = CallbackQueue {
+        sender,
+        overflow: Arc::clone(&overflow),
+    };
+    queue.push(AdapterEvent::VolumeChanged);
+    queue.push(AdapterEvent::DefaultEndpointChanged);
+    assert!(drain_events(&receiver, &overflow).rebind);
+    assert_eq!(drain_events(&receiver, &overflow), Maintenance::default());
 }

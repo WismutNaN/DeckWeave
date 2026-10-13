@@ -7,7 +7,9 @@ mod control_audio;
 mod control_window;
 mod descriptor;
 mod error;
+mod heartbeat;
 mod runtime;
+mod state_gate;
 mod window;
 mod wire;
 

@@ -107,6 +107,9 @@ struct Enumeration {
 unsafe extern "system" fn collect_window(hwnd: HWND, parameter: LPARAM) -> BOOL {
     // SAFETY: pointer was created from the live Enumeration passed to synchronous EnumWindows.
     let context = unsafe { &mut *(parameter.0 as *mut Enumeration) };
+    if context.windows.len() >= 256 {
+        return BOOL(1);
+    }
     // SAFETY: query functions borrow a HWND owned by Windows.
     if !unsafe { IsWindowVisible(hwnd) }.as_bool() || unsafe { GetWindow(hwnd, GW_OWNER) }.is_ok() {
         return BOOL(1);

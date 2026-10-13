@@ -323,9 +323,11 @@ fn classify_hresult(code: i32) -> AudioFailure {
 }
 
 fn drain_events(events: &Receiver<AdapterEvent>, overflow: &AtomicBool) -> Maintenance {
+    // A full queue may have dropped the only default-endpoint notification.
+    let lost_event = overflow.swap(false, Ordering::AcqRel);
     let mut maintenance = Maintenance {
-        changed: overflow.swap(false, Ordering::AcqRel),
-        rebind: false,
+        changed: lost_event,
+        rebind: lost_event,
     };
     loop {
         match events.try_recv() {

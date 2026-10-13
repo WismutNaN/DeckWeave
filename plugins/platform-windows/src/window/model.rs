@@ -83,6 +83,7 @@ pub(crate) enum WindowFailure {
     ResourceBusy,
     OsApiUnavailable,
     WorkerStopped,
+    DeadlineExceeded,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

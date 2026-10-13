@@ -64,8 +64,8 @@ impl WireSender {
 
     pub fn send(&self, body: protocol_envelope::Body) -> Result<(), String> {
         self.messages
-            .send(body)
-            .map_err(|_| "wire writer stopped".into())
+            .try_send(body)
+            .map_err(|_| "wire writer stopped or overloaded".into())
     }
 
     pub fn set_maximum_message_bytes(&self, maximum: usize) {

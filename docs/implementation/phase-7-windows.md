@@ -55,6 +55,8 @@ Acceptance:
 
 Evidence: `plugins/platform-windows/tests/package_shell.rs` собирает временный пакет из реальных binaries, индексирует его общим `PackageStager`, запускает обе группы через `ProcessRuntime` и проверяет scoped revoke через `RuntimeController`. `scripts/check-schemas.mjs` валидирует manifest template и все объявленные package schemas. Это проверка lifecycle и границ, а не доказательство готовности audio/window/media/input adapters.
 
+Повторная проверка runtime: добавлены периодический heartbeat, запрет вызовов до activation commit и для чужой generation/epoch, последовательная публикация начального и текущего состояния, отказ от просроченных команд в worker queue. Переполнение audio callback queue принудительно запрашивает rebind, поскольку потерянным событием могло быть переключение default endpoint. Process test проверяет idle heartbeat без утечки состояния до commit; worker tests — отказ до обращения к OS adapter.
+
 ## 7.2 — Core Audio vertical slice
 
 **Статус:** [~] Реализация и автоматические tests готовы; ручная Windows 10/11 матрица и hardware default-switch evidence остаются открыты.

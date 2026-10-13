@@ -66,6 +66,7 @@ impl From<WindowFailure> for PlatformFailure {
     fn from(failure: WindowFailure) -> Self {
         match failure {
             WindowFailure::UnsupportedOperatingSystem => Self::UnsupportedOperatingSystem,
+            WindowFailure::DeadlineExceeded => Self::DeadlineExceeded,
             WindowFailure::InvalidInput => Self::InvalidInput,
             WindowFailure::NoMatchingWindow => Self::NoMatchingWindow,
             WindowFailure::StaleReference => Self::StaleWindowReference,
@@ -82,6 +83,7 @@ impl From<AudioFailure> for PlatformFailure {
     fn from(failure: AudioFailure) -> Self {
         match failure {
             AudioFailure::UnsupportedOperatingSystem => Self::UnsupportedOperatingSystem,
+            AudioFailure::DeadlineExceeded => Self::DeadlineExceeded,
             AudioFailure::InvalidInput => Self::InvalidInput,
             AudioFailure::PermissionDenied => Self::PermissionDenied,
             AudioFailure::NoDefaultEndpoint => Self::NoDefaultEndpoint,

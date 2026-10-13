@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use crate::{
+    state_gate::StateGate,
     window::{
         ActiveWindowState, WindowCatalog, WindowCatalogRequest, WindowClient, WindowCommandError,
         WindowFailure, WindowReference, WindowSelector, WindowWorker,
@@ -8,10 +9,7 @@ use crate::{
 };
 use deckweave_protocol::v1::{EndpointPath, Signal, endpoint_path, protocol_envelope};
 use std::{
-    sync::{
-        Arc, Mutex,
-        atomic::{AtomicBool, AtomicU64, Ordering},
-    },
+    sync::{Arc, Mutex},
     thread::{self, JoinHandle},
     time::Duration,
 };
@@ -40,9 +38,7 @@ pub(crate) enum WindowResult {
 pub(crate) struct ControlWindow {
     worker: Option<WindowWorker>,
     client: WindowClient,
-    committed: Arc<AtomicBool>,
-    pending: Arc<Mutex<Option<ActiveWindowState>>>,
-    sequence: Arc<AtomicU64>,
+    gate: Arc<Mutex<StateGate<ActiveWindowState>>>,
     bridge: Option<JoinHandle<()>>,
 }
 
@@ -50,23 +46,21 @@ impl ControlWindow {
     pub(crate) fn start(wire: WireSender, generation: u64) -> Self {
         let (worker, feed) = WindowWorker::spawn(generation);
         let client = worker.client();
-        let committed = Arc::new(AtomicBool::new(false));
-        let bridge_committed = Arc::clone(&committed);
-        let pending = Arc::new(Mutex::new(None));
-        let bridge_pending = Arc::clone(&pending);
-        let sequence = Arc::new(AtomicU64::new(0));
-        let bridge_sequence = Arc::clone(&sequence);
+        let gate = Arc::new(Mutex::new(StateGate::new()));
+        let bridge_gate = Arc::clone(&gate);
         let bridge = thread::Builder::new()
             .name("deckweave-window-state".into())
             .spawn(move || {
                 while let Ok(state) = feed.recv() {
-                    if !bridge_committed.load(Ordering::Acquire) {
-                        if let Ok(mut pending) = bridge_pending.lock() {
-                            *pending = Some(state);
-                        }
-                        continue;
-                    }
-                    if send_state(&wire, generation, &bridge_sequence, &state).is_err() {
+                    let Ok(mut gate) = bridge_gate.lock() else {
+                        return;
+                    };
+                    if gate
+                        .publish(state, |sequence, state| {
+                            send_state(&wire, generation, sequence, state)
+                        })
+                        .is_err()
+                    {
                         return;
                     }
                 }
@@ -75,9 +69,7 @@ impl ControlWindow {
         Self {
             worker: Some(worker),
             client,
-            committed,
-            pending,
-            sequence,
+            gate,
             bridge,
         }
     }
@@ -87,15 +79,10 @@ impl ControlWindow {
         wire: &WireSender,
         generation: u64,
     ) -> Result<(), String> {
-        self.committed.store(true, Ordering::Release);
-        let pending = self
-            .pending
+        self.gate
             .lock()
-            .map_err(|_| "window state lock poisoned".to_string())?
-            .take();
-        if let Some(state) = pending {
-            send_state(wire, generation, &self.sequence, &state)?;
-        }
+            .map_err(|_| "state gate poisoned")?
+            .commit(|sequence, state| send_state(wire, generation, sequence, state))?;
         self.client.refresh().map_err(|error| format!("{error:?}"))
     }
 
@@ -154,10 +141,9 @@ fn page_catalog(
 fn send_state(
     wire: &WireSender,
     generation: u64,
-    sequence: &AtomicU64,
+    sequence: u64,
     state: &ActiveWindowState,
 ) -> Result<(), String> {
-    let sequence = sequence.fetch_add(1, Ordering::AcqRel).saturating_add(1);
     wire.send(protocol_envelope::Body::Signal(Signal {
         source_port_id: String::new(),
         device_session_generation: generation,

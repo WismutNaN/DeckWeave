@@ -10,7 +10,7 @@ use std::{
         mpsc::{self, Receiver, RecvTimeoutError, SyncSender, TrySendError},
     },
     thread::{self, JoinHandle},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 const COMMAND_CAPACITY: usize = 32;
@@ -19,6 +19,7 @@ const POLL_INTERVAL: Duration = Duration::from_millis(50);
 enum WorkerCommand {
     Apply {
         command: AudioCommand,
+        deadline: Instant,
         reply: SyncSender<Result<AudioState, AudioCommandError>>,
     },
     Refresh,
@@ -71,7 +72,11 @@ impl AudioClient {
     ) -> Result<AudioState, AudioCommandError> {
         let (reply, result) = mpsc::sync_channel(1);
         self.commands
-            .try_send(WorkerCommand::Apply { command, reply })
+            .try_send(WorkerCommand::Apply {
+                command,
+                deadline: Instant::now() + timeout,
+                reply,
+            })
             .map_err(|error| AudioCommandError {
                 failure: match error {
                     TrySendError::Full(_) => AudioFailure::ResourceBusy,
@@ -146,8 +151,18 @@ fn worker_loop(commands: Receiver<WorkerCommand>, publisher: StatePublisher) {
     publish_changed(&publisher, engine.refresh(), &mut published_revision);
     loop {
         match commands.recv_timeout(POLL_INTERVAL) {
-            Ok(WorkerCommand::Apply { command, reply }) => {
-                let outcome = engine.apply(command);
+            Ok(WorkerCommand::Apply {
+                command,
+                deadline,
+                reply,
+            }) => {
+                let outcome = if Instant::now() >= deadline {
+                    Err(AudioCommandError::before_effect(
+                        AudioFailure::DeadlineExceeded,
+                    ))
+                } else {
+                    engine.apply(command)
+                };
                 if let Ok(state) = &outcome {
                     publish_changed(&publisher, state.clone(), &mut published_revision);
                 } else {
@@ -172,5 +187,27 @@ fn publish_changed(publisher: &StatePublisher, state: AudioState, published_revi
     if state.revision != *published_revision {
         *published_revision = state.revision;
         publisher.publish(state);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn expired_queue_entry_never_reaches_audio_backend() -> Result<(), Box<dyn std::error::Error>> {
+        let (worker, _feed) = AudioWorker::spawn();
+        let (reply, result) = mpsc::sync_channel(1);
+        worker.client.commands.send(WorkerCommand::Apply {
+            command: AudioCommand::SetVolume(f64::NAN),
+            deadline: Instant::now() - Duration::from_secs(1),
+            reply,
+        })?;
+        let error = result
+            .recv_timeout(Duration::from_secs(2))?
+            .err()
+            .ok_or("expired command succeeded")?;
+        assert_eq!(error.failure, AudioFailure::DeadlineExceeded);
+        assert_eq!(error.effect, super::super::EffectKnowledge::NotApplied);
+        Ok(())
     }
 }

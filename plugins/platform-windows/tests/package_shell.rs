@@ -277,6 +277,12 @@ fn exercise(
         heartbeat.body,
         Some(protocol_envelope::Body::Heartbeat(_))
     ));
+    // Remaining idle must produce liveness without leaking uncommitted OS state.
+    let idle = process.receive(Duration::from_secs(2))?;
+    assert!(matches!(
+        idle.body,
+        Some(protocol_envelope::Body::Heartbeat(_))
+    ));
     process.send(&envelope(
         3,
         protocol_envelope::Body::ActivationCommitted(ActivationCommitted {

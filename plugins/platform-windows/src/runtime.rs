@@ -124,17 +124,38 @@ fn serve(
     window: Option<ControlWindow>,
 ) -> Result<(), Box<dyn Error>> {
     let mut stdin = io::stdin().lock();
+    let mut acknowledged = false;
+    let mut activated = false;
+    let mut epoch = None;
+    let mut last_message = 0;
+    let mut heartbeat = None;
     while let Some(envelope) = read_envelope(&mut stdin, wire.maximum_message_bytes())? {
+        if envelope.session_generation != generation || envelope.message_id <= last_message {
+            return Err("stale or replayed host message".into());
+        }
+        last_message = envelope.message_id;
         match envelope.body {
             Some(protocol_envelope::Body::HelloAck(ack)) => {
+                if acknowledged {
+                    return Err("duplicate HelloAck".into());
+                }
                 let maximum = ack
                     .limits
                     .ok_or("HelloAck has no limits")?
                     .maximum_message_bytes;
-                wire.set_maximum_message_bytes(usize::try_from(maximum)?);
+                let maximum = usize::try_from(maximum)?;
+                if maximum == 0 || maximum > wire.maximum_message_bytes() {
+                    return Err("invalid negotiated limit".into());
+                }
+                wire.set_maximum_message_bytes(maximum);
+                acknowledged = true;
             }
             Some(protocol_envelope::Body::Activate(request)) => {
-                if request.contribution_id != expected_group.contribution() {
+                if !acknowledged
+                    || activated
+                    || request.configured_instance_id.is_some()
+                    || request.contribution_id != expected_group.contribution()
+                {
                     return Err("contribution does not belong to this runtime group".into());
                 }
                 wire.send(protocol_envelope::Body::Activated(ActivationReply {
@@ -153,8 +174,14 @@ fn serve(
                     host_ticks: 0,
                     active_jobs: 0,
                 }))?;
+                activated = true;
+                heartbeat = Some(crate::heartbeat::HeartbeatWorker::start(wire.clone())?);
             }
-            Some(protocol_envelope::Body::ActivationCommitted(_)) => {
+            Some(protocol_envelope::Body::ActivationCommitted(commit)) => {
+                if !activated || epoch.is_some() || commit.activation_epoch == 0 {
+                    return Err("invalid activation commit".into());
+                }
+                epoch = Some(commit.activation_epoch);
                 if let Some(audio) = &audio {
                     audio.activation_committed(wire, generation)?;
                 }
@@ -163,12 +190,25 @@ fn serve(
                 }
             }
             Some(protocol_envelope::Body::Invoke(request)) => {
+                if epoch != Some(request.activation_epoch)
+                    || request.descriptor_revision != 1
+                    || request.configured_instance_id.is_some()
+                {
+                    wire.send(protocol_envelope::Body::InvocationReply(InvocationReply {
+                        invocation_id: request.invocation_id,
+                        reply: Some(invocation_reply::Reply::Rejected(
+                            PlatformFailure::InvalidInput.structured(),
+                        )),
+                    }))?;
+                    continue;
+                }
                 invoke(wire, audio.as_ref(), window.as_ref(), request)?;
             }
             Some(protocol_envelope::Body::Deactivate(_)) => return Ok(()),
             _ => {}
         }
     }
+    drop(heartbeat);
     Ok(())
 }
 
@@ -263,7 +303,7 @@ fn window_reply(
 }
 
 fn decode_hex(value: &str) -> Result<Vec<u8>, Box<dyn Error>> {
-    if !value.len().is_multiple_of(2) {
+    if !value.is_ascii() || !value.len().is_multiple_of(2) {
         return Err("one-time token has odd hex length".into());
     }
     (0..value.len())
