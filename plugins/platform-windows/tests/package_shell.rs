@@ -37,7 +37,7 @@ use std::{
         Arc,
         atomic::{AtomicBool, AtomicU64, Ordering},
     },
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 const CONTROL: &str = env!("CARGO_BIN_EXE_deckweave-platform-windows-control");
@@ -325,8 +325,9 @@ fn exercise(
         let mut reply = None;
         let mut audio_state_seen = false;
         let mut window_state_seen = false;
+        let deadline = Instant::now() + Duration::from_secs(10);
         while reply.is_none() || !audio_state_seen || !window_state_seen {
-            let envelope = process.receive(Duration::from_secs(2))?;
+            let envelope = process.receive(remaining(deadline)?)?;
             match envelope.body {
                 Some(protocol_envelope::Body::InvocationReply(value)) => reply = Some(value),
                 Some(protocol_envelope::Body::Signal(signal)) => {
@@ -385,30 +386,43 @@ fn exercise(
                 remaining_budget_ms: Some(1000),
             }),
         ))?;
+        let deadline = Instant::now() + Duration::from_secs(10);
         let catalog_reply = loop {
-            let next = process.receive(Duration::from_secs(2))?;
+            let next = process.receive(remaining(deadline)?)?;
             if let Some(protocol_envelope::Body::InvocationReply(reply)) = next.body
                 && reply.invocation_id == "window-catalog-1"
             {
                 break reply;
             }
         };
-        let Some(deckweave_protocol::v1::invocation_reply::Reply::Terminal(terminal)) =
-            catalog_reply.reply
-        else {
-            return Err("window catalog was not terminal".into());
-        };
-        let Some(deckweave_protocol::v1::terminal_outcome::Result::Succeeded(payload)) =
-            terminal.result
-        else {
-            return Err("window catalog did not succeed".into());
-        };
-        assert_eq!(
-            payload.schema.ok_or("window catalog schema")?.id,
-            "org.deckweave.windows.window_catalog"
-        );
-        let catalog: Value = serde_json::from_slice(&payload.value)?;
-        assert!(catalog["windows"].is_array());
+        match catalog_reply.reply {
+            Some(deckweave_protocol::v1::invocation_reply::Reply::Terminal(terminal))
+                if cfg!(windows) =>
+            {
+                let Some(deckweave_protocol::v1::terminal_outcome::Result::Succeeded(payload)) =
+                    terminal.result
+                else {
+                    return Err(format!("window catalog failed: {:?}", terminal.result).into());
+                };
+                assert_eq!(
+                    payload.schema.ok_or("window catalog schema")?.id,
+                    "org.deckweave.windows.window_catalog"
+                );
+                let catalog: Value = serde_json::from_slice(&payload.value)?;
+                assert!(catalog["windows"].is_array());
+            }
+            Some(deckweave_protocol::v1::invocation_reply::Reply::Rejected(error))
+                if !cfg!(windows) =>
+            {
+                // The portable shell must explicitly reject unavailable Windows APIs.
+                // An empty successful catalog would falsely advertise OS support.
+                assert_eq!(
+                    error,
+                    PlatformFailure::UnsupportedOperatingSystem.structured()
+                );
+            }
+            other => return Err(format!("unexpected window catalog outcome: {other:?}").into()),
+        }
     }
     process.send(&envelope(
         6,
@@ -422,6 +436,12 @@ fn exercise(
         .ok_or("runtime did not stop")?;
     assert!(status.success());
     Ok(nodes)
+}
+
+fn remaining(deadline: Instant) -> Result<Duration, Box<dyn Error>> {
+    deadline
+        .checked_duration_since(Instant::now())
+        .ok_or_else(|| "expected protocol outcome did not arrive before deadline".into())
 }
 
 #[test]
