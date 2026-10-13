@@ -4,7 +4,7 @@ API — единственная application boundary для Desktop UI, CLI, Co
 
 ## Принципы
 
-Текущий `ApplicationGateway` реализует queries `Host`, `Draft`, `PlanApply`, `Operation`, `RuntimeTrace` и `PluginCatalog`, commands `PatchDraft`/`ApplyDraft` и выдачу mutation window. Остальные группы ниже — целевой API, а не обещание уже существующих endpoints. Locale обслуживает отдельный `LocalePreferencesService` с тем же authorizer; Tauri/HTTP adapters обязаны получать principal от host.
+Текущий `ApplicationGateway` реализует queries `Host`, `Draft`, `PlanApply`, `Operation`, `RuntimeTrace`, `PluginCatalog`, `EditorSnapshot`, `ActiveDocument`, `VirtualSurface`, commands `PatchDraft`/`ApplyDraft`/`VirtualClick` и выдачу mutation window. Остальные группы ниже — целевой API, а не обещание уже существующих endpoints. Locale обслуживает отдельный `LocalePreferencesService` с тем же authorizer; Tauri/HTTP adapters обязаны получать principal от host.
 
 `PluginCatalog` принимает точные package ID/version/artifact SHA-256, проверяет scope `Read` до обращения к index и возвращает bounded static schemas, units/ranges, ports/actions, contribution/group IDs, translations и manifest SHA-256. Это проекция того же проверяемого каталога, которым пользуется compiler; import/query не запускает plugin. Неверный hash, неоднозначный package и изменённый manifest отклоняются. Ответ не содержит executable paths, process handles или secret values. Schema shape в DTO — read model, не второй validator; `Json` не считается структурой для schema-form/field binding. Запрос не доказывает live availability и не перечисляет ещё не установленные packages.
 
@@ -206,10 +206,10 @@ Cursor включает `HostBootId`, topic и sequence. Начальная по
 ```json
 {
   "code": "revision_conflict",
-  "message_key": "api.error.revision_conflict",
+  "messageKey": "api.error.revision_conflict",
   "details": {},
   "retryable": false,
-  "trace_id": "uuid"
+  "traceId": "uuid"
 }
 ```
 
@@ -233,9 +233,14 @@ Stable codes отделены от локализованного текста. 
 - SQLite/cache layout;
 - log file format.
 
-Phase 6 editor additions: `ActiveDocument` returns the persisted active selection and
-its document under Read authorization for the review diff. Compiler validation errors
-include bounded `diagnostics` entries `{code,nodeId,field}` in the existing error DTO;
-field values, credentials and private payloads are excluded. A disruptive planning
-request without consent returns `api.error.disruption_required`; the editor must request
-a fresh plan with explicit consent, then apply that plan's exact preconditions.
+## Проверка и применение в Desktop
+
+`ActiveDocument` возвращает persisted active selection и document под scope Read для сравнения с черновиком. Compiler errors включают bounded `diagnostics: [{code,nodeId,field}]`; значения полей, credentials и payload исключены. Disruptive plan без consent возвращает `api.error.disruption_required`; новый plan с явным согласием и Apply используют одинаковые preconditions/hash. Превышение размера storage document возвращает `capacity_exceeded` / `api.error.document_too_large` без retryability.
+
+`VirtualClick` — live command под scope **Apply**, не Simulation. Request содержит stable endpoint, expectedActive, activationEpoch и sessionGeneration. Coordinator проверяет active commit, live binding/generation и virtual device kind; execution owner разрешает только EventOut с tag `org.deckweave.virtual.press`. Press/release проходят существующий scheduler под transition lock, без обхода activation barrier. Physical endpoints и устаревшие identities отклоняются. Dry-run этой команды запрещён.
+
+Общий durable claim записывается до dispatch. Ответ `{accepted:true,replayed:false}` подтверждает приём, а не успех action. Повтор claim, включая после restart/lost response, возвращает `{accepted:false,replayed:true}` и не инжектирует ввод: исход мог остаться неизвестным. UI не повторяет live click автоматически.
+
+`VirtualSurface` — отдельная Read projection: activationEpoch и не более 512 текстовых readbacks длиной до 2048 UTF-8 bytes. В неё входят только зарегистрированные virtual ValueOut ports с tag `org.deckweave.virtual.display`, связанные с graph state. Текст приходит от provider после ValueWrite; optimistic UI не считается feedback. RuntimeTrace по-прежнему не раскрывает эти данные. Это узкий контракт виртуального текстового устройства; он не заменяет будущий Surface/media API.
+
+Editor-owned result/display routes помечены `org.deckweave.editorDisplay`; копирование цепочки пересоздаёт их с новыми IDs, а внешние ссылки блокируют разрушительное упрощение graph. Recovery journal хранится в IndexedDB; его durable transaction завершается **до** отправки mutating envelope по IPC. Старый localStorage record мигрирует только после успешной записи.

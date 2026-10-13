@@ -1,19 +1,38 @@
 # Фаза 6: application adapter и Desktop editor
 
-Входной [gate 6G.0–6G.5](pre-phase-6.md) закрыт на `328cebf`. Фаза 6 начата: реализован первый рабочий вертикальный срез desktop editor. Общий gate фазы ещё открыт; подтверждённые результаты и оставшиеся проверки перечислены ниже. Её результат — пользователь связывает virtual control с action через общий API, видит ошибки и применяет draft; закрытие окна не останавливает runtime. Один срез занимает ориентировочно 1–5 дней; если acceptance не помещается, отдельно выделяются backend query, adapter и UI. Нормативные правила остаются в [Application API](../contracts/application-api.md), [границе plugin](../contracts/plugin-boundary.md) и [стандарте UI](../product/ui-quality-standard.md).
+**Статус: завершена, 2026-10-13.** Входной [gate 6G.0–6G.5](pre-phase-6.md) закрыт на `328cebf`; desktop gate 6.0–6.4 подтверждён настоящим Tauri/WebView2 и отдельным процессом bundled virtual provider. Пользователь добавляет virtual device, назначает и настраивает действия, проверяет изменения, применяет их и запускает цепочку нажатием виртуальной кнопки.
 
-## Состояние первого среза, 2026-10-12
+Нормативные правила: [Application API](../contracts/application-api.md), [граница plugin](../contracts/plugin-boundary.md), [стандарт UI](../product/ui-quality-standard.md). Команды воспроизведения и упаковка provider описаны в [разработке](development.md).
 
-- **Реализовано:** общий Tauri adapter с host-derived principal и blocking pool; installed/registry/runtime projections, открытие текущего desktop draft, атомарная замена document + package lock. UI получает стабильные DTO и локализует ошибки по code.
-- **Реализовано:** canvas с pan/zoom/fit и отсечением устройств за viewport; selection по полному ID, библиотека/search/drag-and-drop, последовательные action bindings в общем GraphDocument, record/unit actions и рекурсивные schema fields. Неоднозначный input выбирается явно; boolean input имеет режимы true/false/каждое событие. Переходы между шагами используют реальные result schemas; UI не конкатенирует JSON для передачи данных.
-- **Реализовано:** общий solid/gradient фон в editor preview, геометрическое распределение градиента, подпись/цвет текста/фон отдельной кнопки, явное наследование и reset. Это desired layout, без вывода кадров или RGB на hardware.
-- **Реализовано:** локальные undo/redo с CAS при сохранении, save/plan/apply, отдельные draft/active/runtime states, журнал восстановления WebView по data-root. Неотправленные изменения переживают restart. Неизвестный outcome удерживает исходные epoch/key/payload; replay не превращается в новый Apply. Отказ авторизации при повторе не доказывает отсутствие прежнего эффекта. Трёхстороннее объединение независимых полей не заменяет конфликтующие graph arrays молча.
-- **Реализовано:** RU/EN preference, per-key fallback, locale reconcile, keyboard arrows по geometry, Ctrl+S/Ctrl+Enter, локальные Ctrl+Z/Ctrl+Shift+Z. Сохранённые настройки existing configured instances показываются раздельно по instance ID.
-- **Проверено:** 13 frontend logic tests, fixture от настоящего TS builder → Rust compiler/scheduler → первый action → result binding следующего action. Нативный smoke через WebView выполняет create/open/save/replay/stale conflict, invalid catalog/locale, plan/apply пустого workspace и receipt replay; затем close-to-tray/reopen/Exit. Browser acceptance проверяет цепочку, выбор переменной, override/reset, RU/EN и 760×520 без горизонтального переполнения. Browser example изолирован и не исполняет плагины.
+## Итог и доказательства
 
-**До закрытия полного gate остаются отдельные срезы:** UI создания configured instances/аккаунтов и выбора instance для action; review/diff и consent для disruptive plan; отображение compiler diagnostics у конкретных полей; компонентная drag/drop automation и единый native E2E от назначения через UI до signal/action/result/feedback настоящего virtual process. Нагрузочную приёмку тысяч controls и virtualized graph нельзя считать закрытой отсечением device cards. Визуальный graph editor остаётся Фазой 11; сложный существующий graph сохраняется и не перезаписывается простым назначением. Hardware rendering остаётся Фазой 9.
+| Срез | Реализация и приёмка |
+|---|---|
+| 6.0 — adapter | Host-derived principal; blocking IPC; общий Gateway/compiler/runtime. Native smoke проверяет CAS, replay, locale, plan/apply, active document и receipt identity. In-process tests проверяют scopes и ошибки. |
+| 6.1 — workspace | Pan пустого поля без Space, zoom/fit, spatial keyboard selection, отсечение устройств и отдельных controls за viewport. Два различимых virtual templates доступны в обычной сборке. |
+| 6.2 — inspector | Static action catalog, schema forms, typed result bindings, независимые configured instances и выбор подключения у каждого действия. Native E2E проводит текст через Work → Home и получает `H:W:Hello` от plugin process. |
+| 6.3 — apply | Review показывает добавленные/изменённые/удалённые действия и их кнопки, изменения связей, подключений и оформления. Disruptive consent требует нового plan; diagnostics сохраняют node/field без значений. CAS/recovery не заменяют неизвестный запрос новым. |
+| 6.4 — E2E | Назначение → review → apply → live virtual input → action → typed result → feedback → provider readback → текст на кнопке. Проверены stale epoch/generation/endpoint, redacted trace, close-to-tray/reopen/Exit и отсутствие orphan WebView2. |
 
-Текущие ограничения: каталог пакетов сканируется при старте host; установка и grants не входят в этот экран. После добавления пакета вне UI нужен перезапуск host. Внутренний учебный пример доступен отдельной кнопкой, хранится только в памяти и не доказывает работу production runtime. Сохранение layout не заявляет применение подсветки к оборудованию.
+Код закрывающего среза: `bac7be9` (virtual runtime) и `2c34d76` (desktop, recovery и native acceptance); ранее `f1efd8f` и `740314a` добавили темы, viewport, accounts и review contract. Локально прошли `npm run check`, 259 Rust tests всего workspace, `cargo fmt`, clippy со всеми features без warnings и release build. CI workflow воспроизводит проверки; удалённый запуск CI этим отчётом не заявляется.
+
+28 frontend tests покрывают, в частности, перенос/переупорядочивание цепочек, remapping ссылок на результаты, сохранность чужого graph, instances, consent, diagnostics, recovery и тему. Отдельные Rust tests проверяют отсутствие повторного live input после restart, scope Apply вместо Simulation, dry-run rejection, изоляцию accounts, UTF-8 bounds и отказ большой записи без изменения сохранённой версии.
+
+**Настоящие жесты в Windows:** library → кнопка, копирование кнопки и pan пустого поля проверены мышью в WebView2. Внутренние переносы используют pointer capture с подсветкой цели, ghost и отменой по Esc: быстрый Windows HTML5/OLE drag терял drop, хотя синтетический тест проходил. HTML5 DataTransfer handlers сохраняют совместимость и используются также в повторяемом component smoke. Shift переносит привязку, обычный drag копирует; ссылки результатов переназначаются на новые IDs. Зависимый шаг нельзя переместить перед источником результата.
+
+**Внешний вид:** system/light/dark и собственный accent сохраняются между запусками; цвет текста accent адаптируется до AA-контраста. Review визуально проверен в светлой и тёмной темах; native smoke целиком работает в окне 760×520 и проверяет доступность primary action без горизонтального overflow. Общий gradient использует геометрию plugin; overrides кнопок сохраняются. Ctrl+S/Ctrl+Z учитывают физический key code при русской раскладке.
+
+**Нагрузка:** draft-only fixture с 4096 controls и 4096 action nodes проходит реальный WebView, прокрутку, spatial selection, изменение подписи, durable recovery и undo. Последний локальный замер: 84 mounted controls, 118 мс на прокрутку/выбор. Для этой проверки geometry/capabilities упрощены; настоящий wire/feedback проверяется отдельным 15-key provider, fixture не применяется к runtime. Это evidence редактора, а не hardware FPS benchmark. История отмены ограничена 64 snapshots и бюджетом 32 MiB оценочного JSON-объёма с сохранением последнего снимка.
+
+**Восстановление:** IndexedDB хранит recovery journal отдельно для WebView data-root, с миграцией прежнего localStorage record. Mutation не пересекает IPC до complete durable transaction. Ошибка journal блокирует отправку; исходный envelope сохраняется для retry. Лимит Profile Store возвращается как `capacity_exceeded`, а не потеря связи; recovery не заменяет persistent draft store.
+
+## Границы завершённой фазы
+
+- Virtual Deck A/B входят в штатный bundle; это обычный versioned package, запускаемый supervisor. Кнопка «Проверить кнопки» явно запускает **применённые** действия, имеет scope Apply и отличается от dry-run. Любые внешние actions, назначенные на эту кнопку, сохраняют собственные permissions.
+- Учебный browser example хранится в памяти и не доказывает production runtime. Он остаётся явно отдельным режимом.
+- Каталог packages сканируется при старте. Install/update/grants UI и замена pinned package относятся к следующим фазам; существующие bytes bundled package не перезаписываются.
+- Solid/gradient/individual background сейчас являются desired editor layout. Изображения, hardware frames/RGB и Surface editor — Фаза 9; сложный Graph editor/layers/parallel — Фаза 11. Existing advanced graph сохраняется без переписывания простым inspector.
+- Реальные Windows/provider, hardware, media, services и overlays имеют собственные gates. Закрытие Фазы 6 не закрывает [Фазу 7](phase-7-windows.md) или её ручную Windows 10/11 матрицу.
 
 ## 6.0 — Доступ к уже работающему ядру
 
@@ -51,4 +70,4 @@ Acceptance: stale plan/revoke между prepare/barrier не применяет
 
 Virtual device → выбор control → assignment → validation → apply → signal/action/result/feedback. Проверить keyboard-only путь, ru/en fallback, resize, offline provider, unsupported feature и redacted diagnostics. Для нового назначения сохранить цель roadmap «не более трёх действий» на подготовленном virtual fixture; сложная первоначальная настройка аккаунта оценивается отдельно. Убрать элементы, которые дублируют данные или создают декоративную пустоту.
 
-Gate Фазы 6 закрывается после adapter parity, component/E2E acceptance и проверки работающей desktop сборки. Hardware frame rate, audio DSP, live shared services, durable notes и external API integration не выдаются за часть этого результата; их владельцы и обязательные gates перечислены в [pre-6 evidence](pre-phase-6.md#границы-готовности-и-следующие-обязательства).
+Gate Фазы 6 закрыт перечисленной выше adapter/component/E2E приёмкой работающей desktop сборки. Hardware frame rate, audio DSP, live shared services, durable notes и external API integration не выдаются за часть этого результата; их владельцы и обязательные gates перечислены в [pre-6 evidence](pre-phase-6.md#границы-готовности-и-следующие-обязательства).

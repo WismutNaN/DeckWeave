@@ -4,7 +4,7 @@
 
 ## Обязательные зависимости и срезы
 
-[Gate расширяемости 6G.0–6G.5](pre-phase-6.md), основанный на [проверке кода `2d99c88`](../research/plugin-feasibility.md) и [каталоге плагинов](../plugins/README.md), закрыт integration acceptance на `328cebf`. Повторный аудит добавил instances/settings, structural arguments, live clock/cleanup, static catalog compiler/query и доказательства failure paths. Следующий результат — [6.0: application adapter и read projections](phase-6-desktop.md), затем canvas; реальные services/hardware/media сохраняют собственные gates.
+[Gate расширяемости 6G.0–6G.5](pre-phase-6.md), основанный на [проверке кода `2d99c88`](../research/plugin-feasibility.md) и [каталоге плагинов](../plugins/README.md), закрыт integration acceptance на `328cebf`. Повторный аудит добавил instances/settings, structural arguments, live clock/cleanup, static catalog compiler/query и доказательства failure paths. [Фаза 6: application adapter и desktop editor](phase-6-desktop.md) завершена; следующий этап — оставшиеся срезы Фазы 7. Реальные services/hardware/media сохраняют собственные gates.
 
 Нормативные failure/ordering contracts: [Lifecycle](../contracts/lifecycle.md). При расхождении module summary с контрактом сначала исправляется документация. Production fixture подтверждает отдельные process-crash apply/recovery переходы; повторный аудит обнаружил ещё три dedup/recovery случая для [среза 5.0](phase-5-automation.md). Power-loss durability остаётся отдельным ограничением; B2 закрыт checkpoint/claim GC/terminal archive, автоматическим maintenance и growth/fault acceptance. [Аудит после DDD migration](../research/pre-apply-review.md#phase-5-readiness) отделяет доказанные свойства от незавершённых способностей.
 
@@ -43,7 +43,7 @@
 | 3 | Plugin supervisor и virtual package | Foundations и virtual apply готовы; live dispatch/restart integration — в Фазе 5 | L | [~] |
 | 4 | Profile revisions и application API | Draft/validate/apply/rollback через API | L | [x] |
 | 5 | Минимальный automation engine | Source → action → feedback deterministic path | L | [x] |
-| 6 | Desktop workspace canvas | Устройства и bindings редактируются в UI | L | [~] |
+| 6 | Desktop workspace canvas | Устройства и bindings редактируются в UI | L | [x] |
 | 7 | Windows base provider и Platform Input | Volume/media/app/active-window и обычная клавиатура работают | M | [~] |
 | 8 | N4 Pro hardware provider | Keys/encoders/touch/light/haptic доступны | L | [ ] |
 | 9 | Surface compositor | Полный экран N4 Pro без grid gaps | L | [ ] |
@@ -328,7 +328,7 @@ B2 добавил checkpoint/compaction, автоматический maintenanc
 **Цель:** выполнить deterministic source → action → feedback path.
 **Результат:** virtual button вызывает virtual action, меняет state и feedback; replay повторяет результат.
 **Трудоёмкость:** L
-**Статус:** [x] Срезы 5.0–5.6 завершены; M1 и deterministic replay проходят hardware-independent acceptance. B2 Profile Store checkpoint/compaction и общий [gate расширяемости](pre-phase-6.md) закрыты; следующий срез — 6.0.
+**Статус:** [x] Срезы 5.0–5.6 завершены; M1 и deterministic replay проходят hardware-independent acceptance. B2 Profile Store checkpoint/compaction и общий [gate расширяемости](pre-phase-6.md) закрыты; результат интегрирован в завершённую Фазу 6.
 
 ### Контекст для агента
 > Profile/API и isolated virtual apply дают основу интеграции. Три обнаруженных dedup/recovery дефекта закрываются в 5.0 до live effects; pure compiler/scheduler можно делать независимо. Реализуется узкий graph subset без schedules и complex UI.
@@ -385,7 +385,7 @@ B2 добавил checkpoint/compaction, автоматический maintenanc
 **Цель:** дать пользователю визуально настроить virtual device без редактирования JSON.
 **Результат:** device виден на infinite canvas, control выбирается, action перетаскивается, draft валидируется и применяется.
 **Трудоёмкость:** L
-**Статус:** [~] В работе: adapter, canvas, action inspector и восстановление реализованы; полный virtual-device E2E и оставшиеся UX-срезы ещё не закрыты.
+**Статус:** [x] Завершена: native UI → virtual process → result → feedback; review/consent, accounts, themes, pointer drag/drop и большой draft приняты.
 
 ### Контекст для агента
 > ApplicationService и minimal graph работают. UI использует только этот contract и не получает plugin handles. Каждый экран проходит [стандарт качества интерфейса](../product/ui-quality-standard.md): данные вытесняют empty-state декор, а заголовки, пустоты и контейнеры остаются только при доказанной функции.
@@ -396,19 +396,22 @@ B2 добавил checkpoint/compaction, автоматический maintenanc
 - [x] Закрыть срезы 6G.1–6G.5 и сквозные fake/real-process plugin scenarios до фиксации inspector/binding model (→ [pre-6 evidence](pre-phase-6.md), [каталог](../plugins/README.md)).
 - [x] До canvas подключить Tauri adapter к Application Gateway с host-derived principal и общими DTO; проверить parity command/query/error с in-process client, receipt replay и snapshot reconnect (→ [Application API](../contracts/application-api.md)).
 
-Подробный порядок: [6.0 adapter → 6.1 selection → 6.2 inspector → 6.3 apply → 6.4 E2E](phase-6-desktop.md). Static `PluginCatalog`, locale, registry/installed-package projections и Tauri adapter реализованы. Текущие evidence и оставшиеся задачи находятся в плане Фазы 6.
+Подробный порядок: [6.0 adapter → 6.1 selection → 6.2 inspector → 6.3 apply → 6.4 E2E](phase-6-desktop.md). Static `PluginCatalog`, locale, registry/installed-package projections и Tauri adapter реализованы. Доказательства закрытия и границы результата находятся в плане Фазы 6.
 
-- [~] Реализовать virtualized infinite canvas и device cards (→ [Модуль: Desktop Shell](../architecture/modules/desktop-shell.md)).
+- [x] Реализовать virtualized infinite canvas и device cards (→ [Модуль: Desktop Shell](../architecture/modules/desktop-shell.md)).
 - [x] Реализовать action library/search и drag-and-drop binding (→ [UI — Progressive disclosure](../product/ux.md#progressive-disclosure)).
-- [~] Реализовать schema-form inspector, draft status, inline validation, undo/redo/apply (→ [Модуль: Profile Store](../architecture/modules/profile-store.md), [Settings UI](../contracts/plugins.md#settings-и-ui-contributions)).
+- [x] Реализовать schema-form inspector, draft status, inline validation, undo/redo/apply (→ [Модуль: Profile Store](../architecture/modules/profile-store.md), [Settings UI](../contracts/plugins.md#settings-и-ui-contributions)).
 - [x] Реализовать Runtime health summary и no-device/first-run states (→ [UI — Состояния интерфейса](../product/ux.md#состояния-интерфейса)).
 - [x] Добавить ru/en localization skeleton и keyboard navigation (→ [UX](../product/ux.md)).
 - [x] Проверить canvas, library и inspector по removal/data-first/alignment/resize/keyboard gates без декоративных пустот и повторяющих подписей (→ [Стандарт качества интерфейса](../product/ui-quality-standard.md)).
 
+- [x] Реализовать system/light/dark и accent, кликабельные virtual devices, review/diff и configured instance manager (→ [приёмка UI](phase-6-desktop.md#итог-и-доказательства)).
+- [x] Проверить 4096 controls + 4096 graph nodes, bounded DOM, durable edit/undo и отсутствие ложного повторного эффекта после reconnect (→ [нагрузочная приёмка](phase-6-desktop.md#итог-и-доказательства)).
+
 ### Тесты
 
-- [~] Component: selection, drag/drop, inspector mutation. Logic tests и browser-проверка пройдены; повторяемая component drag/drop automation остаётся.
-- [~] End-to-end: assignment за ≤ 3 действия. Browser example пройден; native virtual process → feedback остаётся.
+- [x] Component: selection, drag/drop, inspector mutation. Logic tests и повторяемый WebView component smoke пройдены; настоящие жесты мышью отдельно проверены на Windows.
+- [x] End-to-end: assignment за ≤ 3 действия. Drag assignment → review → apply на подготовленном fixture; native virtual process → feedback подтверждён. Первоначальная настройка параметров и accounts оценивается отдельно.
 - [x] Native smoke: close/reopen WebView сохраняет active runtime/draft; запись и apply проверяются через настоящий IPC.
 - [x] Visual acceptance: empty-state графика исчезает при появлении устройств; реальные RU/EN данные не уступают место hero-блокам, лишним заголовкам или нефункциональному whitespace.
 

@@ -3,7 +3,7 @@
 **Ответственность:** предоставляет Tauri tray application и Svelte editors поверх ApplicationService без владения runtime resources.
 **Расположение:** `apps/desktop/`, `ui/desktop/`.
 
-Текущий shell подключает production Gateway/runtime и locale service; canvas и базовый inspector реализованы в первом срезе Фазы 6; Graph/Surface editors и полный RuntimePanel остаются целевыми компонентами. Порядок реализации: [adapter и snapshots → selection → inspector → apply](../../implementation/phase-6-desktop.md). UI получает static catalog через `PluginCatalog`, configured instances через draft, live availability через registry projection; direct plugin/filesystem access не требуется.
+Текущий shell подключает production Gateway/runtime и locale service; canvas, inspector, configured instances, review/apply и live virtual controls приняты в Фазе 6; Graph/Surface editors и полный RuntimePanel остаются целевыми компонентами. Порядок реализации: [adapter и snapshots → selection → inspector → apply](../../implementation/phase-6-desktop.md). UI получает static catalog через `PluginCatalog`, configured instances через draft, live availability через registry projection; direct plugin/filesystem access не требуется.
 
 ## Публичный интерфейс
 

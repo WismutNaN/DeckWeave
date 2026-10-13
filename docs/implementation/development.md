@@ -43,7 +43,7 @@ Session lock находится в пользовательском DeckWeave/ru
 npm run build
 ```
 
-Создаётся target/release/deckweave-desktop.exe. Installer пока не создаётся.
+Создаётся target/release/deckweave-desktop.exe и target/release/bundled/virtual-device. При переносе сборки сохраните каталог bundled рядом с executable: он нужен для штатного виртуального устройства. Installer пока не создаётся.
 Прямой Tauri-вызов из корня также поддерживается и проходит через desktop workspace:
 
 ```powershell
@@ -97,6 +97,7 @@ cargo install cargo-deny --version 0.20.2 --locked --root .local/tools
 Завершите другой DeckWeave через «Выход». Тест не вытесняет работающий host.
 
 ```powershell
+npm run prepare:desktop
 npm run build:web
 cargo build --locked -p deckweave-desktop --features smoke-test
 ./scripts/smoke-desktop.ps1
@@ -104,7 +105,7 @@ cargo build --locked -p deckweave-desktop --features smoke-test
 
 Тест запускает настоящий Tauri/WebView2, проверяет frontend → host IPC, наличие tray, hide on close,
 восстановление окна вторым запуском и конфликт другого root, затем выполняет тот же путь выхода, что tray menu.
-Результат и stderr сохраняются в test-results. Тестовые hooks отсутствуют в обычной сборке.
+Smoke также проходит назначение через компоненты, две конфигурации provider, review, настоящий virtual click/result/readback, окно 760×520 и draft-only нагрузку 4096 controls/nodes с durable edit/undo. Результат и stderr сохраняются в test-results. Тестовые hooks отсутствуют в обычной сборке.
 PowerShell harness также проверяет отсутствие WebView2 processes с уникальным тестовым data-root после выхода.
 
 ОС освобождение writer lock после принудительного завершения дочернего процесса проверяется
