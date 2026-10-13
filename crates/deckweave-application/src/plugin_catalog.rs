@@ -56,6 +56,7 @@ pub struct PluginEndpointView {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PluginCatalogSnapshot {
+    pub endpoint_migrations: Vec<EndpointMigrationSource>,
     pub instance_templates: Vec<PluginInstanceTemplate>,
     pub format_version: u32,
     pub package: PluginCatalogRequest,
@@ -63,6 +64,13 @@ pub struct PluginCatalogSnapshot {
     pub schemas: Vec<PluginSchemaView>,
     pub endpoints: Vec<PluginEndpointView>,
     pub translations: Option<TranslationCatalog>,
+}
+/// Static compatibility offer; it grants no access and never runs migration code.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct EndpointMigrationSource {
+    pub package_id: PackageId,
+    pub version: String,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

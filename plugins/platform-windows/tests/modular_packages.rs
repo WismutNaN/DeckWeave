@@ -116,6 +116,17 @@ fn audio_permissions_do_not_authorize_windows_or_keyboard() -> Result<(), Box<dy
         index.insert(stage(&temp.path().join(name), name, binary)?);
     }
     assert_eq!(index.editor_packages()?.len(), 5);
+    use deckweave_application::plugin_catalog::PluginCatalogSource;
+    for installed in index.editor_packages()? {
+        let snapshot = index.catalog(&installed.package)?;
+        assert_eq!(snapshot.endpoint_migrations.len(), 1);
+        assert_eq!(
+            snapshot.endpoint_migrations[0].package_id.as_str(),
+            "org.deckweave.platform.windows"
+        );
+        assert_eq!(snapshot.endpoint_migrations[0].version, "0.1.0");
+    }
+
     let principal = PrincipalId::try_new("test-user")?;
     let offers = index.permission_offers(&principal)?;
     let grants = ScopedAuthorizationStore::default();

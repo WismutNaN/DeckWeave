@@ -50,6 +50,9 @@ export function packageTemplates() {
   return windowsPackages.map(({ name, contribution, scopes }) => {
     const manifest = structuredClone(legacy);
     manifest.packageId = `org.deckweave.platform.windows.${name}`;
+    manifest["org.deckweave.endpointMigrations"] = [
+      { packageId: legacy.packageId, version: legacy.version },
+    ];
     manifest.artifacts = [
       {
         id: `windows-x86_64-${name}`,

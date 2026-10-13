@@ -86,6 +86,7 @@ export type CatalogEndpoint = {
   };
 };
 export type Catalog = {
+  endpointMigrations?: { packageId: string; version: string }[];
   instanceTemplates?: InstanceTemplate[];
   package: PackageRef;
   manifestSha256: string;

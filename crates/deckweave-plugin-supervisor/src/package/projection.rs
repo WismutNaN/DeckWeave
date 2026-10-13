@@ -35,6 +35,7 @@ impl PluginCatalogSource for PackageIndex {
             )
             .map_err(map_error)?;
         Ok(PluginCatalogSnapshot {
+            endpoint_migrations: super::migrations::read(package).map_err(map_error)?,
             instance_templates: super::instance_templates::read(package, &catalog)
                 .map_err(map_error)?,
             format_version: 1,

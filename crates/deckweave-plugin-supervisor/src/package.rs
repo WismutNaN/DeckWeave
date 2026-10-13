@@ -21,6 +21,7 @@ mod catalog;
 mod editor;
 mod instance_templates;
 mod lookup;
+mod migrations;
 mod permissions;
 mod planning;
 mod projection;

@@ -339,3 +339,11 @@ Human message локализуется UI/package, но category и machine deta
 ## Broker пользовательских процессов
 
 Опциональная feature `org.deckweave.host_process_broker` v1 добавляет `HostProcessRequest` и `HostProcessReply`. Запрос обязан точно соответствовать уже активной invocation: epoch, operation, schema, input и deadline проверяет Host. Один invocation разрешает максимум один OS effect. Reply различает receipt, rejected и unknown outcome; последний нельзя автоматически повторять. Этот broker не исполняет произвольный plugin RPC и не ослабляет isolation. Подробности и текущие ограничения: [ADR-0021](../decisions/0021-brokered-user-process-launch.md).
+
+## Декларативный перенос назначений
+
+Необязательная manifest extension `org.deckweave.endpointMigrations` содержит не более 16 уникальных источников `{packageId, version}` с точной SemVer-версией. Она читается из manifest с проверенным SHA-256 и передаётся в catalog projection как `endpointMigrations`. Это предложение совместимости для явного действия пользователя; оно не запускает код, не выдаёт разрешения и не изменяет активный workspace само по себе.
+
+Первый adapter поддерживает разделение package при неизменных внутренних endpoint paths. Он сверяет старый закреплённый catalog с каждым выбранным target: полный port/operation и определения используемых схем должны совпадать. Каждое назначение должно иметь ровно один target. Перенос действует на копии целого draft, сохраняет node IDs, аргументы, связи и оформление, обновляет package references устройств и выбранных triggers. Сохранение/активация идут через обычные CAS, journal, validation и apply. Старый package lock остаётся для rollback; новые права пользователь выдаёт отдельно.
+
+Configured instances с settings/credentials/service bindings требуют отдельного adapter; текущий перенос их отклоняет целиком. Неизвестные payloads/extensions не переписываются поиском строк. Неполное соответствие не создаёт частично перенесённый документ. Upgrade версии внутри одного package и общий package manager остаются отдельным контрактом.

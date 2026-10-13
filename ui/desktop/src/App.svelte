@@ -22,6 +22,7 @@
   import ApplyReview from "./components/ApplyReview.svelte";
   import LiveEditingControls from "./components/LiveEditingControls.svelte";
   import ThemeSettings from "./components/ThemeSettings.svelte";
+  import PackageMigration from "./components/PackageMigration.svelte";
   import PermissionSettings from "./components/PermissionSettings.svelte";
   import Icon from "./components/Icon.svelte";
   import RuntimeStatus from "./components/RuntimeStatus.svelte";
@@ -299,6 +300,7 @@
         >
       </div>
       <ThemeSettings lang={session.lang} />
+      <PackageMigration {session} />
       {#if native && !session.preview}<button
           class="secondary full-width"
           onclick={() => {

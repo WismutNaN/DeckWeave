@@ -1160,5 +1160,11 @@
         "open-target": "Открыть файл или ссылку"
       }
     }
-  }
+  },
+  "org.deckweave.endpointMigrations": [
+    {
+      "packageId": "org.deckweave.platform.windows",
+      "version": "0.1.0"
+    }
+  ]
 }
