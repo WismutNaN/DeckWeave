@@ -189,7 +189,28 @@ fn whole_values_require_matching_units_and_narrow_enough_numeric_ranges()
             GraphLimits::default(),
         )?)
     };
-    assert!(compiles(&graph, &build(schemas.clone())?)?);
+    let plan = build(schemas.clone())?.compile_document(
+        &serde_json::to_value(&graph)?,
+        &package_lock()?,
+        "lock",
+        &fence()?,
+    )?;
+    for contract in &plan
+        .executable_graph()
+        .ok_or("executable")?
+        .schema_contracts
+    {
+        if ["org.deckweave.schema.event", "org.deckweave.schema.task"]
+            .contains(&contract.schema.id.as_str())
+        {
+            for value in [0.0, 0.5, 1.0] {
+                assert!(contract.value_kind.accepts(&json!(value)));
+            }
+            for value in [-1.0, 2.0] {
+                assert!(!contract.value_kind.accepts(&json!(value)));
+            }
+        }
+    }
     args(&mut graph)?.value = Some(ValueBinding::Constant { value: json!(2) });
     assert!(!compiles(&graph, &build(schemas.clone())?)?);
     args(&mut graph)?.value = Some(ValueBinding::RunResult {

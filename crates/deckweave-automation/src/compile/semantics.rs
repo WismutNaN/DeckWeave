@@ -284,15 +284,11 @@ pub(super) fn compile_schema_contracts(
                     })?;
             contracts.push(CompiledSchemaContract {
                 schema: schema.schema.clone(),
-                value_kind: match (&schema.value_kind, &schema.range) {
-                    (SchemaValueKind::Number, Some(range)) => SchemaValueKind::Structured(
-                        deckweave_domain::schema::PayloadSchema::Number {
-                            minimum: range.minimum,
-                            maximum: range.maximum,
-                        },
-                    ),
-                    _ => schema.value_kind.clone(),
-                },
+                value_kind: schema.effective_value_kind().ok_or_else(|| {
+                    GraphCompileError::InvalidValue {
+                        node_id: node.id.clone(),
+                    }
+                })?,
             });
         }
     }

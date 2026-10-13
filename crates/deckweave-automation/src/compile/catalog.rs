@@ -47,6 +47,26 @@ pub struct CatalogSchema {
 }
 
 impl CatalogSchema {
+    /// Resolve both schema and port numeric limits once for compilation and runtime.
+    pub(super) fn effective_value_kind(&self) -> Option<SchemaValueKind> {
+        let Some(range) = &self.range else {
+            return Some(self.value_kind.clone());
+        };
+        let (minimum, maximum) = match &self.value_kind {
+            SchemaValueKind::Number => (range.minimum, range.maximum),
+            SchemaValueKind::Structured(deckweave_domain::schema::PayloadSchema::Number {
+                minimum,
+                maximum,
+            }) => (minimum.max(range.minimum), maximum.min(range.maximum)),
+            _ => return None,
+        };
+        (minimum.is_finite() && maximum.is_finite() && minimum <= maximum).then_some(
+            SchemaValueKind::Structured(deckweave_domain::schema::PayloadSchema::Number {
+                minimum,
+                maximum,
+            }),
+        )
+    }
     pub fn accepts(&self, value: &serde_json::Value) -> bool {
         self.value_kind.accepts(value)
             && self.range.as_ref().is_none_or(|range| {
@@ -128,7 +148,8 @@ impl DescriptorCatalog {
             if let Some(range) = &schema.range
                 && (!range.minimum.is_finite()
                     || !range.maximum.is_finite()
-                    || range.minimum > range.maximum)
+                    || range.minimum > range.maximum
+                    || schema.effective_value_kind().is_none())
             {
                 return Err(CatalogError::InvalidDescriptor(
                     "invalid schema numeric range".into(),

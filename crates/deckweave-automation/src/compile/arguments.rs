@@ -173,8 +173,8 @@ fn assignable(source: &PayloadSchema, target: &PayloadSchema) -> bool {
 }
 
 fn payload_shape(schema: &super::CatalogSchema) -> Option<PayloadSchema> {
-    let mut shape = match &schema.value_kind {
-        SchemaValueKind::Structured(shape) => shape.clone(),
+    Some(match schema.effective_value_kind()? {
+        SchemaValueKind::Structured(shape) => shape,
         SchemaValueKind::Unit => PayloadSchema::Null,
         SchemaValueKind::Boolean => PayloadSchema::Boolean,
         SchemaValueKind::String => PayloadSchema::String {
@@ -186,16 +186,5 @@ fn payload_shape(schema: &super::CatalogSchema) -> Option<PayloadSchema> {
             maximum: f64::MAX,
         },
         SchemaValueKind::Json => return None,
-    };
-    if let Some(range) = &schema.range {
-        let PayloadSchema::Number { minimum, maximum } = &mut shape else {
-            return None;
-        };
-        *minimum = minimum.max(range.minimum);
-        *maximum = maximum.min(range.maximum);
-        if *minimum > *maximum {
-            return None;
-        }
-    }
-    Some(shape)
+    })
 }
