@@ -99,6 +99,8 @@ Acceptance:
 
 ## 7.4 — Media transport и origin
 
+**Статус:** media transport реализован; автоматические проверки полного/нулевого/частичного SendInput выполняются на controlled backend без изменения проигрывания на машине разработчика. Результат success означает постановку пары в системный поток ввода; подтверждение состояния проигрывателя требует отдельного provider.
+
 Первый production backend отправляет allowlisted `play_pause`, `next`, `previous`, `stop` как одну bounded down/up batch через `SendInput`.
 
 - Каждый event содержит process-random origin tag в `dwExtraInfo`; tag живёт только в generation runtime и не является security token.

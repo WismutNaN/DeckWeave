@@ -346,10 +346,7 @@ fn exercise(
         else {
             return Err("controlled adapter must reject invocation".into());
         };
-        assert_eq!(
-            error.code,
-            PlatformFailure::controlled_adapter().structured().code
-        );
+        assert_eq!(error.code, PlatformFailure::InvalidInput.structured().code);
         process.send(&envelope(
             5,
             protocol_envelope::Body::Invoke(InvocationRequest {
@@ -457,7 +454,7 @@ fn package_indexes_two_permission_scoped_runtime_groups() -> Result<(), Box<dyn 
             .iter()
             .filter(|endpoint| endpoint.operation.is_some())
             .count(),
-        7
+        8
     );
     Ok(())
 }

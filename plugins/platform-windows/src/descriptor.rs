@@ -35,7 +35,7 @@ fn set_platform_availability(descriptor: &mut Value) -> Result<(), Box<dyn Error
                     .and_then(Value::as_str)
                     .unwrap_or_default()
                     .to_owned();
-                if !matches!(element_id.as_str(), "audio" | "applications") {
+                if !matches!(element_id.as_str(), "audio" | "applications" | "media") {
                     continue;
                 }
                 let capabilities = element
@@ -87,7 +87,9 @@ mod tests {
                 .get("tags")
                 .and_then(Value::as_array)
                 .is_some_and(|tags| tags.iter().any(|tag| tag == "window"));
-            let implemented = element == "audio" || (element == "applications" && capability);
+            let implemented = element == "audio"
+                || element == "media"
+                || (element == "applications" && capability);
             if cfg!(windows) && implemented {
                 assert_eq!(status, "available");
             } else {

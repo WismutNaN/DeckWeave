@@ -8,6 +8,8 @@ mod control_window;
 mod descriptor;
 mod error;
 mod heartbeat;
+mod invocation;
+mod media;
 mod runtime;
 mod state_gate;
 mod window;

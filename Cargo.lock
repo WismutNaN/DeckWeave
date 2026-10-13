@@ -891,6 +891,7 @@ dependencies = [
  "deckweave-plugin-supervisor",
  "deckweave-protocol",
  "deckweave-registry",
+ "getrandom 0.4.3",
  "serde",
  "serde_json",
  "sha2",
