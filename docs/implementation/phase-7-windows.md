@@ -74,7 +74,7 @@ Evidence: `plugins/platform-windows/tests/package_shell.rs` собирает в�
 Acceptance:
 
 - [x] unit: command validation/clamp, HRESULT → stable failure, подтверждение после set и `unknown_outcome` при потере подтверждения;
-- [~] adapter: bounded callback burst и default-switch rebind intent проверены; no-endpoint state проходит production process path. Endpoint removal во время команды и revoke во время фактического rebind требуют fault-injection/manual evidence;
+- [~] adapter: bounded callback burst и default-switch rebind intent проверены; no-endpoint state проходит production process path. fault injection подтверждает отказ до set при смене endpoint, unknown после set и отсутствие повторов при refresh. Revoke во время фактического rebind остаётся в process/manual matrix;
 - [ ] manual Windows 10/11: set/read round-trip, external volume/mute change и реальная смена default endpoint;
 - [x] действие не объявляется успешным только потому, что command был поставлен в очередь.
 
@@ -168,7 +168,7 @@ Pixel-accurate hardware preview и произвольная widget composition �
 
 Legacy runtime group `control` требует все свои permissions; `input-observe` разрешается отдельно. Пять новых bundled packages уже имеют независимые scopes по ADR-0023. Legacy остаётся совместимым до явной миграции workspace; новые grants не выдаются автоматически.
 
-Ранний запуск plugin до назначения Job Object исправлен: процесс создаётся suspended, основной thread возобновляется только после назначения cleanup job; ошибка назначения/возобновления завершает процесс. Native test подтверждает отсутствие исполнения до attach и остановку после освобождения job, supervisor tests — cleanup descendants. Перед итоговой приёмкой остаются устойчивость WindowRef при смене заголовка/reuse HWND и восстановление audio endpoint после отказа.
+Ранний запуск plugin до назначения Job Object исправлен: процесс создаётся suspended, основной thread возобновляется только после назначения cleanup job; ошибка назначения/возобновления завершает процесс. Native test подтверждает отсутствие исполнения до attach и остановку после освобождения job, supervisor tests — cleanup descendants. Восстановление Core Audio после отсутствия endpoint/сбоя COM выполняется чтением с backoff 250 мс–5 с; команды не повторяются. Worker обрабатывает уведомления даже при потоке команд, а callback drain ограничен одним пакетом. Set и подтверждение привязаны к выбранному endpoint; смена устройства не переносит вычисленную громкость на другое. До итоговой приёмки остаётся устойчивость WindowRef при смене заголовка/reuse HWND.
 
 - Установить package как bundled immutable artifact с проверяемым manifest/hash, без install script.
 - Подключить lazy leases: неиспользуемая runtime group не запускается и не занимает постоянную память.

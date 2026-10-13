@@ -150,6 +150,10 @@ fn worker_loop(commands: Receiver<WorkerCommand>, publisher: StatePublisher) {
     let mut published_revision = 0;
     publish_changed(&publisher, engine.refresh(), &mut published_revision);
     loop {
+        // A stream of commands must not starve endpoint notifications/recovery.
+        if engine.maintenance_due() {
+            publish_changed(&publisher, engine.refresh(), &mut published_revision);
+        }
         match commands.recv_timeout(POLL_INTERVAL) {
             Ok(WorkerCommand::Apply {
                 command,
@@ -174,11 +178,7 @@ fn worker_loop(commands: Receiver<WorkerCommand>, publisher: StatePublisher) {
                 publish_changed(&publisher, engine.refresh(), &mut published_revision);
             }
             Ok(WorkerCommand::Shutdown) | Err(RecvTimeoutError::Disconnected) => return,
-            Err(RecvTimeoutError::Timeout) => {
-                if engine.maintenance_due() {
-                    publish_changed(&publisher, engine.refresh(), &mut published_revision);
-                }
-            }
+            Err(RecvTimeoutError::Timeout) => {}
         }
     }
 }

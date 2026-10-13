@@ -5,8 +5,8 @@ use super::model::{
 
 pub(super) trait AudioBackend {
     fn read(&mut self) -> Result<AudioReading, AudioFailure>;
-    fn set_volume(&mut self, scalar: f64) -> Result<(), AudioFailure>;
-    fn set_mute(&mut self, muted: bool) -> Result<(), AudioFailure>;
+    fn set_volume(&mut self, endpoint: &str, scalar: f64) -> Result<(), AudioCommandError>;
+    fn set_mute(&mut self, endpoint: &str, muted: bool) -> Result<(), AudioCommandError>;
     fn maintenance_due(&mut self) -> bool;
 }
 
@@ -26,39 +26,31 @@ impl<B: AudioBackend> AudioEngine<B> {
     }
 
     pub fn apply(&mut self, command: AudioCommand) -> Result<AudioState, AudioCommandError> {
+        // Select once. Relative changes and confirmation must refer to this same endpoint.
+        match command {
+            AudioCommand::SetVolume(value) => validate_scalar(value)?,
+            AudioCommand::ChangeVolume(value) => validate_delta(value)?,
+            _ => {}
+        }
+        let current = self
+            .backend
+            .read()
+            .map_err(AudioCommandError::before_effect)?;
         match command {
             AudioCommand::SetVolume(scalar) => {
-                validate_scalar(scalar)?;
-                self.backend
-                    .set_volume(scalar)
-                    .map_err(AudioCommandError::before_effect)?;
+                self.backend.set_volume(&current.endpoint_ref, scalar)?
             }
-            AudioCommand::ChangeVolume(delta) => {
-                validate_delta(delta)?;
-                let current = self
-                    .backend
-                    .read()
-                    .map_err(AudioCommandError::before_effect)?;
-                self.backend
-                    .set_volume((current.scalar + delta).clamp(0.0, 1.0))
-                    .map_err(AudioCommandError::before_effect)?;
-            }
-            AudioCommand::SetMute(muted) => {
-                self.backend
-                    .set_mute(muted)
-                    .map_err(AudioCommandError::before_effect)?;
-            }
-            AudioCommand::ToggleMute => {
-                let current = self
-                    .backend
-                    .read()
-                    .map_err(AudioCommandError::before_effect)?;
-                self.backend
-                    .set_mute(!current.muted)
-                    .map_err(AudioCommandError::before_effect)?;
-            }
+            AudioCommand::ChangeVolume(delta) => self.backend.set_volume(
+                &current.endpoint_ref,
+                (current.scalar + delta).clamp(0.0, 1.0),
+            )?,
+            AudioCommand::SetMute(muted) => self.backend.set_mute(&current.endpoint_ref, muted)?,
+            AudioCommand::ToggleMute => self
+                .backend
+                .set_mute(&current.endpoint_ref, !current.muted)?,
         }
-        self.confirm().map_err(AudioCommandError::after_effect)
+        self.confirm(&current.endpoint_ref)
+            .map_err(AudioCommandError::after_effect)
     }
 
     pub fn refresh(&mut self) -> AudioState {
@@ -77,8 +69,11 @@ impl<B: AudioBackend> AudioEngine<B> {
         self.backend.maintenance_due()
     }
 
-    fn confirm(&mut self) -> Result<AudioState, AudioFailure> {
+    fn confirm(&mut self, endpoint: &str) -> Result<AudioState, AudioFailure> {
         let reading = self.backend.read()?;
+        if reading.endpoint_ref != endpoint {
+            return Err(AudioFailure::TransientRebind);
+        }
         Ok(self.record(
             reading.endpoint_ref,
             reading.scalar,
@@ -146,108 +141,4 @@ fn validate_delta(value: f64) -> Result<(), AudioCommandError> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::audio::EffectKnowledge;
-
-    struct FakeBackend {
-        reading: AudioReading,
-        fail_next_read: bool,
-        fail_after_set: bool,
-        volume_sets: Vec<f64>,
-        mute_sets: Vec<bool>,
-    }
-
-    impl FakeBackend {
-        fn available() -> Self {
-            Self {
-                reading: AudioReading {
-                    endpoint_ref: "endpoint-a".into(),
-                    scalar: 0.8,
-                    muted: false,
-                },
-                fail_next_read: false,
-                fail_after_set: false,
-                volume_sets: vec![],
-                mute_sets: vec![],
-            }
-        }
-    }
-
-    impl AudioBackend for FakeBackend {
-        fn read(&mut self) -> Result<AudioReading, AudioFailure> {
-            if self.fail_next_read {
-                self.fail_next_read = false;
-                return Err(AudioFailure::TransientRebind);
-            }
-            Ok(self.reading.clone())
-        }
-
-        fn set_volume(&mut self, scalar: f64) -> Result<(), AudioFailure> {
-            self.volume_sets.push(scalar);
-            self.reading.scalar = scalar;
-            self.fail_next_read = self.fail_after_set;
-            Ok(())
-        }
-
-        fn set_mute(&mut self, muted: bool) -> Result<(), AudioFailure> {
-            self.mute_sets.push(muted);
-            self.reading.muted = muted;
-            self.fail_next_read = self.fail_after_set;
-            Ok(())
-        }
-
-        fn maintenance_due(&mut self) -> bool {
-            false
-        }
-    }
-
-    #[test]
-    fn relative_volume_clamps_before_the_backend_and_returns_confirmed_state()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let mut engine = AudioEngine::new(FakeBackend::available());
-        let state = engine.apply(AudioCommand::ChangeVolume(0.5))?;
-        assert_eq!(engine.backend.volume_sets, vec![1.0]);
-        assert_eq!(state.scalar, 1.0);
-        assert_eq!(state.availability, AudioAvailability::Available);
-        Ok(())
-    }
-
-    #[test]
-    fn invalid_scalar_is_rejected_without_calling_the_backend()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let mut engine = AudioEngine::new(FakeBackend::available());
-        let error = engine
-            .apply(AudioCommand::SetVolume(f64::NAN))
-            .err()
-            .ok_or("NaN was accepted")?;
-        assert_eq!(error.failure, AudioFailure::InvalidInput);
-        assert_eq!(error.effect, EffectKnowledge::NotApplied);
-        assert!(engine.backend.volume_sets.is_empty());
-        Ok(())
-    }
-
-    #[test]
-    fn failed_confirmation_after_a_successful_set_is_not_reported_as_success()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let mut backend = FakeBackend::available();
-        backend.fail_after_set = true;
-        let mut engine = AudioEngine::new(backend);
-        let error = engine
-            .apply(AudioCommand::SetMute(true))
-            .err()
-            .ok_or("failed confirmation was reported as success")?;
-        assert_eq!(error.failure, AudioFailure::TransientRebind);
-        assert_eq!(error.effect, EffectKnowledge::PossiblyApplied);
-        assert_eq!(engine.backend.mute_sets, vec![true]);
-        Ok(())
-    }
-
-    #[test]
-    fn unchanged_observation_keeps_the_same_revision() {
-        let mut engine = AudioEngine::new(FakeBackend::available());
-        let first = engine.refresh();
-        let second = engine.refresh();
-        assert_eq!(first.revision, second.revision);
-    }
-}
+mod tests;
